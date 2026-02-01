@@ -1,13 +1,13 @@
 name = "Baraka-sonko-electronics1"
-compatibility_date = "2026-01-14"
+compatibility_date = "2026-02-02"
 pages_build_output_dir = "dist"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "sonko"
-database_id = "9fc679a8-c734-4322-a205-ae91a5a318dd"
+database_id = "0777b428-f6f5-4900-bbd5-d6694ccc8586"
 
-# ✅ ADD THIS (R2 binding)
+
 [[r2_buckets]]
 binding = "R2"
 bucket_name = "sonko"
