@@ -3,7 +3,7 @@ import type { PagesFunction } from '@cloudflare/workers-types';
 
 type Env = {
   R2_MEDIA: R2Bucket;
-  PUBLIC_MEDIA_BASE: string; // e.g. https://media.barakasonko.store
+  PUBLIC_MEDIA_BASE= "https://media.barakasonko.store"; 
 };
 
 const cors = {
