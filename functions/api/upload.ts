@@ -2,8 +2,8 @@
 import type { PagesFunction } from '@cloudflare/workers-types';
 
 type Env = {
-  R2_MEDIA: R2Bucket;
-  PUBLIC_MEDIA_BASE= "https://media.barakasonko.store"; 
+  R2_MEDIA: R2Bucket;          // R2 binding name (sonko)
+  PUBLIC_MEDIA_BASE: string;  // https://media.barakasonko.store
 };
 
 const cors = {
@@ -21,13 +21,13 @@ const json = (data: any, status = 200) =>
 export const onRequestOptions: PagesFunction = async () =>
   new Response(null, { status: 204, headers: cors });
 
-const safeExt = (name: string) => {
-  const m = name.toLowerCase().match(/\.([a-z0-9]{1,8})$/);
+const safeExt = (filename: string) => {
+  const m = filename.toLowerCase().match(/\.([a-z0-9]{1,8})$/);
   return m ? m[1] : 'bin';
 };
 
-const sanitizeBase = (name: string) =>
-  name
+const sanitizeBase = (filename: string) =>
+  filename
     .replace(/\.[^/.]+$/, '')
     .toLowerCase()
     .replace(/[^a-z0-9-_]+/g, '-')
@@ -37,7 +37,9 @@ const sanitizeBase = (name: string) =>
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    if (!env.R2_MEDIA) return json({ success: false, error: 'R2 binding missing (R2_MEDIA)' }, 500);
+    if (!env.R2_MEDIA) {
+      return json({ success: false, error: 'R2 binding missing (R2_MEDIA)' }, 500);
+    }
 
     const contentType = request.headers.get('content-type') || '';
     if (!contentType.includes('multipart/form-data')) {
@@ -51,8 +53,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       return json({ success: false, error: 'Missing file field "file"' }, 400);
     }
 
-    // Basic size guard (adjust as needed)
-    const MAX_MB = 50;
+    // Optional size limit
+    const MAX_MB = 80;
     if (file.size > MAX_MB * 1024 * 1024) {
       return json({ success: false, error: `File too large. Max ${MAX_MB}MB` }, 413);
     }
@@ -60,7 +62,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const ext = safeExt(file.name);
     const base = sanitizeBase(file.name);
 
-    // Put everything under /uploads/
+    // Always store under /uploads/
     const key = `uploads/${Date.now()}-${crypto.randomUUID()}-${base}.${ext}`;
 
     await env.R2_MEDIA.put(key, file.stream(), {
@@ -69,6 +71,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       },
     });
 
+    // 🔑 IMPORTANT: use env var, NOT hardcoded assignment
     const publicBase = env.PUBLIC_MEDIA_BASE || 'https://media.barakasonko.store';
     const url = `${publicBase}/${key}`;
 
