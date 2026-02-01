@@ -174,39 +174,109 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   <label className={labelClass}>Product Title</label>
                   <input type="text" className={inputClass} value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
                 </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Price (TSh)</label>
                     <input type="number" className={inputClass} value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required />
                   </div>
                   <div>
-                    <label className={labelClass}>Category</label>
-                    <select className={inputClass} value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} required>
-                      <option value="">Select</option>
-                      {CATEGORIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
+                    <label className={labelClass}>Discount (%)</label>
+                    <input type="number" className={inputClass} value={formData.discount} onChange={e => setFormData({...formData, discount: e.target.value})} />
                   </div>
                 </div>
 
                 <div>
-                   <label className={labelClass}>Gallery Images {isUploading && <span className="text-orange-500">(Uploading...)</span>}</label>
+                    <label className={labelClass}>Category</label>
+                    <select className={inputClass} value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} required>
+                      <option value="">Select Category</option>
+                      {CATEGORIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
+                </div>
+
+                {/* Gallery Images */}
+                <div>
+                   <label className={labelClass}>Main Gallery Images (Max 10)</label>
                    <div className="grid grid-cols-4 gap-2">
                       {formData.images.map((url, idx) => (
-                        <div key={idx} className="relative aspect-square border rounded-xl overflow-hidden">
+                        <div key={idx} className="relative aspect-square border rounded-xl overflow-hidden shadow-sm bg-gray-50">
                           <img src={url} className="w-full h-full object-cover" />
-                          <button type="button" onClick={() => removeImage(idx, 'gallery')} className="absolute top-0 right-0 bg-black text-white w-5 h-5 flex items-center justify-center rounded-bl-xl">&times;</button>
+                          <button type="button" onClick={() => removeImage(idx, 'gallery')} className="absolute top-0 right-0 bg-black/70 text-white w-6 h-6 flex items-center justify-center rounded-bl-xl backdrop-blur-sm">&times;</button>
                         </div>
                       ))}
-                      <label className="aspect-square border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center cursor-pointer">
-                        <span className="text-2xl text-gray-400">+</span>
-                        <input type="file" multiple accept="image/*" className="hidden" onChange={e => handleFileUpload(e, 'image')} disabled={isUploading} />
-                      </label>
+                      {formData.images.length < 10 && (
+                        <label className="aspect-square border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors">
+                          <span className="text-2xl text-gray-400">+</span>
+                          <input type="file" multiple accept="image/*" className="hidden" onChange={e => handleFileUpload(e, 'image')} disabled={isUploading} />
+                        </label>
+                      )}
                    </div>
                 </div>
 
-                <button type="submit" disabled={isUploading} className="w-full bg-black text-white py-5 rounded-2xl font-black tracking-widest disabled:opacity-50">
-                  {isUploading ? 'WAITING FOR UPLOADS...' : 'PUBLISH TO SONKO'}
-                </button>
+                {/* Product Video Section */}
+                <div>
+                   <label className={labelClass}>Product Video</label>
+                   {formData.videoUrl ? (
+                     <div className="relative aspect-video rounded-xl overflow-hidden bg-black group border border-gray-200">
+                        <video src={formData.videoUrl} className="w-full h-full" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button 
+                            type="button" 
+                            onClick={() => setFormData(prev => ({ ...prev, videoUrl: '' }))}
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-black text-xs uppercase shadow-xl"
+                          >
+                            Remove Video
+                          </button>
+                        </div>
+                     </div>
+                   ) : (
+                     <label className="w-full aspect-video border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors bg-gray-50/50">
+                        <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-orange-500 mb-2 border border-gray-100">
+                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        </div>
+                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Upload Product Video</span>
+                        <input type="file" accept="video/*" className="hidden" onChange={e => handleFileUpload(e, 'video')} disabled={isUploading} />
+                     </label>
+                   )}
+                </div>
+
+                {/* Description Images */}
+                <div>
+                   <label className={labelClass}>Description Gallery (Shown in Info Area)</label>
+                   <div className="grid grid-cols-4 gap-2">
+                      {formData.descriptionImages.map((url, idx) => (
+                        <div key={idx} className="relative aspect-square border rounded-xl overflow-hidden shadow-sm bg-gray-50">
+                          <img src={url} className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => removeImage(idx, 'desc')} className="absolute top-0 right-0 bg-black/70 text-white w-6 h-6 flex items-center justify-center rounded-bl-xl backdrop-blur-sm">&times;</button>
+                        </div>
+                      ))}
+                      {formData.descriptionImages.length < 20 && (
+                        <label className="aspect-square border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors">
+                          <span className="text-2xl text-gray-400">+</span>
+                          <input type="file" multiple accept="image/*" className="hidden" onChange={e => handleFileUpload(e, 'desc_image')} disabled={isUploading} />
+                        </label>
+                      )}
+                   </div>
+                   <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Images added here will appear at the bottom of the product page.</p>
+                </div>
+
+                {/* Submit Action */}
+                <div className="pt-4">
+                  <button 
+                    type="submit" 
+                    disabled={isUploading} 
+                    className="w-full bg-black text-white py-5 rounded-2xl font-black tracking-widest disabled:opacity-50 active:scale-[0.98] transition-all shadow-xl shadow-gray-200 flex items-center justify-center space-x-3"
+                  >
+                    {isUploading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>PROCESSING...</span>
+                      </>
+                    ) : (
+                      <span>PUBLISH TO SONKO</span>
+                    )}
+                  </button>
+                </div>
              </form>
           </div>
         </div>
