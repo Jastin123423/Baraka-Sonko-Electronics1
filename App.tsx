@@ -5,6 +5,7 @@ import HeroBanner from './components/HeroBanner';
 import QuickActions from './components/QuickActions';
 import CategorySection from './components/CategorySection';
 import FlashSale from './components/FlashSale';
+import AdBanner from './components/AdBanner';
 import ProductGrid from './components/ProductGrid';
 import BottomNav from './components/BottomNav';
 import Sidebar from './components/Sidebar';
@@ -194,13 +195,24 @@ const App: React.FC = () => {
       <main className="w-full max-w-[600px] mx-auto pb-24">
         {view === 'home' ? (
           <>
-            <HeroBanner />
+            <HeroBanner onClick={() => setView('all-products')} />
+            <AdBanner 
+              src="https://media.barakasonko.store/Jipatie%20kwa%20bei%20poa.gif" 
+              onClick={() => setView('all-products')}
+              containerClass="h-[155px]"
+              fullWidth={true}
+            />
             <QuickActions onActionSelect={() => setView('all-products')} />
             <CategorySection onCategorySelect={handleCategorySelect} onMore={() => setView('categories')} />
             <FlashSale 
               products={products.slice(0, 5)} 
               onProductClick={handleProductClick} 
               onSeeAll={() => setView('all-products')}
+            />
+            <AdBanner 
+              src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
+              onClick={() => setView('all-products')}
+              containerClass="h-20"
             />
             <ProductGrid 
               title="Daily Discoveries" 
@@ -225,6 +237,7 @@ const App: React.FC = () => {
         ) : view === 'categories' ? (
           <CategoriesView 
             onCategorySelect={handleCategorySelect} 
+            onShowAllProducts={() => setView('all-products')}
             suggestedProducts={products} 
             onProductClick={handleProductClick}
           />

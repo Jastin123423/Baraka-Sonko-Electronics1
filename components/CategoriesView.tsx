@@ -3,14 +3,21 @@ import React, { useMemo } from 'react';
 import { CATEGORIES, COLORS } from '../constants';
 import { Category, Product } from '../types';
 import ProductGrid from './ProductGrid';
+import AdBanner from './AdBanner';
 
 interface CategoriesViewProps {
   onCategorySelect: (category: Category) => void;
+  onShowAllProducts?: () => void;
   suggestedProducts?: Product[];
   onProductClick?: (product: Product) => void;
 }
 
-const CategoriesView: React.FC<CategoriesViewProps> = ({ onCategorySelect, suggestedProducts = [], onProductClick }) => {
+const CategoriesView: React.FC<CategoriesViewProps> = ({ 
+  onCategorySelect, 
+  onShowAllProducts,
+  suggestedProducts = [], 
+  onProductClick 
+}) => {
   // Select 15 suggested products randomly or sequentially
   const displayProducts = useMemo(() => {
     return suggestedProducts.slice(0, 15);
@@ -25,7 +32,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onCategorySelect, sugge
       </div>
 
       {/* Grid */}
-      <div className="px-4 grid grid-cols-3 gap-4 mb-10">
+      <div className="px-4 grid grid-cols-3 gap-4 mb-6">
         {CATEGORIES.map((cat) => (
           <div 
             key={cat.id} 
@@ -41,6 +48,13 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onCategorySelect, sugge
           </div>
         ))}
       </div>
+
+      {/* Promotional Banner */}
+      <AdBanner 
+        src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
+        onClick={onShowAllProducts} 
+        containerClass="h-20"
+      />
 
       {/* Suggested Products Section */}
       {displayProducts.length > 0 && onProductClick && (

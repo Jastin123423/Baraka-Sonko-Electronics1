@@ -28,14 +28,38 @@ const BANNERS = [
   }
 ];
 
-const HeroBanner: React.FC = () => {
+interface HeroBannerProps {
+  onClick?: () => void;
+}
+
+const HeroBanner: React.FC<HeroBannerProps> = ({ onClick }) => {
   const [current, setCurrent] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (scrollRef.current) {
+        const nextIndex = (current + 1) % BANNERS.length;
+        const width = scrollRef.current.offsetWidth;
+        scrollRef.current.scrollTo({
+          left: nextIndex * width,
+          behavior: 'smooth'
+        });
+        // The onScroll handler will update the 'current' state
+      }
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [current]);
+
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const width = e.currentTarget.offsetWidth;
-    const index = Math.round(e.currentTarget.scrollLeft / width);
-    setCurrent(index);
+    if (width > 0) {
+      const index = Math.round(e.currentTarget.scrollLeft / width);
+      if (index !== current) {
+        setCurrent(index);
+      }
+    }
   };
 
   return (
@@ -43,7 +67,8 @@ const HeroBanner: React.FC = () => {
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-[110px] rounded-2xl shadow-sm"
+        onClick={onClick}
+        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-[110px] rounded-2xl shadow-sm cursor-pointer active:opacity-95 transition-opacity"
       >
         {BANNERS.map((banner) => (
           <div 
