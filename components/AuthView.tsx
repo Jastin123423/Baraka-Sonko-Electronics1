@@ -67,7 +67,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onBack }) => {
               type="email"
               required
               className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3.5 text-sm focus:bg-white focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all"
-              placeholder="admin@sonko.com"
+              placeholder=""
               value={formData.email}
               onChange={e => setFormData({ ...formData, email: e.target.value })}
             />
