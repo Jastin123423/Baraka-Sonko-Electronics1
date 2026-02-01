@@ -53,7 +53,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
       <AdBanner 
         src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
         onClick={onShowAllProducts} 
-        containerClass="h-20"
+        containerClass="h-[110px]"
       />
 
       {/* Suggested Products Section */}
