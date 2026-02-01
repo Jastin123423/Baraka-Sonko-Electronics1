@@ -199,7 +199,7 @@ const App: React.FC = () => {
             <AdBanner 
               src="https://media.barakasonko.store/Jipatie%20kwa%20bei%20poa.gif" 
               onClick={() => setView('all-products')}
-              containerClass="h-[255px]"
+              containerClass="h-[300px]"
               fullWidth={true}
             />
             <QuickActions onActionSelect={() => setView('all-products')} />
@@ -227,13 +227,6 @@ const App: React.FC = () => {
             onLoadMore={() => {}}
             isLoading={false}
           />
-        ) : view === 'search-results' ? (
-          <div className="animate-fadeIn p-4">
-            <h2 className="text-sm font-bold text-gray-500 uppercase mb-4">
-              {searchQuery ? `Results for "${searchQuery}"` : "Search"}
-            </h2>
-            <ProductGrid products={filteredProducts} onProductClick={handleProductClick} />
-          </div>
         ) : view === 'search-results' ? (
           <div className="animate-fadeIn p-4">
             <h2 className="text-sm font-bold text-gray-500 uppercase mb-4">
