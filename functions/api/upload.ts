@@ -2,9 +2,10 @@
 import type { PagesFunction } from '@cloudflare/workers-types';
 
 type Env = {
-  R2_MEDIA: R2Bucket;
-  PUBLIC_MEDIA_BASE: string; // e.g. https://media.barakasonko.store
+  R2_MEDIA: R2Bucket; // R2 bucket binding (sonko)
 };
+
+const PUBLIC_MEDIA_BASE = 'https://media.barakasonko.store';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -21,13 +22,13 @@ const json = (data: any, status = 200) =>
 export const onRequestOptions: PagesFunction = async () =>
   new Response(null, { status: 204, headers: cors });
 
-const safeExt = (name: string) => {
-  const m = name.toLowerCase().match(/\.([a-z0-9]{1,8})$/);
+const safeExt = (filename: string) => {
+  const m = filename.toLowerCase().match(/\.([a-z0-9]{1,8})$/);
   return m ? m[1] : 'bin';
 };
 
-const sanitizeBase = (name: string) =>
-  name
+const sanitizeBase = (filename: string) =>
+  filename
     .replace(/\.[^/.]+$/, '')
     .toLowerCase()
     .replace(/[^a-z0-9-_]+/g, '-')
@@ -37,42 +38,48 @@ const sanitizeBase = (name: string) =>
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    if (!env.R2_MEDIA) return json({ success: false, error: 'R2 binding missing (R2_MEDIA)' }, 500);
-
-    const contentType = request.headers.get('content-type') || '';
-    if (!contentType.includes('multipart/form-data')) {
-      return json({ success: false, error: 'Expected multipart/form-data' }, 400);
+    if (!env.R2_MEDIA) {
+      return json({ success: false, error: 'R2 binding missing (R2_MEDIA)' }, 500);
     }
 
+    // ✅ DO NOT check content-type — Cloudflare Pages can be inconsistent
     const form = await request.formData();
-    const file = form.get('file');
 
-    if (!(file instanceof File)) {
-      return json({ success: false, error: 'Missing file field "file"' }, 400);
+    const multi = form.getAll('files').filter(v => v instanceof File) as File[];
+    const single = form.get('file');
+    const files: File[] = multi.length
+      ? multi
+      : single instanceof File
+      ? [single]
+      : [];
+
+    if (files.length === 0) {
+      return json({
+        success: false,
+        error: 'No files found. Use field "files" or "file".',
+      }, 400);
     }
 
-    // Basic size guard (adjust as needed)
-    const MAX_MB = 50;
-    if (file.size > MAX_MB * 1024 * 1024) {
-      return json({ success: false, error: `File too large. Max ${MAX_MB}MB` }, 413);
+    const urls: string[] = [];
+    const MAX_MB = 80;
+
+    for (const file of files) {
+      if (file.size > MAX_MB * 1024 * 1024) {
+        return json({ success: false, error: `File too large: ${file.name}` }, 413);
+      }
+
+      const ext = safeExt(file.name);
+      const base = sanitizeBase(file.name);
+      const key = `uploads/${Date.now()}-${crypto.randomUUID()}-${base}.${ext}`;
+
+      await env.R2_MEDIA.put(key, file.stream(), {
+        httpMetadata: { contentType: file.type || 'application/octet-stream' },
+      });
+
+      urls.push(`${PUBLIC_MEDIA_BASE}/${key}`);
     }
 
-    const ext = safeExt(file.name);
-    const base = sanitizeBase(file.name);
-
-    // Put everything under /uploads/
-    const key = `uploads/${Date.now()}-${crypto.randomUUID()}-${base}.${ext}`;
-
-    await env.R2_MEDIA.put(key, file.stream(), {
-      httpMetadata: {
-        contentType: file.type || 'application/octet-stream',
-      },
-    });
-
-    const publicBase = env.PUBLIC_MEDIA_BASE || 'https://media.barakasonko.store';
-    const url = `${publicBase}/${key}`;
-
-    return json({ success: true, key, url });
+    return json({ success: true, data: urls });
   } catch (e: any) {
     return json({ success: false, error: e?.message || 'Upload failed' }, 500);
   }
