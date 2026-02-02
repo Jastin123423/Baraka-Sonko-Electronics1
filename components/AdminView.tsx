@@ -31,6 +31,13 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
     descriptionImages: [] as string[],
   });
 
+  // Debug: Monitor state changes
+  useEffect(() => {
+    console.log("✅ images now:", formData.images);
+    console.log("✅ descriptionImages now:", formData.descriptionImages);
+    console.log("✅ videoUrl now:", formData.videoUrl);
+  }, [formData.images, formData.descriptionImages, formData.videoUrl]);
+
   // Add debug logging helper
   const addDebugLog = (message: string) => {
     console.log(`🔍 ${message}`);
@@ -219,36 +226,34 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
 
       // Step 3: Debug - Check what we're about to set
       console.log("📊 upload complete. URLs received:", uploadedUrls);
-      console.log("📊 current formData.images:", formData.images);
       
-      // Update form state based on upload type
+      // FIX: Always use functional update to get latest state
       if (type === 'image') {
-        const newImages = [...formData.images, ...uploadedUrls].slice(0, 10);
-        console.log("🔄 Setting new images array:", newImages);
-        addDebugLog(`Setting ${newImages.length} images (${uploadedUrls.length} new)`);
-        
-        setFormData(prev => ({
-          ...prev,
-          images: newImages,
-        }));
-        
-        // Verify the update
-        setTimeout(() => {
-          console.log("✅ formData.images after state update should be:", newImages);
-        }, 0);
+        setFormData(prev => {
+          const newImages = [...prev.images, ...uploadedUrls].slice(0, 10);
+          console.log("🔄 Setting new images array:", newImages);
+          addDebugLog(`Setting ${newImages.length} images (${uploadedUrls.length} new)`);
+          return {
+            ...prev,
+            images: newImages,
+          };
+        });
         
       } else if (type === 'desc_image') {
-        const newDescImages = [...formData.descriptionImages, ...uploadedUrls].slice(0, 20);
-        console.log("🔄 Setting new descriptionImages:", newDescImages);
-        
-        setFormData(prev => ({
-          ...prev,
-          descriptionImages: newDescImages,
-        }));
+        setFormData(prev => {
+          const newDescImages = [...prev.descriptionImages, ...uploadedUrls].slice(0, 20);
+          console.log("🔄 Setting new descriptionImages:", newDescImages);
+          return {
+            ...prev,
+            descriptionImages: newDescImages,
+          };
+        });
       } else if (type === 'video') {
         if (uploadedUrls.length > 0) {
-          console.log("🔄 Setting videoUrl:", uploadedUrls[0]);
-          setFormData(prev => ({ ...prev, videoUrl: uploadedUrls[0] }));
+          setFormData(prev => {
+            console.log("🔄 Setting videoUrl:", uploadedUrls[0]);
+            return { ...prev, videoUrl: uploadedUrls[0] };
+          });
         }
       }
 
@@ -372,7 +377,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
   return (
     <div className="bg-[#fcfcfc] min-h-screen">
       {/* Debug Panel - Can be toggled in development */}
-      {process.env.NODE_ENV === 'development' && debugLogs.length > 0 && (
+      {import.meta.env.DEV && debugLogs.length > 0 && (
         <div className="fixed top-20 right-4 w-80 max-h-96 bg-black/90 text-white text-xs p-3 rounded-lg overflow-y-auto z-50">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-bold">Upload Debug Logs</h3>
@@ -589,7 +594,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
               </div>
             )}
 
-            {/* Upload Summary Section - NEW */}
+            {/* Upload Summary Section */}
             {(formData.images.length > 0 || formData.videoUrl || formData.descriptionImages.length > 0) && (
               <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
                 <h4 className="text-sm font-black text-blue-800 uppercase tracking-wide mb-3">
@@ -749,7 +754,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   )}
                 </div>
 
-                {/* Upload Status Indicator - NEW */}
+                {/* Upload Status Indicator */}
                 {formData.images.length > 0 && (
                   <div className="flex items-center space-x-2 mb-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -760,7 +765,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                 )}
                 
                 {/* Debug: Show current images state */}
-                {formData.images.length > 0 && process.env.NODE_ENV === 'development' && (
+                {formData.images.length > 0 && import.meta.env.DEV && (
                   <div className="text-xs text-gray-500 mb-2">
                     Current images: {formData.images.length} URLs stored
                   </div>
@@ -907,7 +912,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   )}
                 </div>
 
-                {/* Upload Status Indicator - NEW */}
+                {/* Upload Status Indicator */}
                 {formData.descriptionImages.length > 0 && (
                   <div className="flex items-center space-x-2 mb-2">
                     <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
