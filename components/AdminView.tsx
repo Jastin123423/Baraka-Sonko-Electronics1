@@ -1,3 +1,4 @@
+//AdminView.tsx 
 import React, { useState, useEffect } from 'react';
 import { Product, Order, AdminStats, Category } from '../types';
 // REMOVED: import { CATEGORIES } from '../constants'; // Use dynamic categories from props
