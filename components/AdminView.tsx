@@ -1,13 +1,11 @@
-//AdminView.tsx 
 import React, { useState, useEffect } from 'react';
-import { Product, Order, AdminStats, Category } from '../types';
-// REMOVED: import { CATEGORIES } from '../constants'; // Use dynamic categories from props
+import { Product, Category, AdminStats } from '../types';
 
 interface AdminViewProps {
   products: Product[];
-  categories: Category[];  // ADDED: Receive categories from parent
+  categories: Category[];
   onAddProduct: (product: Product) => Promise<boolean>;
-  onDeleteProduct: (id: string) => void;
+  onDeleteProduct: (id: string) => Promise<void> | void;
 }
 
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'withdraw';
@@ -15,7 +13,7 @@ type UploadType = 'image' | 'video' | 'desc_image';
 
 const AdminView: React.FC<AdminViewProps> = ({ 
   products, 
-  categories,  // ADDED: Receive categories
+  categories, 
   onAddProduct, 
   onDeleteProduct 
 }) => {
@@ -40,16 +38,6 @@ const AdminView: React.FC<AdminViewProps> = ({
 
   // Track actual upload status - FIXED: Remove isUploading, use only uploadingCount
   const isActuallyUploading = uploadingCount > 0;
-
-  // Debug: Monitor state changes
-  useEffect(() => {
-    console.log("✅ images now:", formData.images);
-    console.log("✅ descriptionImages now:", formData.descriptionImages);
-    console.log("✅ videoUrl now:", formData.videoUrl);
-    console.log("✅ uploadingCount now:", uploadingCount);
-    console.log("✅ isActuallyUploading now:", isActuallyUploading);
-    console.log("✅ categories received:", categories.length);
-  }, [formData.images, formData.descriptionImages, formData.videoUrl, uploadingCount, categories]);
 
   // Add debug logging helper
   const addDebugLog = (message: string) => {
@@ -241,8 +229,7 @@ const AdminView: React.FC<AdminViewProps> = ({
           uploadedUrls.push(url);
           addDebugLog(`Added URL to uploadedUrls: ${url}`);
           
-          // DEBUG VERSION: Show immediate feedback
-          alert(`✅ File "${file.name}" uploaded successfully! URL: ${url.slice(0, 50)}...`);
+          // FIXED: Removed the alert per upload - the Upload Summary UI is enough
         } catch (error: any) {
           addDebugLog(`❌ Upload failed for ${file.name}: ${error.message}`);
           throw new Error(`Failed to upload ${file.name}: ${error.message}`);
@@ -370,29 +357,45 @@ const AdminView: React.FC<AdminViewProps> = ({
         ? Math.round(price / (1 - discount / 100)) 
         : price;
 
-      // Build payload matching your curl EXACTLY - FIXED: Use correct field names
-      // IMPORTANT: Ensure your backend API converts these field names to match your DB schema
+      // Build payload with backward compatibility
       const payload = {
-        // DO NOT send id - backend will generate it
+        // Core fields
         title: formData.title.trim(),
         description: formData.description.trim(),
+        
+        // Images - both camelCase and snake_case for compatibility
         image: formData.images[0],
         images: formData.images,
-        descriptionImages: formData.descriptionImages, // Backend should convert to description_images
-        videoUrl: formData.videoUrl || '', // Backend should convert to video_url
+        image_url: formData.images[0],
+        image_urls: formData.images,
+        
+        // Description images
+        descriptionImages: formData.descriptionImages,
+        description_images: formData.descriptionImages,
+        
+        // Video
+        videoUrl: formData.videoUrl || '',
+        video_url: formData.videoUrl || '',
+        
+        // Pricing
         price,
-        originalPrice, // Backend should convert to original_price
+        originalPrice,
         discount,
-        orderCount: '0 orders', // Backend should convert to order_count
-        soldCount: '0 sold', // Backend should convert to sold_count
+        
+        // Category - both formats
+        categoryName: formData.category,
+        category: formData.category,
+        
+        // Metadata
+        orderCount: '0 orders',
+        soldCount: '0 sold',
         rating: 5.0,
-        categoryName: formData.category, // KEY FIX: Send categoryName not category
         status: 'online',
         createdAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       };
 
       console.log('📤 Sending payload to backend:', payload);
-      console.log('📤 Categories available:', categories.map(c => c.name));
 
       const success = await onAddProduct(payload as any);
 
@@ -430,10 +433,13 @@ const AdminView: React.FC<AdminViewProps> = ({
   const inputClass = 'w-full bg-white border border-gray-300 rounded-xl px-4 py-4 text-base font-bold outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200';
   const labelClass = 'block text-xs font-black text-gray-500 uppercase mb-2 ml-1 tracking-wide';
 
+  // Safe check for dev mode to avoid import.meta issues
+  const isDev = typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV;
+
   return (
     <div className="bg-[#fcfcfc] min-h-screen">
       {/* Debug Panel - Can be toggled in development */}
-      {import.meta.env.DEV && debugLogs.length > 0 && (
+      {isDev && debugLogs.length > 0 && (
         <div className="fixed top-20 right-4 w-80 max-h-96 bg-black/90 text-white text-xs p-3 rounded-lg overflow-y-auto z-50">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-bold">Upload Debug Logs</h3>
@@ -527,48 +533,54 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {products.map(product => (
-                    <div
-                      key={product.id}
-                      className="p-4 flex items-center space-x-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <img 
-                        src={product.image} 
-                        className="w-16 h-16 rounded-xl object-cover border border-gray-200"
-                        alt={product.title}
-                        loading="lazy"
-                      />
-                      <div className="flex-grow min-w-0">
-                        <p className="text-sm font-bold truncate">{product.title}</p>
-                        <div className="flex items-center space-x-3 mt-1">
-                          <p className="text-xs font-black text-orange-600">
-                            TSh {product.price.toLocaleString()}
-                          </p>
-                          {product.discount && (
-                            <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                              -{product.discount}%
-                            </span>
-                          )}
-                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                            product.status === 'online' 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {product.status}
-                          </span>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => onDeleteProduct(product.id)}
-                        className="text-gray-300 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                        title="Delete product"
+                  {products.map(product => {
+                    // Safe price handling
+                    const priceNumber = Number((product as any).price ?? 0);
+                    const displayPrice = Number.isFinite(priceNumber) ? priceNumber.toLocaleString() : '0';
+                    
+                    return (
+                      <div
+                        key={product.id}
+                        className="p-4 flex items-center space-x-4 hover:bg-gray-50 transition-colors"
                       >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
+                        <img 
+                          src={product.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+'} 
+                          className="w-16 h-16 rounded-xl object-cover border border-gray-200"
+                          alt={product.title}
+                          loading="lazy"
+                        />
+                        <div className="flex-grow min-w-0">
+                          <p className="text-sm font-bold truncate">{product.title}</p>
+                          <div className="flex items-center space-x-3 mt-1">
+                            <p className="text-xs font-black text-orange-600">
+                              TSh {displayPrice}
+                            </p>
+                            {product.discount && (
+                              <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                                -{product.discount}%
+                              </span>
+                            )}
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                              product.status === 'online' 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {product.status}
+                            </span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => onDeleteProduct(product.id)}
+                          className="text-gray-300 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                          title="Delete product"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -770,7 +782,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
               </div>
 
-              {/* Category - FIXED: Use dynamic categories from props */}
+              {/* Category */}
               <div>
                 <label className={labelClass}>Category *</label>
                 <select
@@ -778,24 +790,15 @@ const AdminView: React.FC<AdminViewProps> = ({
                   value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value })}
                   required
-                  disabled={isActuallyUploading || categories.length === 0}
+                  disabled={isActuallyUploading}
                 >
                   <option value="">Select Category</option>
-                  {categories.length > 0 ? (
-                    categories.map(category => (
-                      <option key={category.id} value={category.name}>
-                        {category.name}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>Loading categories...</option>
-                  )}
+                  {categories.map(category => (
+                    <option key={category.id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
                 </select>
-                {categories.length === 0 && (
-                  <p className="mt-2 text-xs text-orange-600">
-                    ⚠️ No categories loaded. Please check your connection.
-                  </p>
-                )}
               </div>
 
               {/* Gallery Images */}
@@ -833,7 +836,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 )}
                 
                 {/* Debug: Show current images state */}
-                {formData.images.length > 0 && import.meta.env.DEV && (
+                {formData.images.length > 0 && isDev && (
                   <div className="text-xs text-gray-500 mb-2">
                     Current images: {formData.images.length} URLs stored
                   </div>
