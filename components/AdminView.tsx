@@ -589,6 +589,49 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
               </div>
             )}
 
+            {/* Upload Summary Section - NEW */}
+            {(formData.images.length > 0 || formData.videoUrl || formData.descriptionImages.length > 0) && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                <h4 className="text-sm font-black text-blue-800 uppercase tracking-wide mb-3">
+                  📸 Upload Summary
+                </h4>
+                <div className="flex flex-wrap gap-4">
+                  {formData.images.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <span className="text-xs font-black text-blue-600">{formData.images.length}</span>
+                      </div>
+                      <span className="text-sm font-bold text-blue-700">
+                        Gallery {formData.images.length > 1 ? 'Images' : 'Image'}
+                      </span>
+                    </div>
+                  )}
+                  {formData.videoUrl && (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
+                          <polygon points="23 7 16 12 23 17 23 7" />
+                        </svg>
+                      </div>
+                      <span className="text-sm font-bold text-green-700">Video Uploaded</span>
+                    </div>
+                  )}
+                  {formData.descriptionImages.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span className="text-xs font-black text-purple-600">
+                          {formData.descriptionImages.length}
+                        </span>
+                      </div>
+                      <span className="text-sm font-bold text-purple-700">
+                        Description {formData.descriptionImages.length > 1 ? 'Images' : 'Image'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6 pb-20">
               {/* Basic Information */}
               <div className="space-y-4">
@@ -705,6 +748,16 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                     </button>
                   )}
                 </div>
+
+                {/* Upload Status Indicator - NEW */}
+                {formData.images.length > 0 && (
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs font-bold text-green-600">
+                      {formData.images.length} image{formData.images.length !== 1 ? 's' : ''} ready
+                    </span>
+                  </div>
+                )}
                 
                 {/* Debug: Show current images state */}
                 {formData.images.length > 0 && process.env.NODE_ENV === 'development' && (
@@ -717,18 +770,21 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   {formData.images.map((url, index) => (
                     <div
                       key={index}
-                      className="relative aspect-square border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50"
+                      className="relative aspect-square border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-orange-400 hover:shadow-lg"
                     >
-                      <img 
-                        src={url} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        alt={`Gallery ${index + 1}`}
-                        onError={(e) => {
-                          console.error(`❌ Image failed to load: ${url}`);
-                          addDebugLog(`Image load error: ${url}`);
-                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+';
-                        }}
-                      />
+                      <div className="relative w-full h-full overflow-hidden">
+                        <img 
+                          src={url} 
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                          alt={`Gallery ${index + 1}`}
+                          onError={(e) => {
+                            console.error(`❌ Image failed to load: ${url}`);
+                            addDebugLog(`Image load error: ${url}`);
+                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeImage(index, 'gallery')}
@@ -756,7 +812,10 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         </svg>
                       </div>
                       <span className="text-xs font-bold text-gray-400 text-center px-2">
-                        {isUploading ? 'Uploading...' : 'Add Images'}
+                        {formData.images.length === 0 
+                          ? 'Click to upload images' 
+                          : `Add more (${10 - formData.images.length} left)`
+                        }
                       </span>
                       <input
                         type="file"
@@ -847,19 +906,36 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                     </button>
                   )}
                 </div>
+
+                {/* Upload Status Indicator - NEW */}
+                {formData.descriptionImages.length > 0 && (
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs font-bold text-purple-600">
+                      {formData.descriptionImages.length} description image{formData.descriptionImages.length !== 1 ? 's' : ''} ready
+                    </span>
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {formData.descriptionImages.map((url, index) => (
                     <div
                       key={index}
-                      className="relative aspect-square border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50"
+                      className="relative aspect-square border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-purple-400 hover:shadow-lg"
                     >
-                      <img 
-                        src={url} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        alt={`Description ${index + 1}`}
-                        loading="lazy"
-                      />
+                      <div className="relative w-full h-full overflow-hidden">
+                        <img 
+                          src={url} 
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                          alt={`Description ${index + 1}`}
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error(`❌ Description image failed to load: ${url}`);
+                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeImage(index, 'desc')}
@@ -879,7 +955,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   
                   {formData.descriptionImages.length < 20 && (
                     <label className={`aspect-square border-2 border-dashed ${
-                      isUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
+                      isUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-purple-500 cursor-pointer'
                     } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
                       <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -887,7 +963,10 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         </svg>
                       </div>
                       <span className="text-xs font-bold text-gray-400 text-center px-2">
-                        {isUploading ? 'Uploading...' : 'Add Images'}
+                        {formData.descriptionImages.length === 0 
+                          ? 'Click to add description images' 
+                          : `Add more (${20 - formData.descriptionImages.length} left)`
+                        }
                       </span>
                       <input
                         type="file"
