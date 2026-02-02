@@ -1,3 +1,4 @@
+//App.tsx 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Header from './components/Header';
 import HeroBanner from './components/HeroBanner';
