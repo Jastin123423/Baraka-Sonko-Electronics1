@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Order, AdminStats } from '../types';
-import { CATEGORIES } from '../constants';
+import { Product, Order, AdminStats, Category } from '../types';
+// REMOVED: import { CATEGORIES } from '../constants'; // Use dynamic categories from props
 
 interface AdminViewProps {
   products: Product[];
+  categories: Category[];  // ADDED: Receive categories from parent
   onAddProduct: (product: Product) => Promise<boolean>;
   onDeleteProduct: (id: string) => void;
 }
@@ -11,7 +12,12 @@ interface AdminViewProps {
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'withdraw';
 type UploadType = 'image' | 'video' | 'desc_image';
 
-const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteProduct }) => {
+const AdminView: React.FC<AdminViewProps> = ({ 
+  products, 
+  categories,  // ADDED: Receive categories
+  onAddProduct, 
+  onDeleteProduct 
+}) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [isAdding, setIsAdding] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -41,7 +47,8 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
     console.log("✅ videoUrl now:", formData.videoUrl);
     console.log("✅ uploadingCount now:", uploadingCount);
     console.log("✅ isActuallyUploading now:", isActuallyUploading);
-  }, [formData.images, formData.descriptionImages, formData.videoUrl, uploadingCount]);
+    console.log("✅ categories received:", categories.length);
+  }, [formData.images, formData.descriptionImages, formData.videoUrl, uploadingCount, categories]);
 
   // Add debug logging helper
   const addDebugLog = (message: string) => {
@@ -363,19 +370,20 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
         : price;
 
       // Build payload matching your curl EXACTLY - FIXED: Use correct field names
+      // IMPORTANT: Ensure your backend API converts these field names to match your DB schema
       const payload = {
         // DO NOT send id - backend will generate it
         title: formData.title.trim(),
         description: formData.description.trim(),
         image: formData.images[0],
         images: formData.images,
-        descriptionImages: formData.descriptionImages,
-        videoUrl: formData.videoUrl || '',
+        descriptionImages: formData.descriptionImages, // Backend should convert to description_images
+        videoUrl: formData.videoUrl || '', // Backend should convert to video_url
         price,
-        originalPrice,
+        originalPrice, // Backend should convert to original_price
         discount,
-        orderCount: '0 orders',
-        soldCount: '0 sold',
+        orderCount: '0 orders', // Backend should convert to order_count
+        soldCount: '0 sold', // Backend should convert to sold_count
         rating: 5.0,
         categoryName: formData.category, // KEY FIX: Send categoryName not category
         status: 'online',
@@ -383,6 +391,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
       };
 
       console.log('📤 Sending payload to backend:', payload);
+      console.log('📤 Categories available:', categories.map(c => c.name));
 
       const success = await onAddProduct(payload as any);
 
@@ -760,7 +769,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                 </div>
               </div>
 
-              {/* Category */}
+              {/* Category - FIXED: Use dynamic categories from props */}
               <div>
                 <label className={labelClass}>Category *</label>
                 <select
@@ -768,15 +777,24 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value })}
                   required
-                  disabled={isActuallyUploading}
+                  disabled={isActuallyUploading || categories.length === 0}
                 >
                   <option value="">Select Category</option>
-                  {CATEGORIES.map(category => (
-                    <option key={category.id} value={category.name}>
-                      {category.name}
-                    </option>
-                  ))}
+                  {categories.length > 0 ? (
+                    categories.map(category => (
+                      <option key={category.id} value={category.name}>
+                        {category.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>Loading categories...</option>
+                  )}
                 </select>
+                {categories.length === 0 && (
+                  <p className="mt-2 text-xs text-orange-600">
+                    ⚠️ No categories loaded. Please check your connection.
+                  </p>
+                )}
               </div>
 
               {/* Gallery Images */}
