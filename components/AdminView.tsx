@@ -1,4 +1,4 @@
-hereimport React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product, Order, AdminStats } from '../types';
 import { CATEGORIES } from '../constants';
 
