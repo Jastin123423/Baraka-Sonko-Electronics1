@@ -45,8 +45,6 @@ const App: React.FC = () => {
         if (catData.success) setCategories(catData.data);
       } catch (error) {
         console.error("Failed to initialize app", error);
-        // Show error but don't crash
-        alert("Failed to load data. Please refresh the page.");
       } finally {
         setIsLoading(false);
       }
@@ -266,7 +264,6 @@ const App: React.FC = () => {
         ) : view === 'admin' ? (
           <AdminView 
             products={products} 
-            categories={categories}  {/* PASS CATEGORIES TO ADMINVIEW */}
             onAddProduct={addProduct} 
             onDeleteProduct={deleteProduct} 
           />
