@@ -19,6 +19,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
   const [uploadError, setUploadError] = useState<string>('');
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [uploadingCount, setUploadingCount] = useState(0); // New: Track active uploads
 
   const [formData, setFormData] = useState({
     title: '',
@@ -31,12 +32,17 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
     descriptionImages: [] as string[],
   });
 
+  // Track actual upload status
+  const isActuallyUploading = uploadingCount > 0;
+
   // Debug: Monitor state changes
   useEffect(() => {
     console.log("✅ images now:", formData.images);
     console.log("✅ descriptionImages now:", formData.descriptionImages);
     console.log("✅ videoUrl now:", formData.videoUrl);
-  }, [formData.images, formData.descriptionImages, formData.videoUrl]);
+    console.log("✅ uploadingCount now:", uploadingCount);
+    console.log("✅ isActuallyUploading now:", isActuallyUploading);
+  }, [formData.images, formData.descriptionImages, formData.videoUrl, uploadingCount]);
 
   // Add debug logging helper
   const addDebugLog = (message: string) => {
@@ -71,11 +77,14 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
     // Create upload progress tracker
     const progressKey = `${uniqueFilename}-${timestamp}`;
     
-    addDebugLog(`Starting upload: ${file.name} (${file.type}, ${file.size} bytes)`);
+    addDebugLog(`Starting upload: ${file.name} (type: "${file.type}", size: ${file.size} bytes)`);
     addDebugLog(`Generated filename: ${uniqueFilename}`);
     
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+      
+      // Increment upload counter
+      setUploadingCount(c => c + 1);
       
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable) {
@@ -87,14 +96,20 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
         }
       });
 
-      xhr.addEventListener('load', () => {
+      const cleanup = () => {
         // Clean up progress tracking
         setUploadProgress(prev => {
           const newProgress = { ...prev };
           delete newProgress[progressKey];
           return newProgress;
         });
+        // Decrement upload counter
+        setUploadingCount(c => Math.max(0, c - 1));
+      };
 
+      xhr.addEventListener('load', () => {
+        cleanup();
+        
         addDebugLog(`Upload response for ${file.name}: HTTP ${xhr.status}`);
         addDebugLog(`Response preview: ${xhr.responseText?.slice(0, 200)}`);
         
@@ -126,22 +141,14 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
       });
 
       xhr.addEventListener('error', () => {
+        cleanup();
         addDebugLog(`❌ Network error during upload of ${file.name}`);
-        setUploadProgress(prev => {
-          const newProgress = { ...prev };
-          delete newProgress[progressKey];
-          return newProgress;
-        });
         reject(new Error('Network error during upload'));
       });
 
       xhr.addEventListener('abort', () => {
+        cleanup();
         addDebugLog(`Upload cancelled for ${file.name}`);
-        setUploadProgress(prev => {
-          const newProgress = { ...prev };
-          delete newProgress[progressKey];
-          return newProgress;
-        });
         reject(new Error('Upload cancelled'));
       });
 
@@ -173,7 +180,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
     
     const files = e.target.files;
     console.log("📁 files selected:", files?.length);
-    console.log("📁 file details:", files ? Array.from(files).map(f => `${f.name} (${f.type}) ${f.size} bytes`) : null);
+    console.log("📁 file details:", files ? Array.from(files).map(f => `${f.name} (type: "${f.type}") ${f.size} bytes`) : null);
     
     if (!files || files.length === 0) {
       addDebugLog('❌ No files selected or picker cancelled');
@@ -192,17 +199,25 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
 
       addDebugLog(`Processing ${fileList.length} file(s) for ${type}`);
 
-      // Validate file sizes and types
+      // Validate file sizes and types - FIXED: Allow empty file.type on Android
       for (const file of fileList) {
+        const fileName = file.name.toLowerCase();
+        
         if (type === 'image' || type === 'desc_image') {
-          if (!file.type.startsWith('image/')) {
+          // Android-safe validation: check both MIME type and file extension
+          const looksLikeImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(fileName);
+          
+          if (!looksLikeImage) {
             throw new Error(`Invalid file type: ${file.name}. Please upload images only.`);
           }
           if (file.size > 10 * 1024 * 1024) {
             throw new Error(`Image too large: ${file.name}. Maximum size is 10MB.`);
           }
         } else if (type === 'video') {
-          if (!file.type.startsWith('video/')) {
+          // Android-safe validation for videos
+          const looksLikeVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|avi|mkv|flv|wmv)$/i.test(fileName);
+          
+          if (!looksLikeVideo) {
             throw new Error(`Invalid file type: ${file.name}. Please upload videos only.`);
           }
           if (file.size > 100 * 1024 * 1024) {
@@ -218,6 +233,9 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
           const url = await uploadSingleFile(file);
           uploadedUrls.push(url);
           addDebugLog(`Added URL to uploadedUrls: ${url}`);
+          
+          // DEBUG VERSION: Show immediate feedback
+          alert(`✅ File "${file.name}" uploaded successfully! URL: ${url.slice(0, 50)}...`);
         } catch (error: any) {
           addDebugLog(`❌ Upload failed for ${file.name}: ${error.message}`);
           throw new Error(`Failed to upload ${file.name}: ${error.message}`);
@@ -290,6 +308,22 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // CRITICAL FIX: Prevent submit during upload
+    if (isActuallyUploading) {
+      alert('⏳ Please wait for all uploads to finish before publishing');
+      return;
+    }
+
+    // DEBUG: Log everything before validation
+    console.log("🚀 SUBMIT CALLED!");
+    console.log("📋 SUBMIT images:", formData.images);
+    console.log("📋 SUBMIT images.length:", formData.images.length);
+    console.log("📋 SUBMIT isUploading:", isUploading);
+    console.log("📋 SUBMIT uploadingCount:", uploadingCount);
+    console.log("📋 SUBMIT isActuallyUploading:", isActuallyUploading);
+    console.log("📋 SUBMIT uploadProgress keys:", Object.keys(uploadProgress));
+    console.log("📋 FULL formData:", formData);
 
     // Validation
     if (!formData.title.trim()) {
@@ -551,7 +585,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
               <button 
                 onClick={() => setIsAdding(false)}
                 className="text-3xl font-light text-gray-400 hover:text-gray-700 transition-colors"
-                disabled={isUploading}
+                disabled={isActuallyUploading}
               >
                 &times;
               </button>
@@ -575,11 +609,11 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
             )}
 
             {/* Upload Progress Indicator */}
-            {isUploading && Object.keys(uploadProgress).length > 0 && (
+            {isActuallyUploading && Object.keys(uploadProgress).length > 0 && (
               <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-black text-blue-700 uppercase tracking-wide">
-                    Uploading Files...
+                    Uploading Files... ({uploadingCount} active)
                   </span>
                   <span className="text-xs font-black text-blue-700">
                     {getTotalUploadProgress()}%
@@ -591,6 +625,9 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                     style={{ width: `${getTotalUploadProgress()}%` }}
                   ></div>
                 </div>
+                <p className="text-xs text-blue-600 mt-2">
+                  Please wait for uploads to complete before publishing
+                </p>
               </div>
             )}
 
@@ -651,7 +688,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                     onChange={e => setFormData({ ...formData, title: e.target.value })}
                     placeholder="Enter product title"
                     required
-                    disabled={isUploading}
+                    disabled={isActuallyUploading}
                   />
                 </div>
 
@@ -662,7 +699,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                     value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Describe your product in detail..."
-                    disabled={isUploading}
+                    disabled={isActuallyUploading}
                     rows={4}
                   />
                   <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
@@ -688,7 +725,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         min="0"
                         step="100"
                         required
-                        disabled={isUploading}
+                        disabled={isActuallyUploading}
                       />
                     </div>
                   </div>
@@ -704,7 +741,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         placeholder="0"
                         min="0"
                         max="100"
-                        disabled={isUploading}
+                        disabled={isActuallyUploading}
                       />
                     </div>
                   </div>
@@ -719,7 +756,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value })}
                   required
-                  disabled={isUploading}
+                  disabled={isActuallyUploading}
                 >
                   <option value="">Select Category</option>
                   {CATEGORIES.map(category => (
@@ -747,7 +784,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         setFormData(prev => ({ ...prev, images: [] }));
                       }}
                       className="text-xs font-bold text-red-600 hover:text-red-700"
-                      disabled={isUploading}
+                      disabled={isActuallyUploading}
                     >
                       Clear All
                     </button>
@@ -794,7 +831,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         type="button"
                         onClick={() => removeImage(index, 'gallery')}
                         className="absolute top-1 right-1 bg-black/80 text-white w-7 h-7 flex items-center justify-center rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                        disabled={isUploading}
+                        disabled={isActuallyUploading}
                         title="Remove image"
                       >
                         &times;
@@ -809,7 +846,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   
                   {formData.images.length < 10 && (
                     <label className={`aspect-square border-2 border-dashed ${
-                      isUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
+                      isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
                     } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
                       <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -817,9 +854,10 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         </svg>
                       </div>
                       <span className="text-xs font-bold text-gray-400 text-center px-2">
-                        {formData.images.length === 0 
-                          ? 'Click to upload images' 
-                          : `Add more (${10 - formData.images.length} left)`
+                        {isActuallyUploading ? 'Uploading...' : 
+                          formData.images.length === 0 
+                            ? 'Click to upload images' 
+                            : `Add more (${10 - formData.images.length} left)`
                         }
                       </span>
                       <input
@@ -828,7 +866,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         accept="image/*"
                         className="hidden"
                         onChange={e => handleFileUpload(e, 'image')}
-                        disabled={isUploading}
+                        disabled={isActuallyUploading}
                         id="gallery-upload-input"
                       />
                     </label>
@@ -855,7 +893,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, videoUrl: '' }))}
                         className="bg-red-600 text-white px-4 py-2 rounded-lg font-black text-xs uppercase shadow-lg hover:bg-red-700 transition-colors"
-                        disabled={isUploading}
+                        disabled={isActuallyUploading}
                       >
                         Remove Video
                       </button>
@@ -863,7 +901,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   </div>
                 ) : (
                   <label className={`w-full aspect-video border-2 border-dashed ${
-                    isUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
+                    isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
                   } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
                     <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-orange-500 mb-3 border border-gray-100">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -882,7 +920,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                       accept="video/*"
                       className="hidden"
                       onChange={e => handleFileUpload(e, 'video')}
-                      disabled={isUploading}
+                      disabled={isActuallyUploading}
                     />
                   </label>
                 )}
@@ -905,7 +943,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         setFormData(prev => ({ ...prev, descriptionImages: [] }));
                       }}
                       className="text-xs font-bold text-red-600 hover:text-red-700"
-                      disabled={isUploading}
+                      disabled={isActuallyUploading}
                     >
                       Clear All
                     </button>
@@ -945,7 +983,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         type="button"
                         onClick={() => removeImage(index, 'desc')}
                         className="absolute top-1 right-1 bg-black/80 text-white w-7 h-7 flex items-center justify-center rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                        disabled={isUploading}
+                        disabled={isActuallyUploading}
                         title="Remove image"
                       >
                         &times;
@@ -960,7 +998,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                   
                   {formData.descriptionImages.length < 20 && (
                     <label className={`aspect-square border-2 border-dashed ${
-                      isUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-purple-500 cursor-pointer'
+                      isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-purple-500 cursor-pointer'
                     } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
                       <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -968,9 +1006,10 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         </svg>
                       </div>
                       <span className="text-xs font-bold text-gray-400 text-center px-2">
-                        {formData.descriptionImages.length === 0 
-                          ? 'Click to add description images' 
-                          : `Add more (${20 - formData.descriptionImages.length} left)`
+                        {isActuallyUploading ? 'Uploading...' : 
+                          formData.descriptionImages.length === 0 
+                            ? 'Click to add description images' 
+                            : `Add more (${20 - formData.descriptionImages.length} left)`
                         }
                       </span>
                       <input
@@ -979,7 +1018,7 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                         accept="image/*"
                         className="hidden"
                         onChange={e => handleFileUpload(e, 'desc_image')}
-                        disabled={isUploading}
+                        disabled={isActuallyUploading}
                       />
                     </label>
                   )}
@@ -997,19 +1036,19 @@ const AdminView: React.FC<AdminViewProps> = ({ products, onAddProduct, onDeleteP
                     type="button"
                     onClick={() => setIsAdding(false)}
                     className="flex-1 bg-gray-100 text-gray-700 font-black py-4 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
-                    disabled={isUploading}
+                    disabled={isActuallyUploading}
                   >
                     CANCEL
                   </button>
                   <button
                     type="submit"
-                    disabled={isUploading}
+                    disabled={isActuallyUploading}
                     className="flex-1 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-black py-4 rounded-xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3"
                   >
-                    {isUploading ? (
+                    {isActuallyUploading ? (
                       <>
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>UPLOADING...</span>
+                        <span>UPLOADING... ({uploadingCount})</span>
                       </>
                     ) : (
                       <>
