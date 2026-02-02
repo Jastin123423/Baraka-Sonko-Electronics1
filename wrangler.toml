@@ -1,13 +1,18 @@
-name = "Baraka sonko electronics1"
+name = "baraka-sonko-electronics"
 compatibility_date = "2026-02-02"
 pages_build_output_dir = "dist"
 
+# D1 Database
 [[d1_databases]]
 binding = "DB"
 database_name = "sonko"
 database_id = "0777b428-f6f5-4900-bbd5-d6694ccc8586"
 
-
+# R2 Bucket (MUST match upload.ts)
 [[r2_buckets]]
-binding = "R2"
+binding = "R2_MEDIA"
 bucket_name = "sonko"
+
+# Environment variables
+[vars]
+PUBLIC_MEDIA_BASE = "https://media.barakasonko.store"
