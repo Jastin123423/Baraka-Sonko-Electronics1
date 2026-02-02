@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Header from './components/Header';
 import HeroBanner from './components/HeroBanner';
@@ -53,14 +52,17 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
-  // Search Logic
+  // Search Logic - UPDATED: Support both category and categoryName
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    return products.filter(p => 
-      p.title.toLowerCase().includes(q) || 
-      p.category?.toLowerCase().includes(q)
-    );
+    return products.filter(p => {
+      const categoryField = p.category || (p as any).categoryName || '';
+      return (
+        p.title.toLowerCase().includes(q) || 
+        categoryField.toLowerCase().includes(q)
+      );
+    });
   }, [searchQuery, products]);
 
   const filteredCategories = useMemo(() => {
@@ -93,31 +95,49 @@ const App: React.FC = () => {
   
   const [showAuth, setShowAuth] = useState(false);
 
+  // FIXED: addProduct function with robust backend response handling
   const addProduct = async (newProduct: Product) => {
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newProduct)
+        body: JSON.stringify(newProduct),
       });
-      const result = await response.json();
-      if (result.success) {
-        setProducts([result.data, ...products]);
+
+      const result = await response.json().catch(() => null);
+
+      console.log('POST /api/products status:', response.status);
+      console.log('POST /api/products result:', result);
+
+      if (!response.ok || !result?.success) return false;
+
+      const saved = result.data || result.product || result.item;
+      if (saved) {
+        // FIX: Use functional update to avoid stale state
+        setProducts(prev => [saved, ...prev]);
         return true;
       }
-      return false;
+
+      // fallback: refetch products if backend doesn't return saved item
+      const prodRes = await fetch('/api/products');
+      const prodData = await prodRes.json();
+      if (prodData?.success) setProducts(prodData.data);
+
+      return true;
     } catch (e) {
       console.error(e);
       return false;
     }
   };
 
+  // FIXED: deleteProduct with functional update
   const deleteProduct = async (id: string) => {
     try {
       const response = await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
       const result = await response.json();
       if (result.success) {
-        setProducts(products.filter(p => p.id !== id));
+        // FIX: Use functional update to avoid stale state
+        setProducts(prev => prev.filter(p => p.id !== id));
       }
     } catch (e) {
       console.error(e);
