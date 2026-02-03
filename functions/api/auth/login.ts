@@ -1,4 +1,3 @@
-// functions/api/auth/login.ts
 import type { PagesFunction } from '@cloudflare/workers-types';
 
 type Env = { DB: D1Database };
@@ -28,6 +27,8 @@ const sha256Hex = async (input: string) => {
     .join('');
 };
 
+const looksLikeSha256 = (v: string) => /^[a-f0-9]{64}$/i.test(v);
+
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
@@ -36,35 +37,38 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const email = s(body.email).toLowerCase();
     const password = s(body.password);
 
-    if (!email || !password) {
-      return json({ success: false, error: 'Missing email or password' }, 400);
-    }
+    if (!email || !password) return json({ success: false, error: 'Missing email or password' }, 400);
 
     const row = await env.DB.prepare(
       `SELECT id, name, email, role, password_hash
        FROM users
-       WHERE lower(email)=? LIMIT 1`
+       WHERE lower(trim(email))=? LIMIT 1`
     )
       .bind(email)
       .first<any>();
 
-    if (!row) return json({ success: false, error: 'Invalid credentials' }, 401);
-    if (!row.password_hash) return json({ success: false, error: 'Account has no password set' }, 401);
+    // keep this generic so attackers can't learn which part failed
+    if (!row || !row.password_hash) return json({ success: false, error: 'Invalid credentials' }, 401);
 
-    const incomingHash = await sha256Hex(password);
+    const stored = String(row.password_hash || '').trim();
 
-    if (incomingHash !== row.password_hash) {
-      return json({ success: false, error: 'Invalid credentials' }, 401);
+    // ✅ Accept either:
+    // 1) stored SHA-256 hex (recommended)
+    // 2) stored plain password (TEMP compatibility)
+    let ok = false;
+
+    if (looksLikeSha256(stored)) {
+      const incomingHash = await sha256Hex(password);
+      ok = incomingHash.toLowerCase() === stored.toLowerCase();
+    } else {
+      ok = stored === password;
     }
+
+    if (!ok) return json({ success: false, error: 'Invalid credentials' }, 401);
 
     return json({
       success: true,
-      user: {
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        role: row.role || 'user',
-      },
+      user: { id: row.id, name: row.name, email: row.email, role: row.role || 'user' },
     });
   } catch (e: any) {
     return json({ success: false, error: e?.message || 'Login failed' }, 500);
