@@ -91,10 +91,19 @@ const App: React.FC = () => {
       category,
       categoryName,
       image: p?.image || p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || '',
-      images: Array.isArray(p?.images) ? p.images : (Array.isArray(p?.image_urls) ? p.image_urls : []),
+      // 🔥 REQUIRED CHANGE: Improved array handling for snake_case/camelCase
+      images: Array.isArray(p?.images)
+        ? p.images
+        : Array.isArray(p?.image_urls)
+        ? p.image_urls
+        : Array.isArray(p?.image_urls_json)
+        ? p.image_urls_json
+        : [],
       descriptionImages: Array.isArray(p?.descriptionImages)
         ? p.descriptionImages
-        : (Array.isArray(p?.description_images) ? p.description_images : []),
+        : Array.isArray(p?.description_images)
+        ? p.description_images
+        : [],
       videoUrl: String(p?.videoUrl ?? p?.video_url ?? ''),
     } as any;
   };
@@ -409,7 +418,7 @@ const App: React.FC = () => {
           <ErrorBoundary title="Admin screen crashed">
             <AdminView
               products={products}
-              categories={categories as any}   // ✅ after you update AdminView props properly (see below)
+              categories={categories as any}
               onAddProduct={addProduct}
               onDeleteProduct={deleteProduct}
             />
