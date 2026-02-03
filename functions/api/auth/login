@@ -1,4 +1,4 @@
-// functions/api/login.ts
+// functions/api/auth/login.ts
 import type { PagesFunction } from '@cloudflare/workers-types';
 
 type Env = { DB: D1Database };
