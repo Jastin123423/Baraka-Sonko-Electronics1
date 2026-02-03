@@ -317,6 +317,13 @@ const AdminView: React.FC<AdminViewProps> = ({
     console.log("📋 SUBMIT uploadProgress keys:", Object.keys(uploadProgress));
     console.log("📋 FULL formData:", formData);
 
+    // 🔥 REQUIRED CHANGE 1: Add main image guarantee
+    const mainImage = formData.images[0] || formData.images.at(-1) || '';
+    if (!mainImage) {
+      alert('❌ At least one main image is required');
+      return;
+    }
+
     // Validation
     if (!formData.title.trim()) {
       alert('❌ Product title is required');
@@ -363,10 +370,10 @@ const AdminView: React.FC<AdminViewProps> = ({
         title: formData.title.trim(),
         description: formData.description.trim(),
         
-        // Images - both camelCase and snake_case for compatibility
-        image: formData.images[0],
+        // 🔥 REQUIRED CHANGE 2: Add main image fields
+        image: mainImage,
+        image_url: mainImage,
         images: formData.images,
-        image_url: formData.images[0],
         image_urls: formData.images,
         
         // Description images
