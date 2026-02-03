@@ -1,5 +1,3 @@
-//AdminView.tsx 
-
 import React, { useState, useEffect } from 'react';
 import { Product, Category, AdminStats } from '../types';
 
@@ -31,12 +29,39 @@ const AdminView: React.FC<AdminViewProps> = ({
     title: '',
     description: '',
     price: '',
-    discount: '',
+    discountAmount: '', // CHANGED: Now discount in TSh, not percentage
     category: '',
     videoUrl: '',
     images: [] as string[],
     descriptionImages: [] as string[],
   });
+
+  // Calculate discount percentage based on price and discount amount
+  const calculateDiscountPercentage = () => {
+    const price = parseFloat(formData.price);
+    const discountAmount = parseFloat(formData.discountAmount);
+    
+    if (!price || price <= 0 || !discountAmount || discountAmount <= 0) {
+      return 0;
+    }
+    
+    if (discountAmount >= price) {
+      return 100; // Max 100% discount
+    }
+    
+    return Math.round((discountAmount / price) * 100);
+  };
+
+  // Calculate selling price after discount
+  const calculateSellingPrice = () => {
+    const price = parseFloat(formData.price);
+    const discountAmount = parseFloat(formData.discountAmount);
+    
+    if (!price || price <= 0) return 0;
+    if (!discountAmount || discountAmount <= 0) return price;
+    
+    return price - discountAmount;
+  };
 
   // Track actual upload status
   const isActuallyUploading = uploadingCount > 0;
@@ -171,21 +196,23 @@ const AdminView: React.FC<AdminViewProps> = ({
     // Clear previous errors
     setUploadError('');
     
+    // Step 1: Debug - Check if handler is firing
     console.log("🎯 handleFileUpload FIRED with type:", type);
     addDebugLog(`handleFileUpload triggered for ${type}`);
     
-    // Copy files first (FileList can be cleared when input value is reset)
+    // ✅ CRITICAL FIX: copy files first (FileList can be cleared when input value is reset)
     const files = e.currentTarget.files;
     const fileList: File[] = files ? Array.from(files) : [];
     
     console.log("📁 files selected:", fileList.length);
+    console.log("📁 file details:", fileList.map(f => `${f.name} (type: "${f.type}") ${f.size} bytes`));
     
     if (fileList.length === 0) {
       addDebugLog('❌ No files selected or picker cancelled');
       return;
     }
     
-    // Now safe to reset input
+    // ✅ Now safe to reset input
     e.currentTarget.value = '';
     
     setUploadProgress({});
@@ -235,9 +262,9 @@ const AdminView: React.FC<AdminViewProps> = ({
         }
       }
 
+      // Update form data with uploaded URLs
       console.log("📊 upload complete. URLs received:", uploadedUrls);
       
-      // Update form state with uploaded URLs
       if (type === 'image') {
         setFormData(prev => {
           const newImages = [...prev.images, ...uploadedUrls].slice(0, 10);
@@ -300,7 +327,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent submit during upload
+    // CRITICAL FIX: Prevent submit during upload
     if (isActuallyUploading) {
       alert('⏳ Please wait for all uploads to finish before publishing');
       return;
@@ -315,7 +342,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     console.log("📋 SUBMIT uploadProgress keys:", Object.keys(uploadProgress));
     console.log("📋 FULL formData:", formData);
 
-    // Add main image guarantee
+    // 🔥 REQUIRED CHANGE 1: Add main image guarantee
     const mainImage = formData.images[0] || formData.images.at(-1) || '';
     if (!mainImage) {
       alert('❌ At least one main image is required');
@@ -328,7 +355,8 @@ const AdminView: React.FC<AdminViewProps> = ({
       return;
     }
 
-    if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
+    const price = parseFloat(formData.price);
+    if (!formData.price || isNaN(price) || price <= 0) {
       alert('❌ Please enter a valid price');
       return;
     }
@@ -343,32 +371,36 @@ const AdminView: React.FC<AdminViewProps> = ({
       return;
     }
 
-    // Validate discount if provided
-    if (formData.discount) {
-      const discountValue = parseInt(formData.discount, 10);
-      if (isNaN(discountValue) || discountValue < 0 || discountValue > 100) {
-        alert('❌ Discount must be a number between 0 and 100');
+    // Validate discount amount if provided
+    let discountAmount = 0;
+    let discountPercentage = 0;
+    let sellingPrice = price;
+    
+    if (formData.discountAmount) {
+      discountAmount = parseFloat(formData.discountAmount);
+      if (isNaN(discountAmount) || discountAmount < 0) {
+        alert('❌ Discount amount must be a positive number');
         return;
       }
+      
+      if (discountAmount >= price) {
+        alert('❌ Discount amount cannot be greater than or equal to price');
+        return;
+      }
+      
+      // Calculate discount percentage
+      discountPercentage = Math.round((discountAmount / price) * 100);
+      sellingPrice = price - discountAmount;
     }
 
     try {
-      // Calculate price values
-      const price = parseFloat(formData.price);
-      const discount = formData.discount ? parseInt(formData.discount, 10) : 0;
-      
-      // Calculate originalPrice
-      const originalPrice = discount > 0 
-        ? Math.round(price / (1 - discount / 100)) 
-        : price;
-
-      // Build payload - FIX: Remove orderCount and soldCount to prevent "0" display issues
+      // Build payload with backward compatibility
       const payload = {
         // Core fields
         title: formData.title.trim(),
         description: formData.description.trim(),
         
-        // Images
+        // 🔥 REQUIRED CHANGE 2: Add main image fields
         image: mainImage,
         image_url: mainImage,
         images: formData.images,
@@ -382,17 +414,17 @@ const AdminView: React.FC<AdminViewProps> = ({
         videoUrl: formData.videoUrl || '',
         video_url: formData.videoUrl || '',
         
-        // Pricing
-        price,
-        originalPrice,
-        discount,
+        // Pricing - NEW: Use calculated values
+        price: sellingPrice, // This is the final selling price
+        originalPrice: price, // Original price before discount
+        discountAmount: discountAmount, // Discount in TSh
+        discount: discountPercentage > 0 ? discountPercentage : undefined, // Only include if > 0
         
-        // Category
+        // Category - both formats (REQUIRED)
         categoryName: formData.category,
         category: formData.category,
         
-        // Metadata - REMOVED: orderCount and soldCount to prevent "0" display issues
-        // Keep only rating and essential fields
+        // Metadata
         rating: 5.0,
         status: 'online',
         createdAt: new Date().toISOString(),
@@ -410,7 +442,7 @@ const AdminView: React.FC<AdminViewProps> = ({
           title: '',
           description: '',
           price: '',
-          discount: '',
+          discountAmount: '',
           category: '',
           videoUrl: '',
           images: [],
@@ -538,15 +570,9 @@ const AdminView: React.FC<AdminViewProps> = ({
               ) : (
                 <div className="divide-y divide-gray-100">
                   {products.map(product => {
-                    // Safe price handling - FIX: Ensure no trailing zeros in display
+                    // Safe price handling
                     const priceNumber = Number((product as any).price ?? 0);
-                    // Format price without trailing zeros and ensure proper number formatting
-                    const displayPrice = Number.isFinite(priceNumber) 
-                      ? priceNumber.toLocaleString(undefined, {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0
-                        })
-                      : '0';
+                    const displayPrice = Number.isFinite(priceNumber) ? priceNumber.toLocaleString() : '0';
                     
                     return (
                       <div
@@ -565,7 +591,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                             <p className="text-xs font-black text-orange-600">
                               TSh {displayPrice}
                             </p>
-                            {product.discount && (
+                            {product.discount && product.discount > 0 && ( // CHANGED: Only show if discount > 0
                               <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full">
                                 -{product.discount}%
                               </span>
@@ -578,6 +604,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                               {product.status}
                             </span>
                           </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Category: {product.category || 'Uncategorized'}
+                          </p>
                         </div>
                         <button 
                           onClick={() => onDeleteProduct(product.id)}
@@ -718,6 +747,42 @@ const AdminView: React.FC<AdminViewProps> = ({
               </div>
             )}
 
+            {/* Price Preview Section */}
+            {(formData.price || formData.discountAmount) && (
+              <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-100">
+                <h4 className="text-sm font-black text-green-800 uppercase tracking-wide mb-3">
+                  💰 Price Preview
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-gray-500 mb-1">Original Price</p>
+                    <p className="text-lg font-black text-gray-700">
+                      TSh {parseFloat(formData.price || '0').toLocaleString()}
+                    </p>
+                  </div>
+                  {formData.discountAmount && (
+                    <>
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-gray-500 mb-1">Discount</p>
+                        <p className="text-lg font-black text-red-600">
+                          -TSh {parseFloat(formData.discountAmount).toLocaleString()}
+                        </p>
+                        <p className="text-xs font-bold text-green-600 mt-1">
+                          ({calculateDiscountPercentage()}% OFF)
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-gray-500 mb-1">Selling Price</p>
+                        <p className="text-lg font-black text-orange-600">
+                          TSh {calculateSellingPrice().toLocaleString()}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6 pb-20">
               {/* Basic Information */}
               <div className="space-y-4">
@@ -752,12 +817,12 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
               </div>
 
-              {/* Pricing */}
+              {/* Pricing - PROFESSIONALLY MODIFIED */}
               <div className="space-y-4">
                 <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">Pricing</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>Price (TSh) *</label>
+                    <label className={labelClass}>Original Price (TSh) *</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">TSh</span>
                       <input
@@ -774,25 +839,30 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </div>
                   </div>
                   <div>
-                    <label className={labelClass}>Discount (%)</label>
+                    <label className={labelClass}>Discount Amount (TSh)</label>
                     <div className="relative">
-                      <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">%</span>
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">TSh</span>
                       <input
                         type="number"
-                        className={`${inputClass} pr-12`}
-                        value={formData.discount}
-                        onChange={e => setFormData({ ...formData, discount: e.target.value })}
+                        className={`${inputClass} pl-12`}
+                        value={formData.discountAmount}
+                        onChange={e => setFormData({ ...formData, discountAmount: e.target.value })}
                         placeholder="0"
                         min="0"
-                        max="100"
+                        step="100"
                         disabled={isActuallyUploading}
                       />
                     </div>
+                    {formData.discountAmount && formData.price && (
+                      <p className="mt-2 text-xs font-bold text-green-600">
+                        Discount: {calculateDiscountPercentage()}% OFF
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Category */}
+              {/* Category - REQUIRED */}
               <div>
                 <label className={labelClass}>Category *</label>
                 <select
@@ -809,6 +879,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </option>
                   ))}
                 </select>
+                <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                  This is required for product filtering.
+                </p>
               </div>
 
               {/* Gallery Images */}
@@ -834,23 +907,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </button>
                   )}
                 </div>
-
-                {/* Upload Status Indicator */}
-                {formData.images.length > 0 && (
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs font-bold text-green-600">
-                      {formData.images.length} image{formData.images.length !== 1 ? 's' : ''} ready
-                    </span>
-                  </div>
-                )}
-                
-                {/* Debug: Show current images state */}
-                {formData.images.length > 0 && isDev && (
-                  <div className="text-xs text-gray-500 mb-2">
-                    Current images: {formData.images.length} URLs stored
-                  </div>
-                )}
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {formData.images.map((url, index) => (
@@ -993,16 +1049,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </button>
                   )}
                 </div>
-
-                {/* Upload Status Indicator */}
-                {formData.descriptionImages.length > 0 && (
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs font-bold text-purple-600">
-                      {formData.descriptionImages.length} description image{formData.descriptionImages.length !== 1 ? 's' : ''} ready
-                    </span>
-                  </div>
-                )}
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {formData.descriptionImages.map((url, index) => (
