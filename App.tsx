@@ -461,7 +461,7 @@ const App: React.FC = () => {
             <AdBanner
               src="https://media.barakasonko.store/Jipatie%20kwa%20bei%20poa.gif"
               onClick={() => setView('all-products')}
-              containerClass="h-[310px]"
+              containerClass="h-[320px]"
               fullWidth={true}
             />
 
