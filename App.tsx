@@ -148,26 +148,48 @@ const App: React.FC = () => {
     const price = Number(p?.price ?? 0);
     const discount = p?.discount == null ? 0 : Number(p.discount);
 
-    // Handle category - extract from backend response
+    // --- CATEGORY FIX (supports snake_case + camelCase + object) ---
+    let categoryId = String(p?.category_id ?? p?.categoryId ?? '').trim();
     let categoryName = '';
     let categoryIcon = '';
-    
-    if (typeof p?.category === 'object' && p.category !== null) {
+
+    if (typeof p?.category === 'object' && p.category) {
       // If category is an object, extract name and icon
-      categoryName = String(p.category.name || p.category.category_name || '');
-      categoryIcon = String(p.category.icon || p.category.icon_name || '');
+      categoryId = String(p.category.id ?? categoryId).trim();
+      categoryName = String(p.category.name ?? p.category.category_name ?? '').trim();
+      categoryIcon = String(
+        p.category.icon ?? p.category.icon_name ?? p.category.icon_emoji ?? ''
+      ).trim();
     } else {
       // If category is string or mixed format
-      categoryName = String(p?.categoryName ?? p?.category ?? '');
+      categoryName = String(
+        p?.category_name ??
+          p?.categoryName ??
+          p?.category ??
+          ''
+      ).trim();
+
+      // if category is numeric like "3", treat it as id not name
+      const maybe = String(p?.category ?? '').trim();
+      if (!categoryId && /^\d+$/.test(maybe)) categoryId = maybe;
     }
 
-    const category = String(p?.category ?? p?.categoryName ?? '');
+    // resolve name/icon from categories list if we only have id
+    if ((!categoryName || categoryName === '0') && categoryId) {
+      const found = categoriesList.find(c => String(c.id) === String(categoryId));
+      if (found) {
+        categoryName = found.name;
+        categoryIcon = categoryIcon || found.icon || '';
+      }
+    }
+
+    const category = categoryName; // what UI uses
 
     // Get icon for product's category from categories list
     const getProductCategoryIcon = () => {
       if (categoryIcon) return categoryIcon;
       
-      // Try to find matching category in categories state
+      // Try to find matching category in categories list
       const matchingCat = categoriesList.find(c => 
         c.name.toLowerCase() === categoryName.toLowerCase() ||
         c.name.toLowerCase() === category.toLowerCase()
@@ -183,6 +205,9 @@ const App: React.FC = () => {
       discount: Number.isFinite(discount) ? discount : 0,
       category,
       categoryName,
+      categoryId: categoryId || undefined,
+      category_id: categoryId || undefined,
+      category_name: categoryName,
       categoryIcon: getProductCategoryIcon(),
       image: p?.image || p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || '',
       // 🔥 Improved array handling for snake_case/camelCase
@@ -262,7 +287,8 @@ const App: React.FC = () => {
             id: p.id,
             title: p.title,
             category: p.category,
-            categoryName: p.categoryName
+            categoryName: p.categoryName,
+            categoryId: (p as any).categoryId
           })));
           
           setProducts(normalized);
