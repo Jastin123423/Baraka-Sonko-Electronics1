@@ -1,4 +1,3 @@
-
 export interface Product {
   id: string;
   title: string;
@@ -6,15 +5,21 @@ export interface Product {
   images?: string[]; // Gallery slider images (URLs)
   descriptionImages?: string[]; // Images shown below description (URLs)
   videoUrl?: string; // Product video (URL)
-  price: number;
-  originalPrice?: number;
-  discount?: number;
+  price: number; // Selling price (what customer pays)
+  originalPrice: number; // REQUIRED: Original price before discount
+  sellingPrice?: number; // Optional: Same as price for consistency
+  discount?: number; // Auto-calculated discount percentage
+  discountAmount?: number; // Discount amount in TSh
   soldCount?: string;
   orderCount?: string; 
   rating?: number; 
-  category?: string;
+  category: string; // REQUIRED: Changed from optional to required
+  categoryName?: string; // Alternative field name for backend compatibility
   status?: 'online' | 'pending' | 'out-of-stock';
+  views: number; // REQUIRED: View counter starting at 0
+  viewCount?: number; // Alternative field name for backend compatibility
   createdAt?: string;
+  created_at?: string; // Alternative field name for backend compatibility
 }
 
 export interface Category {
@@ -49,6 +54,7 @@ export interface AdminStats {
   earnings: number;
   pageViews: number;
   totalOrders: number;
+  totalProducts?: number; // Added for dashboard display
 }
 
 export interface ApiResponse<T> {
