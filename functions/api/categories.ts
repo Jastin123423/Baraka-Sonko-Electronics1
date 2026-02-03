@@ -28,7 +28,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const id = str(url.searchParams.get('id'));
 
     if (id) {
-      const row = await env.DB.prepare(`SELECT id, name, image, created_at FROM categories WHERE id=? LIMIT 1`)
+      const row = await env.DB
+        .prepare(`SELECT id, name, icon, created_at, updated_at FROM categories WHERE id=? LIMIT 1`)
         .bind(id)
         .first<any>();
 
@@ -36,9 +37,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       return json({ success: true, data: row });
     }
 
-    const rows = await env.DB.prepare(
-      `SELECT id, name, image, created_at FROM categories ORDER BY name ASC`
-    ).all<any>();
+    const rows = await env.DB
+      .prepare(`SELECT id, name, icon, created_at, updated_at FROM categories ORDER BY CAST(id AS INTEGER) ASC`)
+      .all<any>();
 
     return json({ success: true, data: rows.results || [] });
   } catch (e: any) {
@@ -51,27 +52,30 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
 
     const body = await request.json().catch(() => ({}));
+    const id = body.id != null ? str(body.id) : crypto.randomUUID();
     const name = str(body.name);
-    const image = body.image != null ? str(body.image) : null;
+    const icon = body.icon != null ? str(body.icon) : null;
 
     if (!name) return json({ success: false, error: 'Missing required field: name' }, 400);
 
-    const id = crypto.randomUUID();
-
-    await env.DB.prepare(`INSERT INTO categories (id, name, image) VALUES (?, ?, ?)`)
-      .bind(id, name, image)
+    await env.DB
+      .prepare(
+        `INSERT INTO categories (id, name, icon, created_at, updated_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      )
+      .bind(id, name, icon)
       .run();
 
-    const row = await env.DB.prepare(`SELECT id, name, image, created_at FROM categories WHERE id=? LIMIT 1`)
+    const row = await env.DB
+      .prepare(`SELECT id, name, icon, created_at, updated_at FROM categories WHERE id=? LIMIT 1`)
       .bind(id)
       .first<any>();
 
     return json({ success: true, data: row }, 201);
   } catch (e: any) {
-    // handle unique name constraint
-    const msg = String(e?.message || '');
-    if (msg.toLowerCase().includes('unique') || msg.toLowerCase().includes('constraint')) {
-      return json({ success: false, error: 'Category name already exists' }, 409);
+    const msg = String(e?.message || '').toLowerCase();
+    if (msg.includes('unique') || msg.includes('constraint')) {
+      return json({ success: false, error: 'Category id or name already exists' }, 409);
     }
     return json({ success: false, error: e?.message || 'Failed to create category' }, 500);
   }
@@ -85,8 +89,8 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env }) => {
     const id = str(url.searchParams.get('id'));
     if (!id) return json({ success: false, error: 'Missing id' }, 400);
 
-    // optional: prevent delete if products reference it
-    const used = await env.DB.prepare(`SELECT COUNT(1) as c FROM products WHERE category_id=?`)
+    const used = await env.DB
+      .prepare(`SELECT COUNT(1) as c FROM products WHERE category_id=?`)
       .bind(id)
       .first<any>();
 
