@@ -41,23 +41,30 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
 
     const row = await env.DB.prepare(
-      `SELECT id, name, email, role, password FROM users WHERE lower(email)=? LIMIT 1`
+      `SELECT id, name, email, role, password_hash
+       FROM users
+       WHERE lower(email)=? LIMIT 1`
     )
       .bind(email)
       .first<any>();
 
     if (!row) return json({ success: false, error: 'Invalid credentials' }, 401);
-    if (!row.password) return json({ success: false, error: 'Account has no password set' }, 401);
+    if (!row.password_hash) return json({ success: false, error: 'Account has no password set' }, 401);
 
     const incomingHash = await sha256Hex(password);
-    if (incomingHash !== row.password) {
+
+    if (incomingHash !== row.password_hash) {
       return json({ success: false, error: 'Invalid credentials' }, 401);
     }
 
-    // ✅ return safe user (no password)
     return json({
       success: true,
-      user: { id: row.id, name: row.name, email: row.email, role: row.role || 'user' },
+      user: {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        role: row.role || 'user',
+      },
     });
   } catch (e: any) {
     return json({ success: false, error: e?.message || 'Login failed' }, 500);
