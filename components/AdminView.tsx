@@ -1,4 +1,4 @@
-//AdminView.tsx 
+
 
 import React, { useState, useEffect } from 'react';
 import { Product, Category, AdminStats } from '../types';
@@ -1162,4 +1162,4 @@ const AdminView: React.FC<AdminViewProps> = ({
   );
 };
 
-export { AdminView };
+export default AdminView;
