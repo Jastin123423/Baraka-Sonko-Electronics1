@@ -89,8 +89,26 @@ const normalizeCategory = (cat: any): Category => {
   };
 };
 
+// Banner data - Add more banners here as needed
+const banners = [
+  {
+    id: 1,
+    src: "https://media.barakasonko.store/Jipatie%20kwa%20bei%20poa.gif",
+    alt: "Get products at affordable prices",
+    duration: 5000, // 5 seconds
+  },
+  {
+    id: 2,
+    src: "https://media.barakasonko.store/uploads/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail.gif",
+    alt: "Product unboxing and review",
+    duration: 5000, // 5 seconds
+  },
+  // Add more banners here if needed
+];
+
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
   const [view, setView] = useState<
     | 'home'
@@ -111,6 +129,18 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Banner rotation effect
+  useEffect(() => {
+    if (view !== 'home' || banners.length <= 1) return;
+    
+    const currentBanner = banners[activeBannerIndex];
+    const interval = setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+    }, currentBanner.duration);
+
+    return () => clearInterval(interval);
+  }, [activeBannerIndex, view]);
 
   // Transform backend product data to ensure proper format - NOW INSIDE COMPONENT
   const normalizeProduct = (p: any, categoriesList: Category[]): Product => {
@@ -365,6 +395,20 @@ const App: React.FC = () => {
     setView('product-detail');
   };
 
+  // Handle banner click
+  const handleBannerClick = () => {
+    setView('all-products');
+  };
+
+  // Manual banner navigation
+  const goToNextBanner = () => {
+    setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+  };
+
+  const goToPrevBanner = () => {
+    setActiveBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
+  };
+
   // Bottom nav mapping (fix highlight + category-results)
   const navView =
     view === 'admin'
@@ -458,12 +502,71 @@ const App: React.FC = () => {
           <>
             <HeroBanner onClick={() => setView('all-products')} />
 
-            <AdBanner
-              src="https://media.barakasonko.store/Jipatie%20kwa%20bei%20poa.gif"
-              onClick={() => setView('all-products')}
-              containerClass="h-[350px]"
-              fullWidth={true}
-            />
+            {/* Rotating Banner Carousel */}
+            <div className="relative w-full overflow-hidden">
+              <div className="relative h-[350px]">
+                {banners.map((banner, index) => (
+                  <div
+                    key={banner.id}
+                    className={`absolute inset-0 transition-all duration-500 ease-in-out ${
+                      index === activeBannerIndex
+                        ? 'opacity-100 translate-x-0'
+                        : 'opacity-0 translate-x-full'
+                    }`}
+                  >
+                    <AdBanner
+                      src={banner.src}
+                      onClick={handleBannerClick}
+                      containerClass="h-[350px]"
+                      fullWidth={true}
+                      alt={banner.alt}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Banner Navigation Dots */}
+              {banners.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                  {banners.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setActiveBannerIndex(index)}
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        index === activeBannerIndex
+                          ? 'bg-orange-600 w-6'
+                          : 'bg-gray-300 hover:bg-gray-400'
+                      }`}
+                      aria-label={`Go to banner ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Banner Navigation Arrows */}
+              {banners.length > 1 && (
+                <>
+                  <button
+                    onClick={goToPrevBanner}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
+                    aria-label="Previous banner"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={goToNextBanner}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
+                    aria-label="Next banner"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
 
             <QuickActions onActionSelect={() => setView('all-products')} />
 
