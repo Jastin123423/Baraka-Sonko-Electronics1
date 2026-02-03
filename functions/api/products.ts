@@ -5,8 +5,8 @@ type Env = { DB: D1Database };
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 const json = (data: any, status = 200) =>
@@ -18,204 +18,246 @@ const json = (data: any, status = 200) =>
 export const onRequestOptions: PagesFunction = async () =>
   new Response(null, { status: 204, headers: cors });
 
-const str = (v: any) => String(v ?? '').trim();
-const num = (v: any, fallback = 0) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-};
-const int = (v: any, fallback = 0) => {
-  const n = parseInt(String(v), 10);
-  return Number.isFinite(n) ? n : fallback;
-};
-
-const parseJsonArray = (v: any): string[] => {
+const safeJsonParseArray = (v: any): string[] => {
   if (!v) return [];
-  if (Array.isArray(v)) return v.map(String);
-  try {
-    const a = JSON.parse(String(v));
-    return Array.isArray(a) ? a.map(String) : [];
-  } catch {
-    return [];
+  if (Array.isArray(v)) return v.map(String).filter(Boolean);
+
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return [];
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+      return [];
+    } catch {
+      // If someone accidentally stored a single URL string in TEXT column
+      // treat it as one-element array
+      if (s.startsWith('http')) return [s];
+      return [];
+    }
   }
+  return [];
 };
 
-const toClientProduct = (row: any) => {
-  // Map DB snake_case -> your React camelCase expectations
-  return {
-    id: row.id,
-    title: row.title,
-    image: row.image,
-    images: parseJsonArray(row.images),
-    descriptionImages: parseJsonArray(row.description_images),
-    videoUrl: row.video_url || null,
-    price: Number(row.price),
-    originalPrice: row.original_price ?? null,
-    discount: row.discount ?? null,
-    soldCount: row.sold_count ?? '0 sold',
-    orderCount: row.order_count ?? '0 orders',
-    rating: row.rating ?? 5.0,
-    categoryId: row.category_id ?? null,
-    category: row.category_name ?? null, // your UI uses product.category sometimes
-    categoryName: row.category_name ?? null,
-    status: row.status ?? 'online',
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
+const pickFirstUrl = (arr: string[]): string => (arr && arr.length ? String(arr[0]) : '');
+
+const genId = () => {
+  // Simple unique id (safe enough for most admin dashboards)
+  // You can replace with crypto.randomUUID() if available in your runtime.
+  return `p_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
-export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   try {
     if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
 
     const url = new URL(request.url);
-    const id = str(url.searchParams.get('id'));
+    const id = url.searchParams.get('id');
+    const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 200), 1), 500);
 
     if (id) {
-      const row = await env.DB.prepare(`SELECT * FROM products WHERE id=? LIMIT 1`).bind(id).first<any>();
+      const row = await env.DB.prepare(
+        `
+        SELECT
+          id, title, image, images, description_images, video_url,
+          price, original_price, discount, sold_count, order_count, rating,
+          category_id, category_name, status, created_at, updated_at
+        FROM products
+        WHERE id = ?
+        `
+      )
+        .bind(id)
+        .first<any>();
+
       if (!row) return json({ success: false, error: 'Not found' }, 404);
-      return json({ success: true, data: toClientProduct(row) });
+
+      const imagesArr = safeJsonParseArray(row.images);
+      const descArr = safeJsonParseArray(row.description_images);
+
+      const product = {
+        id: String(row.id),
+        title: String(row.title || ''),
+        image: String(row.image || pickFirstUrl(imagesArr) || ''),
+        images: imagesArr,
+        description_images: descArr,
+        video_url: String(row.video_url || ''),
+        price: Number(row.price || 0),
+        original_price: row.original_price == null ? null : Number(row.original_price),
+        discount: row.discount == null ? 0 : Number(row.discount),
+        sold_count: String(row.sold_count || '0 sold'),
+        order_count: String(row.order_count || '0 orders'),
+        rating: row.rating == null ? 5.0 : Number(row.rating),
+        category_id: row.category_id == null ? null : String(row.category_id),
+        category_name: String(row.category_name || ''),
+        status: String(row.status || 'online'),
+        created_at: String(row.created_at || ''),
+        updated_at: String(row.updated_at || ''),
+      };
+
+      return json({ success: true, data: product });
     }
 
-    const rows = await env.DB.prepare(`SELECT * FROM products ORDER BY created_at DESC`).all<any>();
-    const list = (rows?.results || []).map(toClientProduct);
+    const { results } = await env.DB.prepare(
+      `
+      SELECT
+        id, title, image, images, description_images, video_url,
+        price, original_price, discount, sold_count, order_count, rating,
+        category_id, category_name, status, created_at, updated_at
+      FROM products
+      ORDER BY datetime(created_at) DESC
+      LIMIT ?
+      `
+    )
+      .bind(limit)
+      .all<any>();
+
+    const list = (results || []).map((row: any) => {
+      const imagesArr = safeJsonParseArray(row.images);
+      const descArr = safeJsonParseArray(row.description_images);
+
+      return {
+        id: String(row.id),
+        title: String(row.title || ''),
+        image: String(row.image || pickFirstUrl(imagesArr) || ''),
+        images: imagesArr,
+        description_images: descArr,
+        video_url: String(row.video_url || ''),
+        price: Number(row.price || 0),
+        original_price: row.original_price == null ? null : Number(row.original_price),
+        discount: row.discount == null ? 0 : Number(row.discount),
+        sold_count: String(row.sold_count || '0 sold'),
+        order_count: String(row.order_count || '0 orders'),
+        rating: row.rating == null ? 5.0 : Number(row.rating),
+        category_id: row.category_id == null ? null : String(row.category_id),
+        category_name: String(row.category_name || ''),
+        status: String(row.status || 'online'),
+        created_at: String(row.created_at || ''),
+        updated_at: String(row.updated_at || ''),
+      };
+    });
 
     return json({ success: true, data: list });
   } catch (e: any) {
-    return json({ success: false, error: e?.message || 'Failed to load products' }, 500);
+    console.error('GET /api/products error', e);
+    return json({ success: false, error: e?.message || 'Server error' }, 500);
   }
 };
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
   try {
     if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
 
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({} as any));
 
-    // IMPORTANT: Body must already contain final R2 URLs (upload first).
-    const id = crypto.randomUUID();
-    const title = str(body.title);
-    const image = str(body.image);
-    const price = num(body.price, NaN);
+    // Accept BOTH camelCase and snake_case from frontend
+    const title = String(body.title || '').trim();
+    const description = String(body.description || '').trim(); // if you later add description column
+    const price = Number(body.price);
+    const discount = body.discount == null ? 0 : Number(body.discount);
+    const originalPrice = body.originalPrice ?? body.original_price ?? null;
 
-    if (!title || !image || !Number.isFinite(price)) {
-      return json({ success: false, error: 'Missing required: title, image, price' }, 400);
-    }
+    const imagesArr = safeJsonParseArray(body.images ?? body.image_urls ?? []);
+    const descArr = safeJsonParseArray(body.descriptionImages ?? body.description_images ?? []);
+    const videoUrl = String(body.videoUrl ?? body.video_url ?? '');
 
-    const images = Array.isArray(body.images) ? body.images.map(String) : [];
-    const descriptionImages = Array.isArray(body.descriptionImages) ? body.descriptionImages.map(String) : [];
-    const videoUrl = body.videoUrl ? String(body.videoUrl) : null;
+    // MAIN IMAGE MUST EXIST (DB: image TEXT NOT NULL)
+    const mainImage =
+      String(body.image || body.image_url || '').trim() ||
+      pickFirstUrl(imagesArr);
 
-    const originalPrice = body.originalPrice != null ? num(body.originalPrice, null as any) : null;
-    const discount = body.discount != null ? int(body.discount, null as any) : null;
+    if (!title) return json({ success: false, error: 'Title is required' }, 400);
+    if (!Number.isFinite(price) || price <= 0) return json({ success: false, error: 'Valid price is required' }, 400);
+    if (!mainImage) return json({ success: false, error: 'At least one image is required' }, 400);
 
-    const soldCount = str(body.soldCount || '0 sold');
-    const orderCount = str(body.orderCount || '0 orders');
-    const rating = body.rating != null ? num(body.rating, 5.0) : 5.0;
+    // category fields (your table uses category_id + category_name)
+    const categoryId = String(body.category_id || body.categoryId || '').trim() || null;
+    const categoryName = String(body.category_name || body.categoryName || body.category || '').trim();
 
-    const categoryId = body.categoryId ? str(body.categoryId) : null;
-    const categoryName = body.categoryName ? str(body.categoryName) : (body.category ? str(body.category) : null);
+    const id = String(body.id || genId());
+    const now = new Date().toISOString();
 
-    const status = str(body.status || 'online');
+    // Store arrays as JSON strings in TEXT columns ✅
+    const imagesJson = JSON.stringify(imagesArr);
+    const descJson = JSON.stringify(descArr);
 
     await env.DB.prepare(
-      `INSERT INTO products (
+      `
+      INSERT INTO products (
         id, title, image, images, description_images, video_url,
-        price, original_price, discount, sold_count, order_count, rating,
-        category_id, category_name, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        price, original_price, discount,
+        sold_count, order_count, rating,
+        category_id, category_name,
+        status, created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?,
+        ?, ?, ?,
+        ?, ?,
+        ?, ?, ?
+      )
+      `
     )
       .bind(
         id,
         title,
-        image,
-        JSON.stringify(images),
-        JSON.stringify(descriptionImages),
+        mainImage,
+        imagesJson,
+        descJson,
         videoUrl,
         price,
-        originalPrice,
-        discount,
-        soldCount,
-        orderCount,
-        rating,
+        originalPrice == null ? null : Number(originalPrice),
+        Number.isFinite(discount) ? discount : 0,
+        String(body.sold_count || body.soldCount || '0 sold'),
+        String(body.order_count || body.orderCount || '0 orders'),
+        body.rating == null ? 5.0 : Number(body.rating),
         categoryId,
         categoryName,
-        status
+        String(body.status || 'online'),
+        String(body.created_at || body.createdAt || now),
+        now
       )
       .run();
 
-    const row = await env.DB.prepare(`SELECT * FROM products WHERE id=? LIMIT 1`).bind(id).first<any>();
-    return json({ success: true, data: toClientProduct(row) }, 201);
-  } catch (e: any) {
-    return json({ success: false, error: e?.message || 'Failed to create product' }, 500);
-  }
-};
-
-export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
-  try {
-    if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
-
-    const url = new URL(request.url);
-    const id = str(url.searchParams.get('id'));
-    if (!id) return json({ success: false, error: 'Missing id' }, 400);
-
-    const body = await request.json().catch(() => ({}));
-
-    // Only update fields provided
-    const sets: string[] = [];
-    const binds: any[] = [];
-
-    const set = (col: string, val: any) => {
-      sets.push(`${col}=?`);
-      binds.push(val);
+    // Return the saved product in a frontend-friendly shape
+    const saved = {
+      id,
+      title,
+      image: mainImage,
+      images: imagesArr,
+      description_images: descArr,
+      video_url: videoUrl,
+      price,
+      original_price: originalPrice == null ? null : Number(originalPrice),
+      discount: Number.isFinite(discount) ? discount : 0,
+      sold_count: String(body.sold_count || body.soldCount || '0 sold'),
+      order_count: String(body.order_count || body.orderCount || '0 orders'),
+      rating: body.rating == null ? 5.0 : Number(body.rating),
+      category_id: categoryId,
+      category_name: categoryName,
+      status: String(body.status || 'online'),
+      created_at: String(body.created_at || body.createdAt || now),
+      updated_at: now,
     };
 
-    if (body.title != null) set('title', str(body.title));
-    if (body.image != null) set('image', str(body.image));
-    if (body.images != null) set('images', JSON.stringify(parseJsonArray(body.images)));
-    if (body.descriptionImages != null) set('description_images', JSON.stringify(parseJsonArray(body.descriptionImages)));
-    if (body.videoUrl !== undefined) set('video_url', body.videoUrl ? str(body.videoUrl) : null);
-
-    if (body.price != null) set('price', num(body.price, 0));
-    if (body.originalPrice !== undefined) set('original_price', body.originalPrice == null ? null : num(body.originalPrice, 0));
-    if (body.discount !== undefined) set('discount', body.discount == null ? null : int(body.discount, 0));
-
-    if (body.soldCount != null) set('sold_count', str(body.soldCount));
-    if (body.orderCount != null) set('order_count', str(body.orderCount));
-    if (body.rating != null) set('rating', num(body.rating, 5));
-
-    if (body.categoryId !== undefined) set('category_id', body.categoryId ? str(body.categoryId) : null);
-    if (body.categoryName !== undefined) set('category_name', body.categoryName ? str(body.categoryName) : null);
-    if (body.status != null) set('status', str(body.status));
-
-    // Always update updated_at
-    set('updated_at', new Date().toISOString());
-
-    if (sets.length === 0) return json({ success: false, error: 'No fields to update' }, 400);
-
-    await env.DB.prepare(`UPDATE products SET ${sets.join(', ')} WHERE id=?`)
-      .bind(...binds, id)
-      .run();
-
-    const row = await env.DB.prepare(`SELECT * FROM products WHERE id=? LIMIT 1`).bind(id).first<any>();
-    if (!row) return json({ success: false, error: 'Not found' }, 404);
-
-    return json({ success: true, data: toClientProduct(row) });
+    return json({ success: true, data: saved }, 201);
   } catch (e: any) {
-    return json({ success: false, error: e?.message || 'Failed to update product' }, 500);
+    console.error('POST /api/products error', e);
+    return json({ success: false, error: e?.message || 'Server error' }, 500);
   }
 };
 
-export const onRequestDelete: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestDelete: PagesFunction<Env> = async ({ env, request }) => {
   try {
     if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
 
     const url = new URL(request.url);
-    const id = str(url.searchParams.get('id'));
+    const id = url.searchParams.get('id');
     if (!id) return json({ success: false, error: 'Missing id' }, 400);
 
-    const res = await env.DB.prepare(`DELETE FROM products WHERE id=?`).bind(id).run();
-    return json({ success: true, deleted: res.success });
+    await env.DB.prepare(`DELETE FROM products WHERE id = ?`).bind(id).run();
+    return json({ success: true, data: { id } });
   } catch (e: any) {
-    return json({ success: false, error: e?.message || 'Failed to delete product' }, 500);
+    console.error('DELETE /api/products error', e);
+    return json({ success: false, error: e?.message || 'Server error' }, 500);
   }
 };
