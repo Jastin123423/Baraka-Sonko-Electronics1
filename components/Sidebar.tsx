@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { COLORS,CATEGORIES } from '../constants';
+import { COLORS } from '../constants';
 import { Category } from '../types';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onCategorySelect: (category: Category) => void;
-  categories?: Category[]; // Optional: if not provided, Sidebar will fetch its own
 }
 
 type SidebarPage = 'menu' | 'about' | 'privacy' | 'terms';
@@ -14,48 +13,46 @@ type SidebarPage = 'menu' | 'about' | 'privacy' | 'terms';
 const Sidebar: React.FC<SidebarProps> = ({ 
   isOpen, 
   onClose, 
-  onCategorySelect,
-  categories: propCategories 
+  onCategorySelect 
 }) => {
   const [currentPage, setCurrentPage] = useState<SidebarPage>('menu');
-  const [categories, setCategories] = useState<Category[]>(propCategories || []);
-  const [isLoading, setIsLoading] = useState(!propCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // If categories are not passed as props, fetch them
+  // Fetch categories from backend when sidebar opens
   useEffect(() => {
     const fetchCategories = async () => {
-      // If categories are already passed as props, use them
-      if (propCategories && propCategories.length > 0) {
-        setCategories(propCategories);
-        return;
-      }
+      if (!isOpen || categories.length > 0) return;
       
-      // Otherwise fetch from backend
       try {
         setIsLoading(true);
+        setError(null);
+        
         const response = await fetch('/api/categories');
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch categories: ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (data?.success) {
           setCategories(data.data || []);
         } else {
-          console.error('Failed to fetch categories:', data?.error);
-          // Fallback to hardcoded categories if fetch fails
-          setCategories(CATEGORIES);
+          throw new Error(data?.error || 'Invalid response format');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching categories:', error);
-        // Fallback to hardcoded categories
-        setCategories(CATEGORIES);
+        setError(error.message || 'Failed to load categories');
+        setCategories([]); // Clear on error
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (isOpen && categories.length === 0) {
-      fetchCategories();
-    }
-  }, [isOpen, propCategories]);
+    fetchCategories();
+  }, [isOpen]); // Fetch only when sidebar opens
 
   const handlePageChange = (page: SidebarPage) => {
     setCurrentPage(page);
@@ -68,15 +65,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Helper function to get category icon
   const getCategoryIcon = (categoryName: string): string => {
-    // Try to find matching icon from hardcoded CATEGORIES
-    const hardcodedCat = CATEGORIES.find(cat => 
-      cat.name.toLowerCase() === categoryName.toLowerCase()
-    );
-    
-    if (hardcodedCat) return hardcodedCat.icon;
+    const name = categoryName.toLowerCase();
     
     // Default icons based on category name
-    const name = categoryName.toLowerCase();
     if (name.includes('phone') || name.includes('simu')) return '📱';
     if (name.includes('tv') || name.includes('television')) return '📺';
     if (name.includes('sound') || name.includes('sauti')) return '🔊';
@@ -90,6 +81,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (name.includes('health') || name.includes('afya')) return '❤️';
     if (name.includes('book') || name.includes('kitabu')) return '📚';
     if (name.includes('fashion') || name.includes('mitindo')) return '👕';
+    if (name.includes('all') || name.includes('zote')) return '🛒';
+    if (name.includes('electronics') || name.includes('umeme')) return '🔌';
+    if (name.includes('accessories') || name.includes('vifaa')) return '🛍️';
     
     return '🛒'; // Default shopping icon
   };
@@ -102,12 +96,34 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
       
       {isLoading ? (
-        <div className="px-4 py-8 flex justify-center">
-          <div className="w-6 h-6 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="px-4 py-12 flex flex-col items-center justify-center">
+          <div className="w-8 h-8 border-3 border-orange-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+          <p className="text-xs font-bold text-gray-500">Loading categories...</p>
+        </div>
+      ) : error ? (
+        <div className="px-4 py-8 text-center">
+          <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3">
+            <span className="text-red-500 text-xl">⚠️</span>
+          </div>
+          <p className="text-xs font-bold text-gray-600 mb-2">Failed to load categories</p>
+          <p className="text-xs text-gray-400">{error}</p>
+          <button 
+            onClick={() => {
+              setCategories([]);
+              setError(null);
+            }}
+            className="mt-4 text-xs font-bold text-orange-600 hover:text-orange-700"
+          >
+            Try Again
+          </button>
         </div>
       ) : categories.length === 0 ? (
         <div className="px-4 py-8 text-center">
-          <p className="text-sm text-gray-500">No categories found</p>
+          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <span className="text-gray-400 text-xl">📁</span>
+          </div>
+          <p className="text-xs font-bold text-gray-600">No categories available</p>
+          <p className="text-xs text-gray-400 mt-1">Check backend connection</p>
         </div>
       ) : (
         <div className="px-4 grid grid-cols-3 gap-3 mb-8">
@@ -120,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-2xl mb-1.5 group-hover:scale-110 transition-transform">
                 {getCategoryIcon(cat.name)}
               </span>
-              <span className="text-[10px] font-bold text-gray-700 text-center leading-tight group-hover:text-orange-700">
+              <span className="text-[10px] font-bold text-gray-700 text-center leading-tight group-hover:text-orange-700 line-clamp-2">
                 {cat.name}
               </span>
             </div>
