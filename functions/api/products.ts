@@ -18,6 +18,10 @@ const json = (data: any, status = 200) =>
 export const onRequestOptions: PagesFunction = async () =>
   new Response(null, { status: 204, headers: cors });
 
+// ✅ DEFAULT PRODUCT VIDEO (used when user doesn't upload any)
+const DEFAULT_VIDEO_URL =
+  'https://media.barakasonko.store/uploads/Facebook_1770123707890(720p).mp4';
+
 const safeJsonParseArray = (v: any): string[] => {
   if (!v) return [];
   if (Array.isArray(v)) return v.map(String).filter(Boolean);
@@ -30,8 +34,6 @@ const safeJsonParseArray = (v: any): string[] => {
       if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
       return [];
     } catch {
-      // If someone accidentally stored a single URL string in TEXT column
-      // treat it as one-element array
       if (s.startsWith('http')) return [s];
       return [];
     }
@@ -42,8 +44,6 @@ const safeJsonParseArray = (v: any): string[] => {
 const pickFirstUrl = (arr: string[]): string => (arr && arr.length ? String(arr[0]) : '');
 
 const genId = () => {
-  // Simple unique id (safe enough for most admin dashboards)
-  // You can replace with crypto.randomUUID() if available in your runtime.
   return `p_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
@@ -80,7 +80,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
         image: String(row.image || pickFirstUrl(imagesArr) || ''),
         images: imagesArr,
         description_images: descArr,
-        video_url: String(row.video_url || ''),
+        // ✅ if old product has empty video_url, still return default
+        video_url: String(row.video_url || '').trim() || DEFAULT_VIDEO_URL,
         price: Number(row.price || 0),
         original_price: row.original_price == null ? null : Number(row.original_price),
         discount: row.discount == null ? 0 : Number(row.discount),
@@ -121,7 +122,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
         image: String(row.image || pickFirstUrl(imagesArr) || ''),
         images: imagesArr,
         description_images: descArr,
-        video_url: String(row.video_url || ''),
+        // ✅ if old product has empty video_url, still return default
+        video_url: String(row.video_url || '').trim() || DEFAULT_VIDEO_URL,
         price: Number(row.price || 0),
         original_price: row.original_price == null ? null : Number(row.original_price),
         discount: row.discount == null ? 0 : Number(row.discount),
@@ -149,34 +151,33 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
 
     const body = await request.json().catch(() => ({} as any));
 
-    // Accept BOTH camelCase and snake_case from frontend
     const title = String(body.title || '').trim();
-    const description = String(body.description || '').trim(); // if you later add description column
+    const description = String(body.description || '').trim(); // (not stored yet)
     const price = Number(body.price);
     const discount = body.discount == null ? 0 : Number(body.discount);
     const originalPrice = body.originalPrice ?? body.original_price ?? null;
 
     const imagesArr = safeJsonParseArray(body.images ?? body.image_urls ?? []);
     const descArr = safeJsonParseArray(body.descriptionImages ?? body.description_images ?? []);
-    const videoUrl = String(body.videoUrl ?? body.video_url ?? '');
 
-    // MAIN IMAGE MUST EXIST (DB: image TEXT NOT NULL)
+    // ✅ DEFAULT VIDEO: use default when empty
+    const videoUrl =
+      String(body.videoUrl ?? body.video_url ?? '').trim() || DEFAULT_VIDEO_URL;
+
     const mainImage =
-      String(body.image || body.image_url || '').trim() ||
-      pickFirstUrl(imagesArr);
+      String(body.image || body.image_url || '').trim() || pickFirstUrl(imagesArr);
 
     if (!title) return json({ success: false, error: 'Title is required' }, 400);
-    if (!Number.isFinite(price) || price <= 0) return json({ success: false, error: 'Valid price is required' }, 400);
+    if (!Number.isFinite(price) || price <= 0)
+      return json({ success: false, error: 'Valid price is required' }, 400);
     if (!mainImage) return json({ success: false, error: 'At least one image is required' }, 400);
 
-    // category fields (your table uses category_id + category_name)
     const categoryId = String(body.category_id || body.categoryId || '').trim() || null;
     const categoryName = String(body.category_name || body.categoryName || body.category || '').trim();
 
     const id = String(body.id || genId());
     const now = new Date().toISOString();
 
-    // Store arrays as JSON strings in TEXT columns ✅
     const imagesJson = JSON.stringify(imagesArr);
     const descJson = JSON.stringify(descArr);
 
@@ -218,13 +219,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
       )
       .run();
 
-    // Return the saved product in a frontend-friendly shape
     const saved = {
       id,
       title,
       image: mainImage,
       images: imagesArr,
       description_images: descArr,
+      // ✅ always returns a video now (uploaded or default)
       video_url: videoUrl,
       price,
       original_price: originalPrice == null ? null : Number(originalPrice),
