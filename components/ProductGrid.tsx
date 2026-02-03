@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useMemo } from 'react';
 import { COLORS, ICONS } from '../constants';
 import { Product } from '../types';
@@ -54,16 +53,13 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
             )}
           </div>
           
-          {/* Metadata: Orders & Rating */}
-          <div className="flex items-center justify-between mt-1.5">
-            <div className="flex flex-col">
-              <span className="text-[9px] text-gray-400 font-medium">
-                {product.orderCount || '0 orders'}
+          {/* Rating only - Removed order count */}
+          <div className="flex items-center mt-2">
+            <div className="flex items-center space-x-0.5">
+              <span className="text-[10px] text-orange-400">⭐</span>
+              <span className="text-[10px] text-gray-500 font-bold">
+                {typeof product.rating === 'number' ? product.rating.toFixed(1) : '5.0'}
               </span>
-              <div className="flex items-center space-x-0.5 mt-0.5">
-                <span className="text-[10px] text-orange-400">⭐</span>
-                <span className="text-[10px] text-gray-500 font-bold">{product.rating || '4.0'}</span>
-              </div>
             </div>
           </div>
         </div>
