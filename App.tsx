@@ -103,6 +103,12 @@ const banners = [
     alt: "Product unboxing and review",
     duration: 5000, // 5 seconds
   },
+  {
+    id: 2,
+    src: "https://media.barakasonko.store/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail%20(1).gif",
+    alt: "Product boxing and review",
+    duration: 5000, // 5 seconds
+  }
   // Add more banners here if needed
 ];
 
