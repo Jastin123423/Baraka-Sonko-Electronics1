@@ -25,13 +25,13 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
 
-  // Updated formData with originalPrice and sellingPrice
+  // Updated formData with categoryId instead of category
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     originalPrice: '', // Changed from 'price'
     sellingPrice: '', // New field
-    category: '',
+    categoryId: '', // CHANGED: Now stores ID, not name
     videoUrl: '',
     images: [] as string[],
     descriptionImages: [] as string[],
@@ -385,8 +385,16 @@ const AdminView: React.FC<AdminViewProps> = ({
       return;
     }
 
-    if (!formData.category) {
+    // 🔥 REQUIRED CHANGE 2: Category validation using categoryId
+    if (!formData.categoryId) {
       alert('❌ Please select a category');
+      return;
+    }
+
+    // Find the selected category
+    const selectedCat = categories.find(c => String(c.id) === String(formData.categoryId));
+    if (!selectedCat) {
+      alert('❌ Please select a valid category');
       return;
     }
 
@@ -401,7 +409,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         title: formData.title.trim(),
         description: formData.description.trim(),
         
-        // 🔥 REQUIRED CHANGE 2: Add main image fields
+        // 🔥 REQUIRED CHANGE 3: Add main image fields
         image: mainImage,
         image_url: mainImage,
         images: formData.images,
@@ -424,9 +432,14 @@ const AdminView: React.FC<AdminViewProps> = ({
         discountAmount: discountAmount, // Discount amount in TSh
         discount: discountPercentage, // Discount percentage (0 if no discount)
         
-        // Category - both formats (REQUIRED)
-        categoryName: formData.category,
-        category: formData.category,
+        // 🔥 REQUIRED CHANGE 4: Category - send BOTH ID and NAME
+        category_id: String(selectedCat.id),
+        categoryId: String(selectedCat.id),
+        category_name: selectedCat.name,
+        categoryName: selectedCat.name,
+        
+        // Keep these for compatibility with existing code
+        category: selectedCat.name,
         
         // View count - starts at 0 when product is posted
         views: 0,
@@ -451,7 +464,7 @@ const AdminView: React.FC<AdminViewProps> = ({
           description: '',
           originalPrice: '',
           sellingPrice: '',
-          category: '',
+          categoryId: '', // Reset to empty
           videoUrl: '',
           images: [],
           descriptionImages: [],
@@ -646,7 +659,8 @@ const AdminView: React.FC<AdminViewProps> = ({
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Category: {product.category || product.categoryName || 'Uncategorized'}
+                            {/* 🔥 FIX: Display category_name if available, fall back to other fields */}
+                            Category: {(product as any).category_name || product.categoryName || product.category || 'Uncategorized'}
                           </p>
                         </div>
                         <button 
@@ -924,23 +938,28 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
               </div>
 
-              {/* Category - REQUIRED */}
+              {/* Category - REQUIRED - UPDATED to use categoryId */}
               <div>
                 <label className={labelClass}>Category *</label>
                 <select
                   className={inputClass}
-                  value={formData.category}
-                  onChange={e => setFormData({ ...formData, category: e.target.value })}
+                  value={formData.categoryId}
+                  onChange={e => setFormData({ ...formData, categoryId: e.target.value })}
                   required
                   disabled={isActuallyUploading}
                 >
                   <option value="">Select Category</option>
-                  {categories.map(category => (
-                    <option key={category.id} value={category.name}>
-                      {category.name}
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
+                {formData.categoryId && (
+                  <p className="mt-2 text-xs font-bold text-green-600">
+                    Selected: {categories.find(c => String(c.id) === String(formData.categoryId))?.name || 'Unknown'}
+                  </p>
+                )}
                 <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
                   Category is required for proper product organization and filtering
                 </p>
