@@ -303,6 +303,7 @@ const App: React.FC = () => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onCategorySelect={handleCategorySelect}
+        categories={categories}  // ✅ Pass categories to Sidebar
       />
 
       {/* Header */}
@@ -418,7 +419,7 @@ const App: React.FC = () => {
           <ErrorBoundary title="Admin screen crashed">
             <AdminView
               products={products}
-              categories={categories as any}
+              categories={categories}  // ✅ Fixed: No longer using "as any"
               onAddProduct={addProduct}
               onDeleteProduct={deleteProduct}
             />
