@@ -89,66 +89,6 @@ const normalizeCategory = (cat: any): Category => {
   };
 };
 
-// Transform backend product data to ensure proper format
-const normalizeProduct = (p: any): Product => {
-  const id = String(p?.id ?? '');
-  const price = Number(p?.price ?? 0);
-  const discount = p?.discount == null ? 0 : Number(p.discount);
-
-  // Handle category - extract from backend response
-  let categoryName = '';
-  let categoryIcon = '';
-  
-  if (typeof p?.category === 'object' && p.category !== null) {
-    // If category is an object, extract name and icon
-    categoryName = String(p.category.name || p.category.category_name || '');
-    categoryIcon = String(p.category.icon || p.category.icon_name || '');
-  } else {
-    // If category is string or mixed format
-    categoryName = String(p?.categoryName ?? p?.category ?? '');
-  }
-
-  const category = String(p?.category ?? p?.categoryName ?? '');
-
-  // Get icon for product's category from categories list
-  const getProductCategoryIcon = () => {
-    if (categoryIcon) return categoryIcon;
-    
-    // Try to find matching category in categories state
-    const matchingCat = categories.find(c => 
-      c.name.toLowerCase() === categoryName.toLowerCase() ||
-      c.name.toLowerCase() === category.toLowerCase()
-    );
-    
-    return matchingCat?.icon || getDefaultCategoryIcon(categoryName);
-  };
-
-  return {
-    ...p,
-    id,
-    price: Number.isFinite(price) ? price : 0,
-    discount: Number.isFinite(discount) ? discount : 0,
-    category,
-    categoryName,
-    categoryIcon: getProductCategoryIcon(),
-    image: p?.image || p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || '',
-    // 🔥 Improved array handling for snake_case/camelCase
-    images: Array.isArray(p?.images)
-      ? p.images
-      : Array.isArray(p?.image_urls)
-      ? p.image_urls
-      : Array.isArray(p?.image_urls_json)
-      ? p.image_urls_json
-      : [],
-    descriptionImages: Array.isArray(p?.descriptionImages)
-      ? p.descriptionImages
-      : Array.isArray(p?.description_images)
-      ? p.description_images
-      : [],
-    videoUrl: String(p?.videoUrl ?? p?.video_url ?? ''),
-  } as any;
-};
-
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -171,6 +111,66 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Transform backend product data to ensure proper format - NOW INSIDE COMPONENT
+  const normalizeProduct = (p: any, categoriesList: Category[]): Product => {
+    const id = String(p?.id ?? '');
+    const price = Number(p?.price ?? 0);
+    const discount = p?.discount == null ? 0 : Number(p.discount);
+
+    // Handle category - extract from backend response
+    let categoryName = '';
+    let categoryIcon = '';
+    
+    if (typeof p?.category === 'object' && p.category !== null) {
+      // If category is an object, extract name and icon
+      categoryName = String(p.category.name || p.category.category_name || '');
+      categoryIcon = String(p.category.icon || p.category.icon_name || '');
+    } else {
+      // If category is string or mixed format
+      categoryName = String(p?.categoryName ?? p?.category ?? '');
+    }
+
+    const category = String(p?.category ?? p?.categoryName ?? '');
+
+    // Get icon for product's category from categories list
+    const getProductCategoryIcon = () => {
+      if (categoryIcon) return categoryIcon;
+      
+      // Try to find matching category in categories state
+      const matchingCat = categoriesList.find(c => 
+        c.name.toLowerCase() === categoryName.toLowerCase() ||
+        c.name.toLowerCase() === category.toLowerCase()
+      );
+      
+      return matchingCat?.icon || getDefaultCategoryIcon(categoryName);
+    };
+
+    return {
+      ...p,
+      id,
+      price: Number.isFinite(price) ? price : 0,
+      discount: Number.isFinite(discount) ? discount : 0,
+      category,
+      categoryName,
+      categoryIcon: getProductCategoryIcon(),
+      image: p?.image || p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || '',
+      // 🔥 Improved array handling for snake_case/camelCase
+      images: Array.isArray(p?.images)
+        ? p.images
+        : Array.isArray(p?.image_urls)
+        ? p.image_urls
+        : Array.isArray(p?.image_urls_json)
+        ? p.image_urls_json
+        : [],
+      descriptionImages: Array.isArray(p?.descriptionImages)
+        ? p.descriptionImages
+        : Array.isArray(p?.description_images)
+        ? p.description_images
+        : [],
+      videoUrl: String(p?.videoUrl ?? p?.video_url ?? ''),
+    } as any;
+  };
 
   // Fetch initial data
   useEffect(() => {
@@ -202,30 +202,14 @@ const App: React.FC = () => {
         console.log('📡 App: Products data:', prodData);
         console.log('📡 App: Categories data:', catData);
 
-        if (prodData?.success) {
-          const raw = Array.isArray(prodData.data) ? prodData.data : [];
-          console.log('📡 App: Raw products count:', raw.length);
-          
-          const normalized = raw.map(normalizeProduct);
-          console.log('📡 App: Normalized products:', normalized.map(p => ({
-            id: p.id,
-            title: p.title,
-            category: p.category,
-            categoryName: p.categoryName
-          })));
-          
-          setProducts(normalized);
-        } else {
-          console.error('❌ App: Products API returned error:', prodData?.error);
-          setFetchError(`Products: ${prodData?.error || 'Unknown error'}`);
-        }
-
+        // First process categories
+        let normalizedCats: Category[] = [];
         if (catData?.success) {
           const rawCats = Array.isArray(catData.data) ? catData.data : [];
           console.log('📡 App: Raw categories count:', rawCats.length);
           console.log('📡 App: Raw categories:', rawCats);
           
-          const normalizedCats = rawCats.map(normalizeCategory);
+          normalizedCats = rawCats.map(normalizeCategory);
           console.log('📡 App: Normalized categories:', normalizedCats.map(c => ({
             id: c.id,
             name: c.name,
@@ -236,6 +220,25 @@ const App: React.FC = () => {
         } else {
           console.error('❌ App: Categories API returned error:', catData?.error);
           setFetchError(prev => prev ? `${prev}; Categories: ${catData?.error}` : `Categories: ${catData?.error || 'Unknown error'}`);
+        }
+
+        // Then process products with the normalized categories
+        if (prodData?.success) {
+          const raw = Array.isArray(prodData.data) ? prodData.data : [];
+          console.log('📡 App: Raw products count:', raw.length);
+          
+          const normalized = raw.map(p => normalizeProduct(p, normalizedCats));
+          console.log('📡 App: Normalized products:', normalized.map(p => ({
+            id: p.id,
+            title: p.title,
+            category: p.category,
+            categoryName: p.categoryName
+          })));
+          
+          setProducts(normalized);
+        } else {
+          console.error('❌ App: Products API returned error:', prodData?.error);
+          setFetchError(prev => prev ? `${prev}; Products: ${prodData?.error}` : `Products: ${prodData?.error || 'Unknown error'}`);
         }
       } catch (error: any) {
         console.error('❌ App: Failed to initialize app', error);
@@ -305,7 +308,7 @@ const App: React.FC = () => {
 
       const savedRaw = result.data || result.product || result.item;
       if (savedRaw) {
-        const saved = normalizeProduct(savedRaw);
+        const saved = normalizeProduct(savedRaw, categories);
         setProducts((prev) => [saved, ...prev]);
         return true;
       }
@@ -314,7 +317,7 @@ const App: React.FC = () => {
       const prodRes = await fetch('/api/products');
       const prodData = await prodRes.json().catch(() => null);
       if (prodData?.success) {
-        const normalized = (prodData.data || []).map(normalizeProduct);
+        const normalized = (prodData.data || []).map(p => normalizeProduct(p, categories));
         setProducts(normalized);
       }
 
