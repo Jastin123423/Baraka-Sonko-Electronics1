@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Product, Category, AdminStats } from '../types';
 
@@ -25,44 +23,51 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [uploadError, setUploadError] = useState<string>('');
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [uploadingCount, setUploadingCount] = useState(0); // Track active uploads
+  const [uploadingCount, setUploadingCount] = useState(0);
 
+  // Updated formData with originalPrice and sellingPrice
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    price: '',
-    discountAmount: '', // CHANGED: Now discount in TSh, not percentage
+    originalPrice: '', // Changed from 'price'
+    sellingPrice: '', // New field
     category: '',
     videoUrl: '',
     images: [] as string[],
     descriptionImages: [] as string[],
   });
 
-  // Calculate discount percentage based on price and discount amount
+  // Calculate discount percentage based on original price and selling price
   const calculateDiscountPercentage = () => {
-    const price = parseFloat(formData.price);
-    const discountAmount = parseFloat(formData.discountAmount);
+    const originalPrice = parseFloat(formData.originalPrice);
+    const sellingPrice = parseFloat(formData.sellingPrice);
     
-    if (!price || price <= 0 || !discountAmount || discountAmount <= 0) {
+    if (!originalPrice || originalPrice <= 0 || !sellingPrice || sellingPrice <= 0) {
       return 0;
     }
     
-    if (discountAmount >= price) {
-      return 100; // Max 100% discount
+    if (sellingPrice >= originalPrice) {
+      return 0; // No discount if selling price is higher or equal
     }
     
-    return Math.round((discountAmount / price) * 100);
+    const discount = ((originalPrice - sellingPrice) / originalPrice) * 100;
+    return Math.round(discount);
   };
 
-  // Calculate selling price after discount
-  const calculateSellingPrice = () => {
-    const price = parseFloat(formData.price);
-    const discountAmount = parseFloat(formData.discountAmount);
+  // Calculate discount amount in TSh
+  const calculateDiscountAmount = () => {
+    const originalPrice = parseFloat(formData.originalPrice);
+    const sellingPrice = parseFloat(formData.sellingPrice);
     
-    if (!price || price <= 0) return 0;
-    if (!discountAmount || discountAmount <= 0) return price;
+    if (!originalPrice || originalPrice <= 0 || !sellingPrice || sellingPrice <= 0) {
+      return 0;
+    }
     
-    return price - discountAmount;
+    if (sellingPrice >= originalPrice) {
+      return 0;
+    }
+    
+    return originalPrice - sellingPrice;
   };
 
   // Track actual upload status
@@ -357,9 +362,21 @@ const AdminView: React.FC<AdminViewProps> = ({
       return;
     }
 
-    const price = parseFloat(formData.price);
-    if (!formData.price || isNaN(price) || price <= 0) {
-      alert('❌ Please enter a valid price');
+    const originalPrice = parseFloat(formData.originalPrice);
+    const sellingPrice = parseFloat(formData.sellingPrice);
+    
+    if (!formData.originalPrice || isNaN(originalPrice) || originalPrice <= 0) {
+      alert('❌ Please enter a valid original price');
+      return;
+    }
+
+    if (!formData.sellingPrice || isNaN(sellingPrice) || sellingPrice <= 0) {
+      alert('❌ Please enter a valid selling price');
+      return;
+    }
+
+    if (sellingPrice > originalPrice) {
+      alert('❌ Selling price cannot be higher than original price');
       return;
     }
 
@@ -373,30 +390,12 @@ const AdminView: React.FC<AdminViewProps> = ({
       return;
     }
 
-    // Validate discount amount if provided
-    let discountAmount = 0;
-    let discountPercentage = 0;
-    let sellingPrice = price;
-    
-    if (formData.discountAmount) {
-      discountAmount = parseFloat(formData.discountAmount);
-      if (isNaN(discountAmount) || discountAmount < 0) {
-        alert('❌ Discount amount must be a positive number');
-        return;
-      }
-      
-      if (discountAmount >= price) {
-        alert('❌ Discount amount cannot be greater than or equal to price');
-        return;
-      }
-      
-      // Calculate discount percentage
-      discountPercentage = Math.round((discountAmount / price) * 100);
-      sellingPrice = price - discountAmount;
-    }
+    // Calculate discount
+    const discountPercentage = calculateDiscountPercentage();
+    const discountAmount = calculateDiscountAmount();
 
     try {
-      // Build payload with backward compatibility
+      // Build payload with all required fields including view count starting at 0
       const payload = {
         // Core fields
         title: formData.title.trim(),
@@ -416,15 +415,22 @@ const AdminView: React.FC<AdminViewProps> = ({
         videoUrl: formData.videoUrl || '',
         video_url: formData.videoUrl || '',
         
-        // Pricing - NEW: Use calculated values
-        price: sellingPrice, // This is the final selling price
-        originalPrice: price, // Original price before discount
-        discountAmount: discountAmount, // Discount in TSh
-        discount: discountPercentage > 0 ? discountPercentage : undefined, // Only include if > 0
+        // Pricing - PROFESSIONAL: Original price and selling price
+        price: sellingPrice, // This is the final selling price that customers pay
+        originalPrice: originalPrice, // Original price before discount
+        sellingPrice: sellingPrice, // Selling price (same as price field for consistency)
+        
+        // Discount information - calculated from original and selling price
+        discountAmount: discountAmount, // Discount amount in TSh
+        discount: discountPercentage, // Discount percentage (0 if no discount)
         
         // Category - both formats (REQUIRED)
         categoryName: formData.category,
         category: formData.category,
+        
+        // View count - starts at 0 when product is posted
+        views: 0,
+        viewCount: 0,
         
         // Metadata
         rating: 5.0,
@@ -443,8 +449,8 @@ const AdminView: React.FC<AdminViewProps> = ({
         setFormData({
           title: '',
           description: '',
-          price: '',
-          discountAmount: '',
+          originalPrice: '',
+          sellingPrice: '',
           category: '',
           videoUrl: '',
           images: [],
@@ -574,7 +580,15 @@ const AdminView: React.FC<AdminViewProps> = ({
                   {products.map(product => {
                     // Safe price handling
                     const priceNumber = Number((product as any).price ?? 0);
+                    const originalPriceNumber = Number((product as any).originalPrice ?? priceNumber);
                     const displayPrice = Number.isFinite(priceNumber) ? priceNumber.toLocaleString() : '0';
+                    const displayOriginalPrice = Number.isFinite(originalPriceNumber) ? originalPriceNumber.toLocaleString() : '0';
+                    
+                    // Calculate discount if available
+                    const discount = product.discount || 
+                      (originalPriceNumber > priceNumber 
+                        ? Math.round(((originalPriceNumber - priceNumber) / originalPriceNumber) * 100) 
+                        : 0);
                     
                     return (
                       <div
@@ -590,14 +604,39 @@ const AdminView: React.FC<AdminViewProps> = ({
                         <div className="flex-grow min-w-0">
                           <p className="text-sm font-bold truncate">{product.title}</p>
                           <div className="flex items-center space-x-3 mt-1">
-                            <p className="text-xs font-black text-orange-600">
-                              TSh {displayPrice}
-                            </p>
-                            {product.discount && product.discount > 0 && ( // CHANGED: Only show if discount > 0
+                            {/* Show selling price with original price if discounted */}
+                            {discount > 0 ? (
+                              <div className="flex items-center space-x-2">
+                                <p className="text-xs font-black text-orange-600">
+                                  TSh {displayPrice}
+                                </p>
+                                <p className="text-xs font-black text-gray-400 line-through">
+                                  TSh {displayOriginalPrice}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-xs font-black text-orange-600">
+                                TSh {displayPrice}
+                              </p>
+                            )}
+                            
+                            {discount > 0 && (
                               <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                                -{product.discount}%
+                                -{discount}%
                               </span>
                             )}
+                            
+                            {/* View Count with Eye Icon */}
+                            <div className="flex items-center space-x-1 text-gray-500">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                              </svg>
+                              <span className="text-xs font-bold">
+                                {product.views?.toLocaleString() || product.viewCount?.toLocaleString() || '0'}
+                              </span>
+                            </div>
+                            
                             <span className={`text-xs font-bold px-2 py-1 rounded-full ${
                               product.status === 'online' 
                                 ? 'bg-green-100 text-green-700' 
@@ -607,7 +646,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Category: {product.category || 'Uncategorized'}
+                            Category: {product.category || product.categoryName || 'Uncategorized'}
                           </p>
                         </div>
                         <button 
@@ -749,39 +788,44 @@ const AdminView: React.FC<AdminViewProps> = ({
               </div>
             )}
 
-            {/* Price Preview Section */}
-            {(formData.price || formData.discountAmount) && (
+            {/* Price Preview Section - UPDATED */}
+            {(formData.originalPrice || formData.sellingPrice) && (
               <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-100">
                 <h4 className="text-sm font-black text-green-800 uppercase tracking-wide mb-3">
-                  💰 Price Preview
+                  💰 Professional Price Preview
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center">
                     <p className="text-xs font-bold text-gray-500 mb-1">Original Price</p>
                     <p className="text-lg font-black text-gray-700">
-                      TSh {parseFloat(formData.price || '0').toLocaleString()}
+                      TSh {parseFloat(formData.originalPrice || '0').toLocaleString()}
                     </p>
                   </div>
-                  {formData.discountAmount && (
-                    <>
-                      <div className="text-center">
-                        <p className="text-xs font-bold text-gray-500 mb-1">Discount</p>
-                        <p className="text-lg font-black text-red-600">
-                          -TSh {parseFloat(formData.discountAmount).toLocaleString()}
-                        </p>
-                        <p className="text-xs font-bold text-green-600 mt-1">
-                          ({calculateDiscountPercentage()}% OFF)
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-bold text-gray-500 mb-1">Selling Price</p>
-                        <p className="text-lg font-black text-orange-600">
-                          TSh {calculateSellingPrice().toLocaleString()}
-                        </p>
-                      </div>
-                    </>
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-gray-500 mb-1">Selling Price</p>
+                    <p className="text-lg font-black text-orange-600">
+                      TSh {parseFloat(formData.sellingPrice || '0').toLocaleString()}
+                    </p>
+                  </div>
+                  {calculateDiscountPercentage() > 0 && (
+                    <div className="text-center">
+                      <p className="text-xs font-bold text-gray-500 mb-1">Discount Applied</p>
+                      <p className="text-lg font-black text-red-600">
+                        -{calculateDiscountPercentage()}%
+                      </p>
+                      <p className="text-xs font-bold text-green-600 mt-1">
+                        Save TSh {calculateDiscountAmount().toLocaleString()}
+                      </p>
+                    </div>
                   )}
                 </div>
+                {calculateDiscountPercentage() > 0 && (
+                  <div className="mt-4 pt-4 border-t border-green-200">
+                    <p className="text-xs font-bold text-green-700 text-center">
+                      💡 Discount calculated automatically: ({formData.originalPrice} - {formData.sellingPrice}) / {formData.originalPrice} × 100 = {calculateDiscountPercentage()}%
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -819,9 +863,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
               </div>
 
-              {/* Pricing - PROFESSIONALLY MODIFIED */}
+              {/* Professional Pricing Section */}
               <div className="space-y-4">
-                <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">Pricing</h3>
+                <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">Professional Pricing</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Original Price (TSh) *</label>
@@ -830,37 +874,53 @@ const AdminView: React.FC<AdminViewProps> = ({
                       <input
                         type="number"
                         className={`${inputClass} pl-12`}
-                        value={formData.price}
-                        onChange={e => setFormData({ ...formData, price: e.target.value })}
-                        placeholder="0"
+                        value={formData.originalPrice}
+                        onChange={e => setFormData({ ...formData, originalPrice: e.target.value })}
+                        placeholder="10000"
                         min="0"
                         step="100"
                         required
                         disabled={isActuallyUploading}
                       />
                     </div>
+                    <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                      Price before any discount
+                    </p>
                   </div>
                   <div>
-                    <label className={labelClass}>Discount Amount (TSh)</label>
+                    <label className={labelClass}>Selling Price (TSh) *</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">TSh</span>
                       <input
                         type="number"
                         className={`${inputClass} pl-12`}
-                        value={formData.discountAmount}
-                        onChange={e => setFormData({ ...formData, discountAmount: e.target.value })}
-                        placeholder="0"
+                        value={formData.sellingPrice}
+                        onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })}
+                        placeholder="8000"
                         min="0"
                         step="100"
+                        required
                         disabled={isActuallyUploading}
                       />
                     </div>
-                    {formData.discountAmount && formData.price && (
+                    {formData.originalPrice && formData.sellingPrice && calculateDiscountPercentage() > 0 && (
                       <p className="mt-2 text-xs font-bold text-green-600">
-                        Discount: {calculateDiscountPercentage()}% OFF
+                        Discount: -{calculateDiscountPercentage()}% (Save TSh {calculateDiscountAmount().toLocaleString()})
+                      </p>
+                    )}
+                    {formData.originalPrice && formData.sellingPrice && calculateDiscountPercentage() === 0 && (
+                      <p className="mt-2 text-xs font-bold text-gray-500">
+                        No discount applied
                       </p>
                     )}
                   </div>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs font-bold text-gray-600">
+                    💡 <span className="text-orange-600">Professional Tip:</span> Enter the original price and selling price. 
+                    The discount percentage is calculated automatically: 
+                    <span className="font-black"> ((Original - Selling) / Original) × 100</span>
+                  </p>
                 </div>
               </div>
 
@@ -882,7 +942,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                   ))}
                 </select>
                 <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                  This is required for product filtering.
+                  Category is required for proper product organization and filtering
                 </p>
               </div>
 
@@ -940,7 +1000,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                       </button>
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
                         <p className="text-[10px] text-white font-bold text-center">
-                          {index === 0 ? 'Main' : `#${index + 1}`}
+                          {index === 0 ? 'Main Image' : `Image #${index + 1}`}
                         </p>
                       </div>
                     </div>
@@ -1121,6 +1181,59 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </p>
               </div>
 
+              {/* Professional Features Summary */}
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <h4 className="text-sm font-black text-blue-800 uppercase tracking-wide mb-3">
+                  🚀 Professional Features Summary
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex items-start space-x-2">
+                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-700">Automatic Discount Calculation</p>
+                      <p className="text-[10px] text-gray-500">Discount % calculated from original & selling price</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-700">Real View Counter</p>
+                      <p className="text-[10px] text-gray-500">Starts at 0, increments on each view</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-700">Category Management</p>
+                      <p className="text-[10px] text-gray-500">Required for proper product organization</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-700">Professional Pricing</p>
+                      <p className="text-[10px] text-gray-500">Original price + Selling price = Automatic discount</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Submit Buttons */}
               <div className="sticky bottom-0 bg-white pt-6 pb-4 border-t border-gray-100">
                 <div className="flex space-x-3">
@@ -1148,7 +1261,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                           <path d="M8 17l4 4 4-4m-4-5v9"></path>
                           <path d="M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"></path>
                         </svg>
-                        <span>PUBLISH PRODUCT</span>
+                        <span>PUBLISH PRODUCT WITH PROFESSIONAL PRICING</span>
                       </>
                     )}
                   </button>
