@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { COLORS, CATEGORIES } from '../constants';
+import { COLORS } from '../constants';
 import { Category } from '../types';
 
 interface SidebarProps {
