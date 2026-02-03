@@ -10,6 +10,30 @@ interface SidebarProps {
 
 type SidebarPage = 'menu' | 'about' | 'privacy' | 'terms';
 
+// Default icons fallback (only used if backend doesn't provide icon)
+const getDefaultIcon = (categoryName: string): string => {
+  const name = categoryName.toLowerCase();
+  
+  if (name.includes('phone') || name.includes('simu')) return '📱';
+  if (name.includes('tv') || name.includes('television')) return '📺';
+  if (name.includes('sound') || name.includes('sauti')) return '🔊';
+  if (name.includes('camera') || name.includes('kamera')) return '📷';
+  if (name.includes('laptop') || name.includes('kompyuta')) return '💻';
+  if (name.includes('game') || name.includes('mchezo')) return '🎮';
+  if (name.includes('watch') || name.includes('saa')) return '⌚';
+  if (name.includes('home') || name.includes('nyumba')) return '🏠';
+  if (name.includes('kitchen') || name.includes('jikoni')) return '🍳';
+  if (name.includes('car') || name.includes('gari')) return '🚗';
+  if (name.includes('health') || name.includes('afya')) return '❤️';
+  if (name.includes('book') || name.includes('kitabu')) return '📚';
+  if (name.includes('fashion') || name.includes('mitindo')) return '👕';
+  if (name.includes('all') || name.includes('zote')) return '🛒';
+  if (name.includes('electronics') || name.includes('umeme')) return '🔌';
+  if (name.includes('accessories') || name.includes('vifaa')) return '🛍️';
+  
+  return '🛒';
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ 
   isOpen, 
   onClose, 
@@ -29,23 +53,42 @@ const Sidebar: React.FC<SidebarProps> = ({
         setIsLoading(true);
         setError(null);
         
+        console.log('📡 Sidebar: Fetching categories from /api/categories');
         const response = await fetch('/api/categories');
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch categories: ${response.status}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('📡 Sidebar: Received categories data:', data);
         
         if (data?.success) {
-          setCategories(data.data || []);
+          const fetchedCategories = data.data || [];
+          
+          // Transform backend categories to ensure they have icons
+          const transformedCategories = fetchedCategories.map((cat: any) => {
+            // Check if backend provides icon
+            const backendIcon = cat.icon || cat.icon_name || cat.icon_emoji;
+            
+            return {
+              id: String(cat.id || cat._id || ''),
+              name: String(cat.name || cat.category_name || 'Unnamed'),
+              icon: backendIcon || getDefaultIcon(cat.name || ''),
+              // Include any other fields backend might provide
+              ...cat
+            } as Category;
+          });
+          
+          console.log('📡 Sidebar: Transformed categories:', transformedCategories);
+          setCategories(transformedCategories);
         } else {
-          throw new Error(data?.error || 'Invalid response format');
+          throw new Error(data?.error || 'Invalid response format from backend');
         }
       } catch (error: any) {
-        console.error('Error fetching categories:', error);
-        setError(error.message || 'Failed to load categories');
-        setCategories([]); // Clear on error
+        console.error('❌ Sidebar: Error fetching categories:', error);
+        setError(error.message || 'Failed to load categories from server');
+        setCategories([]);
       } finally {
         setIsLoading(false);
       }
@@ -54,6 +97,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     fetchCategories();
   }, [isOpen]); // Fetch only when sidebar opens
 
+  // Debug: Log categories when they change
+  useEffect(() => {
+    if (categories.length > 0) {
+      console.log('📊 Sidebar: Current categories with icons:', 
+        categories.map(c => ({ name: c.name, icon: c.icon }))
+      );
+    }
+  }, [categories]);
+
   const handlePageChange = (page: SidebarPage) => {
     setCurrentPage(page);
   };
@@ -61,31 +113,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const closeSidebar = () => {
     setCurrentPage('menu');
     onClose();
-  };
-
-  // Helper function to get category icon
-  const getCategoryIcon = (categoryName: string): string => {
-    const name = categoryName.toLowerCase();
-    
-    // Default icons based on category name
-    if (name.includes('phone') || name.includes('simu')) return '📱';
-    if (name.includes('tv') || name.includes('television')) return '📺';
-    if (name.includes('sound') || name.includes('sauti')) return '🔊';
-    if (name.includes('camera') || name.includes('kamera')) return '📷';
-    if (name.includes('laptop') || name.includes('kompyuta')) return '💻';
-    if (name.includes('game') || name.includes('mchezo')) return '🎮';
-    if (name.includes('watch') || name.includes('saa')) return '⌚';
-    if (name.includes('home') || name.includes('nyumba')) return '🏠';
-    if (name.includes('kitchen') || name.includes('jikoni')) return '🍳';
-    if (name.includes('car') || name.includes('gari')) return '🚗';
-    if (name.includes('health') || name.includes('afya')) return '❤️';
-    if (name.includes('book') || name.includes('kitabu')) return '📚';
-    if (name.includes('fashion') || name.includes('mitindo')) return '👕';
-    if (name.includes('all') || name.includes('zote')) return '🛒';
-    if (name.includes('electronics') || name.includes('umeme')) return '🔌';
-    if (name.includes('accessories') || name.includes('vifaa')) return '🛍️';
-    
-    return '🛒'; // Default shopping icon
   };
 
   const renderMenu = () => (
@@ -112,9 +139,9 @@ const Sidebar: React.FC<SidebarProps> = ({
               setCategories([]);
               setError(null);
             }}
-            className="mt-4 text-xs font-bold text-orange-600 hover:text-orange-700"
+            className="mt-4 px-4 py-2 text-xs font-bold bg-orange-600 text-white rounded-lg hover:bg-orange-700"
           >
-            Try Again
+            Retry Loading
           </button>
         </div>
       ) : categories.length === 0 ? (
@@ -123,7 +150,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <span className="text-gray-400 text-xl">📁</span>
           </div>
           <p className="text-xs font-bold text-gray-600">No categories available</p>
-          <p className="text-xs text-gray-400 mt-1">Check backend connection</p>
+          <p className="text-xs text-gray-400 mt-1">Please check backend connection</p>
         </div>
       ) : (
         <div className="px-4 grid grid-cols-3 gap-3 mb-8">
@@ -134,7 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => onCategorySelect(cat)}
             >
               <span className="text-2xl mb-1.5 group-hover:scale-110 transition-transform">
-                {getCategoryIcon(cat.name)}
+                {cat.icon || getDefaultIcon(cat.name)}
               </span>
               <span className="text-[10px] font-bold text-gray-700 text-center leading-tight group-hover:text-orange-700 line-clamp-2">
                 {cat.name}
