@@ -8,7 +8,7 @@ import AdBanner from './components/AdBanner';
 import ProductGrid from './components/ProductGrid';
 import BottomNav from './components/BottomNav';
 import Sidebar from './components/Sidebar';
-import {AdminView} from './components/AdminView';
+import AdminView from './components/AdminView';
 import AuthView from './components/AuthView';
 import ProductDetailView from './components/ProductDetailView';
 import CategoriesView from './components/CategoriesView';
