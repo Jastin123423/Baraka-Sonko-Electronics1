@@ -1,3 +1,5 @@
+//AdminView.tsx 
+
 import React, { useState, useEffect } from 'react';
 import { Product, Category, AdminStats } from '../types';
 
