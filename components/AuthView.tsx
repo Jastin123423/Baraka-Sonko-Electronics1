@@ -17,16 +17,15 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onBack }) => {
     setError(null);
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email.trim(),
-          password: formData.password,
-        }),
-      });
-
+    try { 
+      const res = await fetch('/api/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: formData.email.trim(),
+    password: formData.password,
+  }),
+});
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data?.success) {
