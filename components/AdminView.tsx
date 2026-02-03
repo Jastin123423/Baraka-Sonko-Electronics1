@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product, Category, AdminStats } from '../types';
 
 interface AdminViewProps {
@@ -35,6 +35,11 @@ const AdminView: React.FC<AdminViewProps> = ({
     images: [] as string[],
     descriptionImages: [] as string[],
   });
+
+  // ✅ FIX: Add refs for file inputs
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
+  const descInputRef = useRef<HTMLInputElement | null>(null);
 
   // Track actual upload status - FIXED: Remove isUploading, use only uploadingCount
   const isActuallyUploading = uploadingCount > 0;
@@ -173,7 +178,8 @@ const AdminView: React.FC<AdminViewProps> = ({
     console.log("🎯 handleFileUpload FIRED with type:", type);
     addDebugLog(`handleFileUpload triggered for ${type}`);
     
-    const files = e.target.files;
+    // ✅ FIX: Use currentTarget.files instead of target.files
+    const files = e.currentTarget.files;
     console.log("📁 files selected:", files?.length);
     console.log("📁 file details:", files ? Array.from(files).map(f => `${f.name} (type: "${f.type}") ${f.size} bytes`) : null);
     
@@ -183,7 +189,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
 
     // Reset input to allow same file selection
-    e.target.value = '';
+    e.currentTarget.value = '';
 
     // FIXED: Don't use setIsUploading, only use uploadingCount
     setUploadProgress({});
@@ -886,31 +892,39 @@ const AdminView: React.FC<AdminViewProps> = ({
                   ))}
                   
                   {formData.images.length < 10 && (
-                    <label className={`aspect-square border-2 border-dashed ${
-                      isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
-                    } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
-                      <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 5v14M5 12h14"/>
-                        </svg>
-                      </div>
-                      <span className="text-xs font-bold text-gray-400 text-center px-2">
-                        {isActuallyUploading ? 'Uploading...' : 
-                          formData.images.length === 0 
-                            ? 'Click to upload images' 
-                            : `Add more (${10 - formData.images.length} left)`
-                        }
-                      </span>
+                    <>
+                      {/* ✅ FIX: Hidden input outside label */}
                       <input
+                        ref={galleryInputRef}
+                        id="gallery-upload"
                         type="file"
                         multiple
                         accept="image/*"
                         className="hidden"
-                        onChange={e => handleFileUpload(e, 'image')}
+                        onChange={(e) => handleFileUpload(e, 'image')}
                         disabled={isActuallyUploading}
-                        id="gallery-upload-input"
                       />
-                    </label>
+                      
+                      <label
+                        htmlFor="gallery-upload"
+                        className={`aspect-square border-2 border-dashed ${
+                          isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
+                        } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 5v14M5 12h14"/>
+                          </svg>
+                        </div>
+                        <span className="text-xs font-bold text-gray-400 text-center px-2">
+                          {isActuallyUploading ? 'Uploading...' : 
+                            formData.images.length === 0 
+                              ? 'Click to upload images' 
+                              : `Add more (${10 - formData.images.length} left)`
+                          }
+                        </span>
+                      </label>
+                    </>
                   )}
                 </div>
               </div>
@@ -941,29 +955,38 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <label className={`w-full aspect-video border-2 border-dashed ${
-                    isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
-                  } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
-                    <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-orange-500 mb-3 border border-gray-100">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polygon points="23 7 16 12 23 17 23 7" />
-                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                      </svg>
-                    </div>
-                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">
-                      Upload Product Video
-                    </span>
-                    <p className="text-[10px] text-gray-500 text-center px-4">
-                      MP4, MOV, or WebM format • Max 100MB
-                    </p>
+                  <>
+                    {/* ✅ FIX: Hidden input outside label */}
                     <input
+                      ref={videoInputRef}
+                      id="video-upload"
                       type="file"
                       accept="video/*"
                       className="hidden"
-                      onChange={e => handleFileUpload(e, 'video')}
+                      onChange={(e) => handleFileUpload(e, 'video')}
                       disabled={isActuallyUploading}
                     />
-                  </label>
+                    
+                    <label
+                      htmlFor="video-upload"
+                      className={`w-full aspect-video border-2 border-dashed ${
+                        isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
+                      } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}
+                    >
+                      <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-orange-500 mb-3 border border-gray-100">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polygon points="23 7 16 12 23 17 23 7" />
+                          <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                        </svg>
+                      </div>
+                      <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">
+                        Upload Product Video
+                      </span>
+                      <p className="text-[10px] text-gray-500 text-center px-4">
+                        MP4, MOV, or WebM format • Max 100MB
+                      </p>
+                    </label>
+                  </>
                 )}
               </div>
 
@@ -1038,30 +1061,39 @@ const AdminView: React.FC<AdminViewProps> = ({
                   ))}
                   
                   {formData.descriptionImages.length < 20 && (
-                    <label className={`aspect-square border-2 border-dashed ${
-                      isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-purple-500 cursor-pointer'
-                    } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
-                      <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 5v14M5 12h14"/>
-                        </svg>
-                      </div>
-                      <span className="text-xs font-bold text-gray-400 text-center px-2">
-                        {isActuallyUploading ? 'Uploading...' : 
-                          formData.descriptionImages.length === 0 
-                            ? 'Click to add description images' 
-                            : `Add more (${20 - formData.descriptionImages.length} left)`
-                        }
-                      </span>
+                    <>
+                      {/* ✅ FIX: Hidden input outside label */}
                       <input
+                        ref={descInputRef}
+                        id="desc-upload"
                         type="file"
                         multiple
                         accept="image/*"
                         className="hidden"
-                        onChange={e => handleFileUpload(e, 'desc_image')}
+                        onChange={(e) => handleFileUpload(e, 'desc_image')}
                         disabled={isActuallyUploading}
                       />
-                    </label>
+                      
+                      <label
+                        htmlFor="desc-upload"
+                        className={`aspect-square border-2 border-dashed ${
+                          isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-purple-500 cursor-pointer'
+                        } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 5v14M5 12h14"/>
+                          </svg>
+                        </div>
+                        <span className="text-xs font-bold text-gray-400 text-center px-2">
+                          {isActuallyUploading ? 'Uploading...' : 
+                            formData.descriptionImages.length === 0 
+                              ? 'Click to add description images' 
+                              : `Add more (${20 - formData.descriptionImages.length} left)`
+                          }
+                        </span>
+                      </label>
+                    </>
                   )}
                 </div>
                 
