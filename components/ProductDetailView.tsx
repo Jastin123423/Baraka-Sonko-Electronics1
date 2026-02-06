@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product } from '../types';
 import { COLORS } from '../constants';
@@ -9,9 +8,20 @@ interface ProductDetailViewProps {
   allProducts: Product[];
   onBack: () => void;
   onProductClick: (product: Product) => void;
+  WatermarkedImage: React.ComponentType<any>;
+  VideoPlayer: React.ComponentType<any>;
+  Banner: React.ComponentType<any>;
 }
 
-const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, allProducts, onBack, onProductClick }) => {
+const ProductDetailView: React.FC<ProductDetailViewProps> = ({ 
+  product, 
+  allProducts, 
+  onBack, 
+  onProductClick,
+  WatermarkedImage,
+  VideoPlayer,
+  Banner
+}) => {
   const [activeImage, setActiveImage] = useState(0);
   const gallery = product.images && product.images.length > 0 ? product.images : [product.image];
   const descImages = product.descriptionImages && product.descriptionImages.length > 0 ? product.descriptionImages : [];
@@ -57,7 +67,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, allProdu
 
       {/* Scrollable Content Area */}
       <div id="product-detail-scroll-area" className="flex-grow overflow-y-auto no-scrollbar bg-white">
-        {/* Hero Image Slider */}
+        {/* Hero Image Slider with Watermarks */}
         <div className="relative w-full aspect-square bg-[#f9f9f9] border-b border-gray-50">
           <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full" 
                onScroll={(e) => {
@@ -67,7 +77,13 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, allProdu
                }}>
             {gallery.map((img, idx) => (
               <div key={idx} className="min-w-full h-full snap-center flex items-center justify-center">
-                <img src={img} alt="" className="w-full h-full object-contain" />
+                <WatermarkedImage
+                  src={img}
+                  alt={`Product image ${idx + 1}`}
+                  containerClass="w-full h-full"
+                  productId={product.id}
+                  isProduct={true}
+                />
               </div>
             ))}
           </div>
@@ -113,7 +129,15 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, allProdu
             <div className="mb-8 py-6 border-y border-gray-50">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Product Experience</h3>
               <div className="rounded-2xl overflow-hidden bg-black aspect-video shadow-2xl relative">
-                <video src={product.videoUrl} className="w-full h-full" controls playsInline />
+                <VideoPlayer
+                  src={product.videoUrl}
+                  containerClass="w-full h-full"
+                  controls={true}
+                  playInline={true}
+                  autoPlay={false}
+                  muted={false}
+                  loop={false}
+                />
               </div>
             </div>
           )}
@@ -126,26 +150,63 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, allProdu
             </div>
           </div>
 
-          {/* Description Images */}
+          {/* Description Images with Watermarks */}
           {descImages.length > 0 && (
             <div className="mt-8 space-y-3">
                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Gallery Details</h3>
                {descImages.map((img, idx) => (
                  <div key={idx} className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
-                   <img src={img} alt="Product detail" className="w-full h-auto object-cover" />
+                   <WatermarkedImage
+                     src={img}
+                     alt={`Product detail ${idx + 1}`}
+                     containerClass="w-full h-auto"
+                     productId={`${product.id}-desc-${idx}`}
+                     isProduct={true}
+                   />
                  </div>
                ))}
             </div>
           )}
 
-          {/* Related Products Grid */}
+          {/* Related Products Grid - Updated to pass WatermarkedImage */}
           {relatedProducts.length > 0 && (
             <div className="mt-12 mb-10">
-              <ProductGrid 
-                title="Products You May Like" 
-                products={relatedProducts} 
-                onProductClick={onProductClick} 
-              />
+              <div className="mb-4 flex items-center justify-between px-1">
+                <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
+                  Products You May Like
+                </h3>
+                <button className="text-xs font-black text-orange-600">
+                  View All
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {relatedProducts.map(relatedProduct => (
+                  <div 
+                    key={relatedProduct.id} 
+                    className="bg-white rounded-xl border border-gray-100 p-2.5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
+                    onClick={() => onProductClick(relatedProduct)}
+                  >
+                    <div className="aspect-square rounded-lg overflow-hidden mb-2 bg-gray-50">
+                      <WatermarkedImage
+                        src={relatedProduct.image}
+                        alt={relatedProduct.title}
+                        containerClass="w-full h-full"
+                        productId={relatedProduct.id}
+                        isProduct={true}
+                      />
+                    </div>
+                    <h4 className="text-xs font-bold text-gray-800 mb-1 line-clamp-2">{relatedProduct.title}</h4>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-black text-orange-600">TSh {relatedProduct.price.toLocaleString()}</span>
+                      {relatedProduct.discount > 0 && (
+                        <span className="text-[10px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">
+                          -{relatedProduct.discount}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
