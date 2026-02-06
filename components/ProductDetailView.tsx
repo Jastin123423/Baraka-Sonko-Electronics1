@@ -59,39 +59,29 @@ const LargeWatermarkedImage: React.FC<{
         <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
       )}
       
-      {/* LARGE CENTERED WATERMARK - Increased size and centered */}
+      {/* SINGLE LARGE CENTERED WATERMARK - Only one watermark in the middle */}
       {isLoaded && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           {/* Large Center Watermark - Very visible */}
-          <div className="relative w-32 h-32 opacity-40"> {/* Increased from w-20 h-20 */}
+          <div className="relative w-36 h-36 opacity-30"> {/* Increased size, reduced opacity */}
             <img
               src={logoUrl}
               alt="Watermark"
               className="w-full h-full object-contain"
               draggable="false"
               style={{
-                filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.5))',
+                filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.7))',
               }}
             />
           </div>
           
-          {/* Smaller Bottom Right Watermark */}
-          <div className="absolute bottom-8 right-8 w-20 h-20 opacity-50"> {/* Increased from w-14 h-14 */}
-            <img
-              src={logoUrl}
-              alt="Watermark"
-              className="w-full h-full object-contain"
-              draggable="false"
-            />
-          </div>
-          
-          {/* Copyright Text */}
+          {/* Copyright Text - Keep it visible */}
           <div
             className="absolute bottom-4 left-4 px-3 py-1.5 rounded"
             style={{
               background: 'rgba(0,0,0,0.7)',
               color: 'white',
-              fontSize: '11px', // Slightly larger
+              fontSize: '11px',
               fontWeight: 'bold',
               opacity: 0.9,
             }}
@@ -156,7 +146,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
       {/* Scrollable Content Area */}
       <div id="product-detail-scroll-area" className="flex-grow overflow-y-auto no-scrollbar bg-white">
-        {/* Hero Image Slider with LARGE Watermarks */}
+        {/* Hero Image Slider with SINGLE LARGE Watermark */}
         <div className="relative w-full aspect-square bg-[#f9f9f9] border-b border-gray-50">
           <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full" 
                onScroll={(e) => {
@@ -212,7 +202,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             {product.title}
           </h1>
 
-          {/* ORIGINAL VIDEO PLAYER - Restored to working version */}
+          {/* ORIGINAL VIDEO PLAYER - Working version */}
           {product.videoUrl && (
             <div className="mb-8 py-6 border-y border-gray-50">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Product Experience</h3>
@@ -223,6 +213,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   controls 
                   playsInline
                   preload="metadata"
+                  controlsList="nodownload" // Prevent downloading
                 >
                   Your browser does not support the video tag.
                 </video>
@@ -238,16 +229,17 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
           </div>
 
-          {/* Description Images with LARGE Watermarks */}
+          {/* Gallery Details Images - RESTORED TO ORIGINAL SIZE */}
           {descImages.length > 0 && (
             <div className="mt-8 space-y-3">
                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Gallery Details</h3>
                {descImages.map((img, idx) => (
-                 <div key={idx} className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 aspect-video">
+                 <div key={idx} className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
+                   {/* Original size - no aspect-video class */}
                    <LargeWatermarkedImage
                      src={img}
                      alt={`Product detail ${idx + 1}`}
-                     containerClass="w-full h-full"
+                     containerClass="w-full h-auto" /* Changed from h-full to h-auto */
                      productId={`${product.id}-desc-${idx}`}
                    />
                  </div>
@@ -274,7 +266,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     onClick={() => onProductClick(relatedProduct)}
                   >
                     <div className="aspect-square rounded-lg overflow-hidden mb-2 bg-gray-50 relative">
-                      {/* Use regular WatermarkedImage for thumbnails */}
                       <WatermarkedImage
                         src={relatedProduct.image}
                         alt={relatedProduct.title}
@@ -301,7 +292,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       </div>
 
       {/* FIXED BOTTOM ACTION BAR - Always Visible */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-100 p-3 pb-6 flex items-center justify-between space-x-3 shadow-[0_-4px_16px_rgba(0,0,0,0.05)]">
+      <div className="flex-shrink-0 bg-white border-t border-gray-100 p-3 pb-6 flex items-center justify-between space-x-3 shadow-[0_-4px_16px(rgba(0,0,0,0.05)]">
         {/* Call Button */}
         <a 
           href={`tel:${PHONE_NUMBER}`}
