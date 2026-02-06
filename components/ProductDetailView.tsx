@@ -9,18 +9,107 @@ interface ProductDetailViewProps {
   onBack: () => void;
   onProductClick: (product: Product) => void;
   WatermarkedImage: React.ComponentType<any>;
-  VideoPlayer: React.ComponentType<any>;
-  Banner: React.ComponentType<any>;
 }
+
+// Large Watermarked Image Component specifically for Product Detail View
+const LargeWatermarkedImage: React.FC<{
+  src: string;
+  alt?: string;
+  containerClass?: string;
+  productId?: string;
+}> = ({ 
+  src, 
+  alt = '', 
+  containerClass = '', 
+  productId = ''
+}) => {
+  const logoUrl = "https://media.barakasonko.store/download__82_-removebg-preview.png";
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div
+      className={`relative overflow-hidden ${containerClass}`}
+      style={{
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        pointerEvents: 'none',
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {/* Main Product Image */}
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-contain transition-opacity duration-300 bg-gray-50"
+        draggable="false"
+        loading="eager"
+        style={{
+          pointerEvents: 'auto',
+          opacity: isLoaded ? 1 : 0.8,
+        }}
+        onLoad={() => setIsLoaded(true)}
+        onError={(e) => {
+          console.error('Failed to load image:', src);
+          (e.target as HTMLImageElement).style.opacity = '1';
+        }}
+      />
+      
+      {/* Loading skeleton */}
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
+      )}
+      
+      {/* LARGE CENTERED WATERMARK - Increased size and centered */}
+      {isLoaded && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          {/* Large Center Watermark - Very visible */}
+          <div className="relative w-32 h-32 opacity-40"> {/* Increased from w-20 h-20 */}
+            <img
+              src={logoUrl}
+              alt="Watermark"
+              className="w-full h-full object-contain"
+              draggable="false"
+              style={{
+                filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.5))',
+              }}
+            />
+          </div>
+          
+          {/* Smaller Bottom Right Watermark */}
+          <div className="absolute bottom-8 right-8 w-20 h-20 opacity-50"> {/* Increased from w-14 h-14 */}
+            <img
+              src={logoUrl}
+              alt="Watermark"
+              className="w-full h-full object-contain"
+              draggable="false"
+            />
+          </div>
+          
+          {/* Copyright Text */}
+          <div
+            className="absolute bottom-4 left-4 px-3 py-1.5 rounded"
+            style={{
+              background: 'rgba(0,0,0,0.7)',
+              color: 'white',
+              fontSize: '11px', // Slightly larger
+              fontWeight: 'bold',
+              opacity: 0.9,
+            }}
+          >
+            ©barakasonko
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ProductDetailView: React.FC<ProductDetailViewProps> = ({ 
   product, 
   allProducts, 
   onBack, 
   onProductClick,
-  WatermarkedImage,
-  VideoPlayer,
-  Banner
+  WatermarkedImage
 }) => {
   const [activeImage, setActiveImage] = useState(0);
   const gallery = product.images && product.images.length > 0 ? product.images : [product.image];
@@ -67,7 +156,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
       {/* Scrollable Content Area */}
       <div id="product-detail-scroll-area" className="flex-grow overflow-y-auto no-scrollbar bg-white">
-        {/* Hero Image Slider with Watermarks */}
+        {/* Hero Image Slider with LARGE Watermarks */}
         <div className="relative w-full aspect-square bg-[#f9f9f9] border-b border-gray-50">
           <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full" 
                onScroll={(e) => {
@@ -76,13 +165,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                  setActiveImage(index);
                }}>
             {gallery.map((img, idx) => (
-              <div key={idx} className="min-w-full h-full snap-center flex items-center justify-center">
-                <WatermarkedImage
+              <div key={idx} className="min-w-full h-full snap-center">
+                <LargeWatermarkedImage
                   src={img}
                   alt={`Product image ${idx + 1}`}
                   containerClass="w-full h-full"
                   productId={product.id}
-                  isProduct={true}
                 />
               </div>
             ))}
@@ -124,20 +212,20 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             {product.title}
           </h1>
 
-          {/* Video Player Section */}
+          {/* ORIGINAL VIDEO PLAYER - Restored to working version */}
           {product.videoUrl && (
             <div className="mb-8 py-6 border-y border-gray-50">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Product Experience</h3>
               <div className="rounded-2xl overflow-hidden bg-black aspect-video shadow-2xl relative">
-                <VideoPlayer
-                  src={product.videoUrl}
-                  containerClass="w-full h-full"
-                  controls={true}
-                  playInline={true}
-                  autoPlay={false}
-                  muted={false}
-                  loop={false}
-                />
+                <video 
+                  src={product.videoUrl} 
+                  className="w-full h-full" 
+                  controls 
+                  playsInline
+                  preload="metadata"
+                >
+                  Your browser does not support the video tag.
+                </video>
               </div>
             </div>
           )}
@@ -150,25 +238,24 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
           </div>
 
-          {/* Description Images with Watermarks */}
+          {/* Description Images with LARGE Watermarks */}
           {descImages.length > 0 && (
             <div className="mt-8 space-y-3">
                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Gallery Details</h3>
                {descImages.map((img, idx) => (
-                 <div key={idx} className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
-                   <WatermarkedImage
+                 <div key={idx} className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 aspect-video">
+                   <LargeWatermarkedImage
                      src={img}
                      alt={`Product detail ${idx + 1}`}
-                     containerClass="w-full h-auto"
+                     containerClass="w-full h-full"
                      productId={`${product.id}-desc-${idx}`}
-                     isProduct={true}
                    />
                  </div>
                ))}
             </div>
           )}
 
-          {/* Related Products Grid - Updated to pass WatermarkedImage */}
+          {/* Related Products Grid - Using original WatermarkedImage for consistency */}
           {relatedProducts.length > 0 && (
             <div className="mt-12 mb-10">
               <div className="mb-4 flex items-center justify-between px-1">
@@ -183,10 +270,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 {relatedProducts.map(relatedProduct => (
                   <div 
                     key={relatedProduct.id} 
-                    className="bg-white rounded-xl border border-gray-100 p-2.5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
+                    className="bg-white rounded-xl border border-gray-100 p-2.5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98] cursor-pointer"
                     onClick={() => onProductClick(relatedProduct)}
                   >
-                    <div className="aspect-square rounded-lg overflow-hidden mb-2 bg-gray-50">
+                    <div className="aspect-square rounded-lg overflow-hidden mb-2 bg-gray-50 relative">
+                      {/* Use regular WatermarkedImage for thumbnails */}
                       <WatermarkedImage
                         src={relatedProduct.image}
                         alt={relatedProduct.title}
