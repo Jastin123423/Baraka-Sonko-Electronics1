@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Header from './components/Header';
 import HeroBanner from './components/HeroBanner';
 import QuickActions from './components/QuickActions';
@@ -15,105 +15,182 @@ import CategoriesView from './components/CategoriesView';
 import AllProductsView from './components/AllProductsView';
 import { Product, User, Category } from './types';
 
-/** Watermarked Media Component - Prevents easy image copying */
-const WatermarkedMedia: React.FC<{
+/** Watermarked Image Component - For PRODUCT IMAGES only */
+const WatermarkedImage: React.FC<{
   src: string;
   alt?: string;
-  isVideo?: boolean;
   containerClass?: string;
   onClick?: () => void;
-  fullWidth?: boolean;
-}> = ({ src, alt = '', isVideo = false, containerClass = '', onClick, fullWidth = false }) => {
+  productId?: string;
+  isProduct?: boolean;
+}> = ({ 
+  src, 
+  alt = '', 
+  containerClass = '', 
+  onClick, 
+  productId = '',
+  isProduct = true
+}) => {
   const logoUrl = "https://media.barakasonko.store/download__82_-removebg-preview.png";
-  
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  // Only apply watermarks to product images, not banners
+  const shouldWatermark = isProduct;
+
+  // Generate unique watermark pattern for products
+  const getWatermarkPattern = () => {
+    if (!shouldWatermark) return { positions: [], opacities: [], sizes: [] };
+    
+    const patterns = [
+      { positions: ['bottom-right', 'top-left'], opacities: [0.6, 0.4], sizes: [30, 25] },
+      { positions: ['bottom-left', 'top-right'], opacities: [0.5, 0.5], sizes: [28, 28] },
+      { positions: ['center-bottom', 'right-middle'], opacities: [0.4, 0.3], sizes: [35, 22] },
+    ];
+    const patternIndex = productId ? parseInt(productId, 36) % patterns.length : 0;
+    return patterns[patternIndex];
+  };
+
+  const pattern = getWatermarkPattern();
+
+  const renderWatermark = (position: string, opacity: number, size: number) => {
+    const positions: Record<string, React.CSSProperties> = {
+      'bottom-right': { 
+        bottom: '8px', 
+        right: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'top-left': { 
+        top: '8px', 
+        left: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'top-right': { 
+        top: '8px', 
+        right: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'bottom-left': { 
+        bottom: '8px', 
+        left: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'center-bottom': { 
+        bottom: '15px', 
+        left: '50%', 
+        transform: 'translateX(-50%)',
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'right-middle': { 
+        top: '50%', 
+        right: '8px', 
+        transform: 'translateY(-50%)',
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+    };
+
+    if (!positions[position]) return null;
+
+    return (
+      <div
+        key={position}
+        className="absolute pointer-events-none"
+        style={{
+          ...positions[position],
+          opacity,
+          filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.2))',
+        }}
+      >
+        <img
+          src={logoUrl}
+          alt="Watermark"
+          className="w-full h-full object-contain"
+          draggable="false"
+          onContextMenu={(e) => e.preventDefault()}
+          style={{ pointerEvents: 'none' }}
+        />
+      </div>
+    );
+  };
+
   return (
-    <div 
+    <div
       className={`relative overflow-hidden rounded-xl ${containerClass}`}
       onClick={onClick}
-      style={{ 
+      style={{
         userSelect: 'none',
-        WebkitUserSelect: 'none',
-        MozUserSelect: 'none',
-        msUserSelect: 'none',
         pointerEvents: onClick ? 'auto' : 'none',
-        position: 'relative'
       }}
-      onContextMenu={(e) => e.preventDefault()}
-      onDragStart={(e) => e.preventDefault()}
+      onContextMenu={(e) => {
+        if (shouldWatermark) {
+          e.preventDefault();
+        }
+      }}
     >
-      {/* Main Image or Video */}
-      {isVideo ? (
-        <div className="relative w-full h-full">
-          <video 
-            src={src} 
-            className="w-full h-full object-cover"
-            controls
-            controlsList="nodownload noremoteplayback"
-            disablePictureInPicture
-            style={{ pointerEvents: 'auto' }}
-            onContextMenu={(e) => e.preventDefault()}
-          />
-          {/* Watermark Overlay for Video */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute bottom-2 right-2 w-16 h-16 opacity-70">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
-            </div>
-            <div className="absolute top-2 left-2 w-12 h-12 opacity-50">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
-            </div>
+      {/* Regular image for banners, watermarked for products */}
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-cover transition-opacity duration-300"
+        draggable="false"
+        loading="lazy"
+        style={{
+          pointerEvents: 'auto',
+          opacity: isLoaded ? 1 : 0,
+        }}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => {
+          console.error('Failed to load image:', src);
+          setHasError(true);
+        }}
+      />
+      
+      {/* Loading skeleton */}
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
+      )}
+      
+      {/* Error state */}
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-center p-4">
+            <div className="text-gray-400 text-3xl mb-2">🖼️</div>
+            <p className="text-xs text-gray-500">Image not available</p>
           </div>
         </div>
-      ) : (
-        <div className="relative w-full h-full">
-          <img 
-            src={src} 
-            alt={alt}
-            className="w-full h-full object-cover"
-            draggable="false"
-            loading="lazy"
-            style={{ pointerEvents: 'auto' }}
-          />
-          {/* Diagonal Watermark Pattern */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Center Watermark */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 opacity-20">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
-            </div>
-            {/* Bottom Right Watermark */}
-            <div className="absolute bottom-3 right-3 w-14 h-14 opacity-70">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
-            </div>
-            {/* Top Left Watermark */}
-            <div className="absolute top-3 left-3 w-10 h-10 opacity-50">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
-            </div>
-            {/* Transparent Overlay to prevent color picking */}
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/5"></div>
+      )}
+      
+      {/* Watermarks for PRODUCT images only */}
+      {shouldWatermark && !hasError && isLoaded && (
+        <div className="absolute inset-0 pointer-events-none">
+          {pattern.positions.map((pos, idx) => 
+            renderWatermark(pos, pattern.opacities[idx], pattern.sizes[idx])
+          )}
+          
+          {/* Copyright text for product images */}
+          <div
+            className="absolute bottom-2 left-2 px-2 py-0.5 rounded"
+            style={{
+              background: 'rgba(0,0,0,0.7)',
+              color: 'white',
+              fontSize: '9px',
+              fontWeight: 'bold',
+              opacity: 0.8,
+            }}
+          >
+            ©barakasonko
           </div>
         </div>
       )}
@@ -121,7 +198,196 @@ const WatermarkedMedia: React.FC<{
   );
 };
 
-/** Small inline ErrorBoundary so AdminView crashes don't blank the whole app */
+/** Video Player Component - For VIDEOS only */
+const VideoPlayer: React.FC<{
+  src: string;
+  containerClass?: string;
+  onClick?: () => void;
+  playInline?: boolean;
+  autoPlay?: boolean;
+  muted?: boolean;
+  loop?: boolean;
+  controls?: boolean;
+}> = ({ 
+  src, 
+  containerClass = '', 
+  onClick,
+  playInline = true,
+  autoPlay = false,
+  muted = true,
+  loop = true,
+  controls = false
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  const handlePlayPause = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play().then(() => setIsPlaying(true));
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl ${containerClass}`}
+      onClick={onClick}
+      style={{
+        userSelect: 'none',
+        pointerEvents: onClick ? 'auto' : 'none',
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={src}
+        className="w-full h-full object-cover"
+        playsInline={playInline}
+        autoPlay={autoPlay}
+        muted={muted}
+        loop={loop}
+        controls={controls}
+        preload="metadata"
+        onLoadedData={() => {
+          setIsLoaded(true);
+          setHasError(false);
+        }}
+        onError={() => {
+          console.error('Failed to load video:', src);
+          setHasError(true);
+        }}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+      />
+      
+      {/* Loading state */}
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/10">
+          <div className="w-8 h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      
+      {/* Error state */}
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/90">
+          <div className="text-center text-white p-4">
+            <div className="text-3xl mb-2">⚠️</div>
+            <p className="text-sm">Video failed to load</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Custom controls for autoplay videos */}
+      {!controls && isLoaded && !hasError && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handlePlayPause();
+          }}
+          className="absolute bottom-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-colors"
+          aria-label={isPlaying ? "Pause" : "Play"}
+        >
+          <span className="text-white text-sm">
+            {isPlaying ? '⏸️' : '▶️'}
+          </span>
+        </button>
+      )}
+    </div>
+  );
+};
+
+/** Banner Component - For GIF banners (no watermark) */
+const Banner: React.FC<{
+  src: string;
+  alt?: string;
+  containerClass?: string;
+  onClick?: () => void;
+  isGif?: boolean;
+}> = ({ 
+  src, 
+  alt = '', 
+  containerClass = '', 
+  onClick,
+  isGif = true
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  // Check if it's a GIF
+  const isGifFile = src.toLowerCase().endsWith('.gif');
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl ${containerClass}`}
+      onClick={onClick}
+      style={{
+        userSelect: 'none',
+        pointerEvents: onClick ? 'auto' : 'none',
+      }}
+    >
+      {isGifFile ? (
+        // GIF Banner - use img tag with decoding="async"
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover"
+          draggable="false"
+          loading="lazy"
+          decoding="async"
+          style={{
+            opacity: isLoaded ? 1 : 0,
+            transition: 'opacity 0.3s',
+          }}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => {
+            console.error('Failed to load GIF:', src);
+            setHasError(true);
+          }}
+        />
+      ) : (
+        // Regular image banner
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover"
+          draggable="false"
+          loading="lazy"
+          style={{
+            opacity: isLoaded ? 1 : 0,
+            transition: 'opacity 0.3s',
+          }}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => {
+            console.error('Failed to load banner:', src);
+            setHasError(true);
+          }}
+        />
+      )}
+      
+      {/* Loading skeleton */}
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
+      )}
+      
+      {/* Error state */}
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-center p-4">
+            <div className="text-gray-400 text-3xl mb-2">🎬</div>
+            <p className="text-xs text-gray-500">Banner not available</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** Enhanced ErrorBoundary */
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; title?: string },
   { hasError: boolean; error?: any }
@@ -145,7 +411,7 @@ class ErrorBoundary extends React.Component<
               {this.props.title || 'This screen crashed.'}
             </p>
             <p className="text-xs text-red-700 mt-2">
-              Open console to see full error. Most likely a bad product field (price/id/image) from backend.
+              Open console to see full error.
             </p>
             <pre className="text-[11px] mt-3 whitespace-pre-wrap text-red-600">
               {String(this.state.error)}
@@ -158,7 +424,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Helper function to get default icon for category
+// Helper functions and banners remain the same...
 const getDefaultCategoryIcon = (categoryName: string): string => {
   const name = categoryName.toLowerCase();
   
@@ -182,7 +448,6 @@ const getDefaultCategoryIcon = (categoryName: string): string => {
   return '🛒';
 };
 
-// Transform backend category data to ensure proper format
 const normalizeCategory = (cat: any): Category => {
   const backendIcon = cat.icon || cat.icon_name || cat.icon_emoji || cat.icon_url;
   
@@ -190,71 +455,45 @@ const normalizeCategory = (cat: any): Category => {
     id: String(cat.id || cat._id || `cat_${Date.now()}_${Math.random()}`),
     name: String(cat.name || cat.category_name || cat.title || 'Unnamed Category'),
     icon: backendIcon || getDefaultCategoryIcon(cat.name || ''),
-    // Include any other fields backend might provide
     ...cat
   };
 };
 
-// Banner data - Updated with your new banner
+// Banner data - All GIF banners should work now
 const banners = [
   {
     id: 1,
     src: "https://media.barakasonko.store/Jipatie%20kwa%20bei%20poa.gif",
     alt: "Get products at affordable prices",
     duration: 5000,
+    isGif: true
   },
   {
     id: 2,
     src: "https://media.barakasonko.store/uploads/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail.gif",
     alt: "Product unboxing and review",
     duration: 5000,
+    isGif: true
   },
   {
     id: 3,
     src: "https://media.barakasonko.store/Untitled%20design.gif",
     alt: "Special promotions banner",
     duration: 5000,
+    isGif: true
   },
   {
     id: 4,
     src: "https://media.barakasonko.store/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail%20(1).gif",
     alt: "Product boxing and review",
     duration: 5000,
-  }
-];
-
-// Additional banners for QuickActions section
-const quickActionBanners = [
-  {
-    id: 'wishlist',
-    title: 'Wishlist',
-    src: "https://media.barakasonko.store/Untitled%20design.gif",
-    alt: "Wishlist promotions",
-  },
-  {
-    id: 'wholesale',
-    title: 'Wholesale',
-    src: "https://media.barakasonko.store/Untitled%20design.gif",
-    alt: "Wholesale offers",
-  },
-  {
-    id: 'bargain',
-    title: 'Bargain Zone',
-    src: "https://media.barakasonko.store/Untitled%20design.gif",
-    alt: "Bargain zone deals",
-  },
-  {
-    id: 'more',
-    title: 'More Deals',
-    src: "https://media.barakasonko.store/Untitled%20design.gif",
-    alt: "More exciting deals",
+    isGif: true
   }
 ];
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
-  const [activeQuickActionBanner, setActiveQuickActionBanner] = useState(0);
 
   const [view, setView] = useState<
     | 'home'
@@ -276,43 +515,18 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Prevent right-click and image downloading globally
+  // Simple right-click prevention for product images only
   useEffect(() => {
-    const preventDefaults = (e: Event) => {
-      e.preventDefault();
-    };
-
-    // Disable right-click context menu
-    document.addEventListener('contextmenu', preventDefaults);
-    
-    // Disable drag and drop
-    document.addEventListener('dragstart', preventDefaults);
-    document.addEventListener('drop', preventDefaults);
-    
-    // Disable text selection on images
-    const disableSelection = (e: Event) => {
+    const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
+      // Only prevent on product images (those with watermarks)
+      if (target.classList.contains('product-image')) {
         e.preventDefault();
       }
     };
-    document.addEventListener('selectstart', disableSelection);
 
-    // Disable keyboard shortcuts for saving
-    const disableSaveShortcuts = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p')) {
-        e.preventDefault();
-      }
-    };
-    document.addEventListener('keydown', disableSaveShortcuts);
-
-    return () => {
-      document.removeEventListener('contextmenu', preventDefaults);
-      document.removeEventListener('dragstart', preventDefaults);
-      document.removeEventListener('drop', preventDefaults);
-      document.removeEventListener('selectstart', disableSelection);
-      document.removeEventListener('keydown', disableSaveShortcuts);
-    };
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
   // Banner rotation effect
@@ -327,18 +541,7 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [activeBannerIndex, view]);
 
-  // QuickAction banner rotation
-  useEffect(() => {
-    if (view !== 'home' || quickActionBanners.length <= 1) return;
-    
-    const interval = setInterval(() => {
-      setActiveQuickActionBanner((prev) => (prev + 1) % quickActionBanners.length);
-    }, 4000); // Rotate every 4 seconds
-
-    return () => clearInterval(interval);
-  }, [activeQuickActionBanner, view]);
-
-  // Transform backend product data to ensure proper format
+  // Transform backend product data
   const normalizeProduct = (p: any, categoriesList: Category[]): Product => {
     const id = String(p?.id ?? '');
     const price = Number(p?.price ?? 0);
@@ -422,44 +625,35 @@ const App: React.FC = () => {
         setIsLoading(true);
         setFetchError(null);
         
-        console.log('📡 App: Fetching initial data...');
-        
         const [prodRes, catRes] = await Promise.all([
           fetch('/api/products'),
           fetch('/api/categories'),
         ]);
 
-        console.log('📡 App: Products response status:', prodRes.status);
-        console.log('📡 App: Categories response status:', catRes.status);
-
-        const prodData = await prodRes.json().catch(() => {
-          console.error('❌ App: Failed to parse products JSON');
-          return { success: false, error: 'Invalid JSON from products API' };
-        });
+        const prodData = await prodRes.json().catch(() => ({
+          success: false,
+          error: 'Invalid JSON from products API'
+        }));
         
-        const catData = await catRes.json().catch(() => {
-          console.error('❌ App: Failed to parse categories JSON');
-          return { success: false, error: 'Invalid JSON from categories API' };
-        });
+        const catData = await catRes.json().catch(() => ({
+          success: false,
+          error: 'Invalid JSON from categories API'
+        }));
 
-        // First process categories
         let normalizedCats: Category[] = [];
         if (catData?.success) {
           const rawCats = Array.isArray(catData.data) ? catData.data : [];
           normalizedCats = rawCats.map(normalizeCategory);
           setCategories(normalizedCats);
         } else {
-          console.error('❌ App: Categories API returned error:', catData?.error);
           setFetchError(prev => prev ? `${prev}; Categories: ${catData?.error}` : `Categories: ${catData?.error || 'Unknown error'}`);
         }
 
-        // Then process products with the normalized categories
         if (prodData?.success) {
           const raw = Array.isArray(prodData.data) ? prodData.data : [];
           const normalized = raw.map(p => normalizeProduct(p, normalizedCats));
           setProducts(normalized);
         } else {
-          console.error('❌ App: Products API returned error:', prodData?.error);
           setFetchError(prev => prev ? `${prev}; Products: ${prodData?.error}` : `Products: ${prodData?.error || 'Unknown error'}`);
         }
       } catch (error: any) {
@@ -522,7 +716,6 @@ const App: React.FC = () => {
       });
 
       const result = await response.json().catch(() => null);
-
       if (!response.ok || !result?.success) return false;
 
       const savedRaw = result.data || result.product || result.item;
@@ -583,36 +776,10 @@ const App: React.FC = () => {
     setView('product-detail');
   };
 
-  // Handle banner click
   const handleBannerClick = () => {
     setView('all-products');
   };
 
-  // Handle quick action banner click
-  const handleQuickActionBannerClick = (actionId: string) => {
-    switch (actionId) {
-      case 'wishlist':
-        // Navigate to wishlist or show wishlist products
-        setView('all-products');
-        break;
-      case 'wholesale':
-        // Navigate to wholesale section
-        setView('all-products');
-        break;
-      case 'bargain':
-        // Navigate to bargain zone
-        setView('all-products');
-        break;
-      case 'more':
-        // Navigate to more deals
-        setView('all-products');
-        break;
-      default:
-        setView('all-products');
-    }
-  };
-
-  // Manual banner navigation
   const goToNextBanner = () => {
     setActiveBannerIndex((prev) => (prev + 1) % banners.length);
   };
@@ -621,7 +788,6 @@ const App: React.FC = () => {
     setActiveBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
   };
 
-  // Bottom nav mapping
   const navView =
     view === 'admin'
       ? 'admin'
@@ -679,12 +845,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-white" style={{ 
-      WebkitUserSelect: 'none',
-      MozUserSelect: 'none',
-      msUserSelect: 'none',
-      userSelect: 'none'
-    }}>
+    <div className="relative min-h-screen bg-white">
       {/* Product Detail View */}
       {view === 'product-detail' && selectedProduct && (
         <ProductDetailView
@@ -692,7 +853,9 @@ const App: React.FC = () => {
           allProducts={products}
           onBack={() => setView('home')}
           onProductClick={handleProductClick}
-          WatermarkedMedia={WatermarkedMedia}
+          WatermarkedImage={WatermarkedImage}
+          VideoPlayer={VideoPlayer}
+          Banner={Banner}
         />
       )}
 
@@ -720,7 +883,7 @@ const App: React.FC = () => {
           <>
             <HeroBanner onClick={() => setView('all-products')} />
 
-            {/* Rotating Banner Carousel */}
+            {/* Rotating Banner Carousel - GIF banners work perfectly now */}
             <div className="relative w-full overflow-hidden">
               <div className="relative h-[350px]">
                 {banners.map((banner, index) => (
@@ -732,38 +895,34 @@ const App: React.FC = () => {
                         : 'opacity-0 translate-x-full'
                     }`}
                   >
-                    <WatermarkedMedia
+                    <Banner
                       src={banner.src}
                       onClick={handleBannerClick}
                       containerClass="h-[350px]"
-                      fullWidth={true}
                       alt={banner.alt}
+                      isGif={true}
                     />
                   </div>
                 ))}
               </div>
 
-              {/* Banner Navigation Dots */}
-              {banners.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                  {banners.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setActiveBannerIndex(index)}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        index === activeBannerIndex
-                          ? 'bg-orange-600 w-6'
-                          : 'bg-gray-300 hover:bg-gray-400'
-                      }`}
-                      aria-label={`Go to banner ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Banner Navigation Arrows */}
+              {/* Banner Navigation */}
               {banners.length > 1 && (
                 <>
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    {banners.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setActiveBannerIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === activeBannerIndex
+                            ? 'bg-orange-600 w-6'
+                            : 'bg-gray-300 hover:bg-gray-400'
+                        }`}
+                        aria-label={`Go to banner ${index + 1}`}
+                      />
+                    ))}
+                  </div>
                   <button
                     onClick={goToPrevBanner}
                     className="absolute left-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
@@ -786,38 +945,7 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {/* Quick Actions with Rotating Banner */}
-            <div className="p-4">
-              <div className="mb-4">
-                <h2 className="text-sm font-black text-gray-500 uppercase mb-2">Hot Deals</h2>
-                <div className="relative h-[120px] rounded-2xl overflow-hidden">
-                  <WatermarkedMedia
-                    src={quickActionBanners[activeQuickActionBanner].src}
-                    onClick={() => handleQuickActionBannerClick(quickActionBanners[activeQuickActionBanner].id)}
-                    containerClass="h-[120px]"
-                    alt={quickActionBanners[activeQuickActionBanner].alt}
-                  />
-                  <div className="absolute bottom-3 left-3">
-                    <span className="bg-orange-600 text-white text-xs font-black px-3 py-1 rounded-full">
-                      {quickActionBanners[activeQuickActionBanner].title}
-                    </span>
-                  </div>
-                  {quickActionBanners.length > 1 && (
-                    <div className="absolute bottom-3 right-3 flex space-x-1">
-                      {quickActionBanners.map((_, index) => (
-                        <div
-                          key={index}
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            index === activeQuickActionBanner ? 'bg-white' : 'bg-white/50'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <QuickActions onActionSelect={() => setView('all-products')} />
-            </div>
+            <QuickActions onActionSelect={() => setView('all-products')} />
 
             <CategorySection
               categories={categories}
@@ -829,15 +957,17 @@ const App: React.FC = () => {
               products={products.slice(0, 5)}
               onProductClick={handleProductClick}
               onSeeAll={() => setView('all-products')}
-              WatermarkedMedia={WatermarkedMedia}
+              WatermarkedImage={WatermarkedImage}
             />
 
+            {/* Promotion Banner */}
             <div className="p-4">
-              <WatermarkedMedia
+              <Banner
                 src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
                 onClick={() => setView('all-products')}
                 containerClass="h-[110px]"
                 alt="Special promotion banner"
+                isGif={true}
               />
             </div>
 
@@ -845,7 +975,7 @@ const App: React.FC = () => {
               title="Daily Discoveries"
               products={products.slice(0, 10)}
               onProductClick={handleProductClick}
-              WatermarkedMedia={WatermarkedMedia}
+              WatermarkedImage={WatermarkedImage}
             />
           </>
         ) : view === 'all-products' ? (
@@ -854,7 +984,7 @@ const App: React.FC = () => {
             onProductClick={handleProductClick}
             onLoadMore={() => {}}
             isLoading={false}
-            WatermarkedMedia={WatermarkedMedia}
+            WatermarkedImage={WatermarkedImage}
           />
         ) : view === 'category-results' ? (
           <div className="animate-fadeIn p-4">
@@ -882,7 +1012,7 @@ const App: React.FC = () => {
                 return target ? cat === target : true;
               })}
               onProductClick={handleProductClick}
-              WatermarkedMedia={WatermarkedMedia}
+              WatermarkedImage={WatermarkedImage}
             />
           </div>
         ) : view === 'search-results' ? (
@@ -891,7 +1021,6 @@ const App: React.FC = () => {
               {searchQuery ? `Results for "${searchQuery}"` : 'Search'}
             </h2>
 
-            {/* Show matching categories */}
             {filteredCategories.length > 0 && (
               <div className="mb-6">
                 <p className="text-[11px] font-black text-gray-400 uppercase mb-2">Matching Categories</p>
@@ -913,7 +1042,7 @@ const App: React.FC = () => {
             <ProductGrid 
               products={filteredProducts} 
               onProductClick={handleProductClick}
-              WatermarkedMedia={WatermarkedMedia}
+              WatermarkedImage={WatermarkedImage}
             />
           </div>
         ) : view === 'categories' ? (
@@ -923,7 +1052,7 @@ const App: React.FC = () => {
             onShowAllProducts={() => setView('all-products')}
             suggestedProducts={products}
             onProductClick={handleProductClick}
-            WatermarkedMedia={WatermarkedMedia}
+            WatermarkedImage={WatermarkedImage}
           />
         ) : view === 'admin' ? (
           <ErrorBoundary title="Admin screen crashed">
@@ -932,7 +1061,9 @@ const App: React.FC = () => {
               categories={categories}
               onAddProduct={addProduct}
               onDeleteProduct={deleteProduct}
-              WatermarkedMedia={WatermarkedMedia}
+              WatermarkedImage={WatermarkedImage}
+              VideoPlayer={VideoPlayer}
+              Banner={Banner}
             />
           </ErrorBoundary>
         ) : null}
@@ -948,6 +1079,11 @@ const App: React.FC = () => {
           }}
         />
       )}
+
+      {/* Copyright Footer */}
+      <div className="fixed bottom-0 left-0 right-0 bg-black text-white text-center py-2 text-xs z-40">
+        ©barakasonko - Product images protected
+      </div>
     </div>
   );
 };
