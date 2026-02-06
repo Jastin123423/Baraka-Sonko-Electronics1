@@ -6,6 +6,9 @@ interface AdminViewProps {
   categories: Category[];
   onAddProduct: (product: Product) => Promise<boolean>;
   onDeleteProduct: (id: string) => Promise<void> | void;
+  WatermarkedImage: React.ComponentType<any>;
+  VideoPlayer: React.ComponentType<any>;
+  Banner: React.ComponentType<any>;
 }
 
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'withdraw';
@@ -15,7 +18,10 @@ const AdminView: React.FC<AdminViewProps> = ({
   products, 
   categories, 
   onAddProduct, 
-  onDeleteProduct 
+  onDeleteProduct,
+  WatermarkedImage,
+  VideoPlayer,
+  Banner
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [isAdding, setIsAdding] = useState(false);
@@ -608,12 +614,16 @@ const AdminView: React.FC<AdminViewProps> = ({
                         key={product.id}
                         className="p-4 flex items-center space-x-4 hover:bg-gray-50 transition-colors"
                       >
-                        <img 
-                          src={product.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+'} 
-                          className="w-16 h-16 rounded-xl object-cover border border-gray-200"
-                          alt={product.title}
-                          loading="lazy"
-                        />
+                        {/* Use WatermarkedImage for product preview */}
+                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-200">
+                          <WatermarkedImage
+                            src={product.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+'}
+                            alt={product.title}
+                            containerClass="w-full h-full"
+                            productId={product.id}
+                            isProduct={true}
+                          />
+                        </div>
                         <div className="flex-grow min-w-0">
                           <p className="text-sm font-bold truncate">{product.title}</p>
                           <div className="flex items-center space-x-3 mt-1">
@@ -996,15 +1006,13 @@ const AdminView: React.FC<AdminViewProps> = ({
                       className="relative aspect-square border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-orange-400 hover:shadow-lg"
                     >
                       <div className="relative w-full h-full overflow-hidden">
-                        <img 
-                          src={url} 
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        {/* Use WatermarkedImage for preview in admin too */}
+                        <WatermarkedImage
+                          src={url}
                           alt={`Gallery ${index + 1}`}
-                          onError={(e) => {
-                            console.error(`❌ Image failed to load: ${url}`);
-                            addDebugLog(`Image load error: ${url}`);
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+';
-                          }}
+                          containerClass="w-full h-full"
+                          productId={`temp-${index}`}
+                          isProduct={true}
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
                       </div>
@@ -1062,11 +1070,12 @@ const AdminView: React.FC<AdminViewProps> = ({
                 {formData.videoUrl ? (
                   <div className="relative group">
                     <div className="aspect-video rounded-xl overflow-hidden bg-black border-2 border-gray-200">
-                      <video 
-                        src={formData.videoUrl} 
-                        className="w-full h-full"
-                        controls
-                        playsInline
+                      <VideoPlayer
+                        src={formData.videoUrl}
+                        containerClass="w-full h-full"
+                        controls={true}
+                        playInline={true}
+                        autoPlay={false}
                       />
                     </div>
                     <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1138,15 +1147,13 @@ const AdminView: React.FC<AdminViewProps> = ({
                       className="relative aspect-square border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-purple-400 hover:shadow-lg"
                     >
                       <div className="relative w-full h-full overflow-hidden">
-                        <img 
-                          src={url} 
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        {/* Use WatermarkedImage for description images too */}
+                        <WatermarkedImage
+                          src={url}
                           alt={`Description ${index + 1}`}
-                          loading="lazy"
-                          onError={(e) => {
-                            console.error(`❌ Description image failed to load: ${url}`);
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+';
-                          }}
+                          containerClass="w-full h-full"
+                          productId={`desc-${index}`}
+                          isProduct={true}
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
                       </div>
