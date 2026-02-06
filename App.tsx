@@ -15,6 +15,112 @@ import CategoriesView from './components/CategoriesView';
 import AllProductsView from './components/AllProductsView';
 import { Product, User, Category } from './types';
 
+/** Watermarked Media Component - Prevents easy image copying */
+const WatermarkedMedia: React.FC<{
+  src: string;
+  alt?: string;
+  isVideo?: boolean;
+  containerClass?: string;
+  onClick?: () => void;
+  fullWidth?: boolean;
+}> = ({ src, alt = '', isVideo = false, containerClass = '', onClick, fullWidth = false }) => {
+  const logoUrl = "https://media.barakasonko.store/download__82_-removebg-preview.png";
+  
+  return (
+    <div 
+      className={`relative overflow-hidden rounded-xl ${containerClass}`}
+      onClick={onClick}
+      style={{ 
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none',
+        pointerEvents: onClick ? 'auto' : 'none',
+        position: 'relative'
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
+      {/* Main Image or Video */}
+      {isVideo ? (
+        <div className="relative w-full h-full">
+          <video 
+            src={src} 
+            className="w-full h-full object-cover"
+            controls
+            controlsList="nodownload noremoteplayback"
+            disablePictureInPicture
+            style={{ pointerEvents: 'auto' }}
+            onContextMenu={(e) => e.preventDefault()}
+          />
+          {/* Watermark Overlay for Video */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute bottom-2 right-2 w-16 h-16 opacity-70">
+              <img 
+                src={logoUrl} 
+                alt="Logo" 
+                className="w-full h-full object-contain"
+                draggable="false"
+              />
+            </div>
+            <div className="absolute top-2 left-2 w-12 h-12 opacity-50">
+              <img 
+                src={logoUrl} 
+                alt="Logo" 
+                className="w-full h-full object-contain"
+                draggable="false"
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="relative w-full h-full">
+          <img 
+            src={src} 
+            alt={alt}
+            className="w-full h-full object-cover"
+            draggable="false"
+            loading="lazy"
+            style={{ pointerEvents: 'auto' }}
+          />
+          {/* Diagonal Watermark Pattern */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Center Watermark */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 opacity-20">
+              <img 
+                src={logoUrl} 
+                alt="Logo" 
+                className="w-full h-full object-contain"
+                draggable="false"
+              />
+            </div>
+            {/* Bottom Right Watermark */}
+            <div className="absolute bottom-3 right-3 w-14 h-14 opacity-70">
+              <img 
+                src={logoUrl} 
+                alt="Logo" 
+                className="w-full h-full object-contain"
+                draggable="false"
+              />
+            </div>
+            {/* Top Left Watermark */}
+            <div className="absolute top-3 left-3 w-10 h-10 opacity-50">
+              <img 
+                src={logoUrl} 
+                alt="Logo" 
+                className="w-full h-full object-contain"
+                draggable="false"
+              />
+            </div>
+            {/* Transparent Overlay to prevent color picking */}
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/5"></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /** Small inline ErrorBoundary so AdminView crashes don't blank the whole app */
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; title?: string },
@@ -89,32 +195,66 @@ const normalizeCategory = (cat: any): Category => {
   };
 };
 
-// Banner data - Add more banners here as needed
+// Banner data - Updated with your new banner
 const banners = [
   {
     id: 1,
     src: "https://media.barakasonko.store/Jipatie%20kwa%20bei%20poa.gif",
     alt: "Get products at affordable prices",
-    duration: 5000, // 5 seconds
+    duration: 5000,
   },
   {
     id: 2,
     src: "https://media.barakasonko.store/uploads/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail.gif",
     alt: "Product unboxing and review",
-    duration: 5000, // 5 seconds
+    duration: 5000,
   },
   {
-    id: 2,
+    id: 3,
+    src: "https://media.barakasonko.store/Untitled%20design.gif",
+    alt: "Special promotions banner",
+    duration: 5000,
+  },
+  {
+    id: 4,
     src: "https://media.barakasonko.store/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail%20(1).gif",
     alt: "Product boxing and review",
-    duration: 5000, // 5 seconds
+    duration: 5000,
   }
-  // Add more banners here if needed
+];
+
+// Additional banners for QuickActions section
+const quickActionBanners = [
+  {
+    id: 'wishlist',
+    title: 'Wishlist',
+    src: "https://media.barakasonko.store/Untitled%20design.gif",
+    alt: "Wishlist promotions",
+  },
+  {
+    id: 'wholesale',
+    title: 'Wholesale',
+    src: "https://media.barakasonko.store/Untitled%20design.gif",
+    alt: "Wholesale offers",
+  },
+  {
+    id: 'bargain',
+    title: 'Bargain Zone',
+    src: "https://media.barakasonko.store/Untitled%20design.gif",
+    alt: "Bargain zone deals",
+  },
+  {
+    id: 'more',
+    title: 'More Deals',
+    src: "https://media.barakasonko.store/Untitled%20design.gif",
+    alt: "More exciting deals",
+  }
 ];
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+  const [activeQuickActionBanner, setActiveQuickActionBanner] = useState(0);
 
   const [view, setView] = useState<
     | 'home'
@@ -136,6 +276,45 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Prevent right-click and image downloading globally
+  useEffect(() => {
+    const preventDefaults = (e: Event) => {
+      e.preventDefault();
+    };
+
+    // Disable right-click context menu
+    document.addEventListener('contextmenu', preventDefaults);
+    
+    // Disable drag and drop
+    document.addEventListener('dragstart', preventDefaults);
+    document.addEventListener('drop', preventDefaults);
+    
+    // Disable text selection on images
+    const disableSelection = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('selectstart', disableSelection);
+
+    // Disable keyboard shortcuts for saving
+    const disableSaveShortcuts = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p')) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('keydown', disableSaveShortcuts);
+
+    return () => {
+      document.removeEventListener('contextmenu', preventDefaults);
+      document.removeEventListener('dragstart', preventDefaults);
+      document.removeEventListener('drop', preventDefaults);
+      document.removeEventListener('selectstart', disableSelection);
+      document.removeEventListener('keydown', disableSaveShortcuts);
+    };
+  }, []);
+
   // Banner rotation effect
   useEffect(() => {
     if (view !== 'home' || banners.length <= 1) return;
@@ -148,26 +327,34 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [activeBannerIndex, view]);
 
-  // Transform backend product data to ensure proper format - NOW INSIDE COMPONENT
+  // QuickAction banner rotation
+  useEffect(() => {
+    if (view !== 'home' || quickActionBanners.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setActiveQuickActionBanner((prev) => (prev + 1) % quickActionBanners.length);
+    }, 4000); // Rotate every 4 seconds
+
+    return () => clearInterval(interval);
+  }, [activeQuickActionBanner, view]);
+
+  // Transform backend product data to ensure proper format
   const normalizeProduct = (p: any, categoriesList: Category[]): Product => {
     const id = String(p?.id ?? '');
     const price = Number(p?.price ?? 0);
     const discount = p?.discount == null ? 0 : Number(p.discount);
 
-    // --- CATEGORY FIX (supports snake_case + camelCase + object) ---
     let categoryId = String(p?.category_id ?? p?.categoryId ?? '').trim();
     let categoryName = '';
     let categoryIcon = '';
 
     if (typeof p?.category === 'object' && p.category) {
-      // If category is an object, extract name and icon
       categoryId = String(p.category.id ?? categoryId).trim();
       categoryName = String(p.category.name ?? p.category.category_name ?? '').trim();
       categoryIcon = String(
         p.category.icon ?? p.category.icon_name ?? p.category.icon_emoji ?? ''
       ).trim();
     } else {
-      // If category is string or mixed format
       categoryName = String(
         p?.category_name ??
           p?.categoryName ??
@@ -175,12 +362,10 @@ const App: React.FC = () => {
           ''
       ).trim();
 
-      // if category is numeric like "3", treat it as id not name
       const maybe = String(p?.category ?? '').trim();
       if (!categoryId && /^\d+$/.test(maybe)) categoryId = maybe;
     }
 
-    // resolve name/icon from categories list if we only have id
     if ((!categoryName || categoryName === '0') && categoryId) {
       const found = categoriesList.find(c => String(c.id) === String(categoryId));
       if (found) {
@@ -189,13 +374,11 @@ const App: React.FC = () => {
       }
     }
 
-    const category = categoryName; // what UI uses
+    const category = categoryName;
 
-    // Get icon for product's category from categories list
     const getProductCategoryIcon = () => {
       if (categoryIcon) return categoryIcon;
       
-      // Try to find matching category in categories list
       const matchingCat = categoriesList.find(c => 
         c.name.toLowerCase() === categoryName.toLowerCase() ||
         c.name.toLowerCase() === category.toLowerCase()
@@ -216,7 +399,6 @@ const App: React.FC = () => {
       category_name: categoryName,
       categoryIcon: getProductCategoryIcon(),
       image: p?.image || p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || '',
-      // 🔥 Improved array handling for snake_case/camelCase
       images: Array.isArray(p?.images)
         ? p.images
         : Array.isArray(p?.image_urls)
@@ -260,23 +442,11 @@ const App: React.FC = () => {
           return { success: false, error: 'Invalid JSON from categories API' };
         });
 
-        console.log('📡 App: Products data:', prodData);
-        console.log('📡 App: Categories data:', catData);
-
         // First process categories
         let normalizedCats: Category[] = [];
         if (catData?.success) {
           const rawCats = Array.isArray(catData.data) ? catData.data : [];
-          console.log('📡 App: Raw categories count:', rawCats.length);
-          console.log('📡 App: Raw categories:', rawCats);
-          
           normalizedCats = rawCats.map(normalizeCategory);
-          console.log('📡 App: Normalized categories:', normalizedCats.map(c => ({
-            id: c.id,
-            name: c.name,
-            icon: c.icon
-          })));
-          
           setCategories(normalizedCats);
         } else {
           console.error('❌ App: Categories API returned error:', catData?.error);
@@ -286,17 +456,7 @@ const App: React.FC = () => {
         // Then process products with the normalized categories
         if (prodData?.success) {
           const raw = Array.isArray(prodData.data) ? prodData.data : [];
-          console.log('📡 App: Raw products count:', raw.length);
-          
           const normalized = raw.map(p => normalizeProduct(p, normalizedCats));
-          console.log('📡 App: Normalized products:', normalized.map(p => ({
-            id: p.id,
-            title: p.title,
-            category: p.category,
-            categoryName: p.categoryName,
-            categoryId: (p as any).categoryId
-          })));
-          
           setProducts(normalized);
         } else {
           console.error('❌ App: Products API returned error:', prodData?.error);
@@ -313,7 +473,7 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
-  // Search Logic (supports both category + categoryName)
+  // Search Logic
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
@@ -345,7 +505,7 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
   };
 
-  // Mock Admin session (in real app, use JWT/Session Cookie)
+  // Mock Admin session
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('sonko_user');
     return saved ? JSON.parse(saved) : null;
@@ -363,9 +523,6 @@ const App: React.FC = () => {
 
       const result = await response.json().catch(() => null);
 
-      console.log('POST /api/products status:', response.status);
-      console.log('POST /api/products result:', result);
-
       if (!response.ok || !result?.success) return false;
 
       const savedRaw = result.data || result.product || result.item;
@@ -375,7 +532,6 @@ const App: React.FC = () => {
         return true;
       }
 
-      // fallback: refetch if backend doesn't return item
       const prodRes = await fetch('/api/products');
       const prodData = await prodRes.json().catch(() => null);
       if (prodData?.success) {
@@ -432,6 +588,30 @@ const App: React.FC = () => {
     setView('all-products');
   };
 
+  // Handle quick action banner click
+  const handleQuickActionBannerClick = (actionId: string) => {
+    switch (actionId) {
+      case 'wishlist':
+        // Navigate to wishlist or show wishlist products
+        setView('all-products');
+        break;
+      case 'wholesale':
+        // Navigate to wholesale section
+        setView('all-products');
+        break;
+      case 'bargain':
+        // Navigate to bargain zone
+        setView('all-products');
+        break;
+      case 'more':
+        // Navigate to more deals
+        setView('all-products');
+        break;
+      default:
+        setView('all-products');
+    }
+  };
+
   // Manual banner navigation
   const goToNextBanner = () => {
     setActiveBannerIndex((prev) => (prev + 1) % banners.length);
@@ -441,7 +621,7 @@ const App: React.FC = () => {
     setActiveBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
   };
 
-  // Bottom nav mapping (fix highlight + category-results)
+  // Bottom nav mapping
   const navView =
     view === 'admin'
       ? 'admin'
@@ -499,7 +679,12 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-white">
+    <div className="relative min-h-screen bg-white" style={{ 
+      WebkitUserSelect: 'none',
+      MozUserSelect: 'none',
+      msUserSelect: 'none',
+      userSelect: 'none'
+    }}>
       {/* Product Detail View */}
       {view === 'product-detail' && selectedProduct && (
         <ProductDetailView
@@ -507,13 +692,14 @@ const App: React.FC = () => {
           allProducts={products}
           onBack={() => setView('home')}
           onProductClick={handleProductClick}
+          WatermarkedMedia={WatermarkedMedia}
         />
       )}
 
       {/* Auth View */}
       {showAuth && <AuthView onLogin={handleLogin} onBack={() => setShowAuth(false)} />}
 
-      {/* Sidebar - Now fetches its own categories from backend */}
+      {/* Sidebar */}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -546,7 +732,7 @@ const App: React.FC = () => {
                         : 'opacity-0 translate-x-full'
                     }`}
                   >
-                    <AdBanner
+                    <WatermarkedMedia
                       src={banner.src}
                       onClick={handleBannerClick}
                       containerClass="h-[350px]"
@@ -600,7 +786,38 @@ const App: React.FC = () => {
               )}
             </div>
 
-            <QuickActions onActionSelect={() => setView('all-products')} />
+            {/* Quick Actions with Rotating Banner */}
+            <div className="p-4">
+              <div className="mb-4">
+                <h2 className="text-sm font-black text-gray-500 uppercase mb-2">Hot Deals</h2>
+                <div className="relative h-[120px] rounded-2xl overflow-hidden">
+                  <WatermarkedMedia
+                    src={quickActionBanners[activeQuickActionBanner].src}
+                    onClick={() => handleQuickActionBannerClick(quickActionBanners[activeQuickActionBanner].id)}
+                    containerClass="h-[120px]"
+                    alt={quickActionBanners[activeQuickActionBanner].alt}
+                  />
+                  <div className="absolute bottom-3 left-3">
+                    <span className="bg-orange-600 text-white text-xs font-black px-3 py-1 rounded-full">
+                      {quickActionBanners[activeQuickActionBanner].title}
+                    </span>
+                  </div>
+                  {quickActionBanners.length > 1 && (
+                    <div className="absolute bottom-3 right-3 flex space-x-1">
+                      {quickActionBanners.map((_, index) => (
+                        <div
+                          key={index}
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            index === activeQuickActionBanner ? 'bg-white' : 'bg-white/50'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <QuickActions onActionSelect={() => setView('all-products')} />
+            </div>
 
             <CategorySection
               categories={categories}
@@ -612,18 +829,23 @@ const App: React.FC = () => {
               products={products.slice(0, 5)}
               onProductClick={handleProductClick}
               onSeeAll={() => setView('all-products')}
+              WatermarkedMedia={WatermarkedMedia}
             />
 
-            <AdBanner
-              src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
-              onClick={() => setView('all-products')}
-              containerClass="h-[110px]"
-            />
+            <div className="p-4">
+              <WatermarkedMedia
+                src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
+                onClick={() => setView('all-products')}
+                containerClass="h-[110px]"
+                alt="Special promotion banner"
+              />
+            </div>
 
             <ProductGrid
               title="Daily Discoveries"
               products={products.slice(0, 10)}
               onProductClick={handleProductClick}
+              WatermarkedMedia={WatermarkedMedia}
             />
           </>
         ) : view === 'all-products' ? (
@@ -632,6 +854,7 @@ const App: React.FC = () => {
             onProductClick={handleProductClick}
             onLoadMore={() => {}}
             isLoading={false}
+            WatermarkedMedia={WatermarkedMedia}
           />
         ) : view === 'category-results' ? (
           <div className="animate-fadeIn p-4">
@@ -659,6 +882,7 @@ const App: React.FC = () => {
                 return target ? cat === target : true;
               })}
               onProductClick={handleProductClick}
+              WatermarkedMedia={WatermarkedMedia}
             />
           </div>
         ) : view === 'search-results' ? (
@@ -686,7 +910,11 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <ProductGrid products={filteredProducts} onProductClick={handleProductClick} />
+            <ProductGrid 
+              products={filteredProducts} 
+              onProductClick={handleProductClick}
+              WatermarkedMedia={WatermarkedMedia}
+            />
           </div>
         ) : view === 'categories' ? (
           <CategoriesView
@@ -695,6 +923,7 @@ const App: React.FC = () => {
             onShowAllProducts={() => setView('all-products')}
             suggestedProducts={products}
             onProductClick={handleProductClick}
+            WatermarkedMedia={WatermarkedMedia}
           />
         ) : view === 'admin' ? (
           <ErrorBoundary title="Admin screen crashed">
@@ -703,6 +932,7 @@ const App: React.FC = () => {
               categories={categories}
               onAddProduct={addProduct}
               onDeleteProduct={deleteProduct}
+              WatermarkedMedia={WatermarkedMedia}
             />
           </ErrorBoundary>
         ) : null}
