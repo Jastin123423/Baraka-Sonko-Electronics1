@@ -13,9 +13,483 @@ import AuthView from './components/AuthView';
 import ProductDetailView from './components/ProductDetailView';
 import CategoriesView from './components/CategoriesView';
 import AllProductsView from './components/AllProductsView';
-import { Product, User, Category, GuestActivity } from './types';
+import { Product, User, Category } from './types';
 
-// ... (Previous components remain the same: WatermarkedImage, VideoPlayer, Banner, ErrorBoundary, etc.)
+/** Watermarked Image Component - For PRODUCT IMAGES only */
+const WatermarkedImage: React.FC<{
+  src: string;
+  alt?: string;
+  containerClass?: string;
+  onClick?: () => void;
+  productId?: string;
+  isProduct?: boolean;
+}> = ({ 
+  src, 
+  alt = '', 
+  containerClass = '', 
+  onClick, 
+  productId = '',
+  isProduct = true
+}) => {
+  const logoUrl = "https://media.barakasonko.store/download__82_-removebg-preview.png";
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  // Only apply watermarks to product images, not banners
+  const shouldWatermark = isProduct;
+
+  // Generate unique watermark pattern for products
+  const getWatermarkPattern = () => {
+    if (!shouldWatermark) return { positions: [], opacities: [], sizes: [] };
+    
+    const patterns = [
+      { positions: ['bottom-right', 'top-left'], opacities: [0.6, 0.4], sizes: [30, 25] },
+      { positions: ['bottom-left', 'top-right'], opacities: [0.5, 0.5], sizes: [28, 28] },
+      { positions: ['center-bottom', 'right-middle'], opacities: [0.4, 0.3], sizes: [35, 22] },
+    ];
+    const patternIndex = productId ? parseInt(productId, 36) % patterns.length : 0;
+    return patterns[patternIndex];
+  };
+
+  const pattern = getWatermarkPattern();
+
+  const renderWatermark = (position: string, opacity: number, size: number) => {
+    const positions: Record<string, React.CSSProperties> = {
+      'bottom-right': { 
+        bottom: '8px', 
+        right: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'top-left': { 
+        top: '8px', 
+        left: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'top-right': { 
+        top: '8px', 
+        right: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'bottom-left': { 
+        bottom: '8px', 
+        left: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'center-bottom': { 
+        bottom: '15px', 
+        left: '50%', 
+        transform: 'translateX(-50%)',
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'right-middle': { 
+        top: '50%', 
+        right: '8px', 
+        transform: 'translateY(-50%)',
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+    };
+
+    if (!positions[position]) return null;
+
+    return (
+      <div
+        key={position}
+        className="absolute pointer-events-none"
+        style={{
+          ...positions[position],
+          opacity,
+          filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.2))',
+        }}
+      >
+        <img
+          src={logoUrl}
+          alt="Watermark"
+          className="w-full h-full object-contain"
+          draggable="false"
+          onContextMenu={(e) => e.preventDefault()}
+          style={{ pointerEvents: 'none' }}
+        />
+      </div>
+    );
+  };
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl ${containerClass}`}
+      onClick={onClick}
+      style={{
+        userSelect: 'none',
+        pointerEvents: onClick ? 'auto' : 'none',
+      }}
+      onContextMenu={(e) => {
+        if (shouldWatermark) {
+          e.preventDefault();
+        }
+      }}
+    >
+      {/* Regular image for banners, watermarked for products */}
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-cover transition-opacity duration-300"
+        draggable="false"
+        loading="lazy"
+        style={{
+          pointerEvents: 'auto',
+          opacity: isLoaded ? 1 : 0,
+        }}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => {
+          console.error('Failed to load image:', src);
+          setHasError(true);
+        }}
+      />
+      
+      {/* Loading skeleton */}
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
+      )}
+      
+      {/* Error state */}
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-center p-4">
+            <div className="text-gray-400 text-3xl mb-2">🖼️</div>
+            <p className="text-xs text-gray-500">Image not available</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Watermarks for PRODUCT images only */}
+      {shouldWatermark && !hasError && isLoaded && (
+        <div className="absolute inset-0 pointer-events-none">
+          {pattern.positions.map((pos, idx) => 
+            renderWatermark(pos, pattern.opacities[idx], pattern.sizes[idx])
+          )}
+          
+          {/* Copyright text for product images */}
+          <div
+            className="absolute bottom-2 left-2 px-2 py-0.5 rounded"
+            style={{
+              background: 'rgba(0,0,0,0.7)',
+              color: 'white',
+              fontSize: '9px',
+              fontWeight: 'bold',
+              opacity: 0.8,
+            }}
+          >
+            ©barakasonko
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** Video Player Component - For VIDEOS only */
+const VideoPlayer: React.FC<{
+  src: string;
+  containerClass?: string;
+  onClick?: () => void;
+  playInline?: boolean;
+  autoPlay?: boolean;
+  muted?: boolean;
+  loop?: boolean;
+  controls?: boolean;
+}> = ({ 
+  src, 
+  containerClass = '', 
+  onClick,
+  playInline = true,
+  autoPlay = false,
+  muted = true,
+  loop = true,
+  controls = false
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  const handlePlayPause = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play().then(() => setIsPlaying(true));
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl ${containerClass}`}
+      onClick={onClick}
+      style={{
+        userSelect: 'none',
+        pointerEvents: onClick ? 'auto' : 'none',
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={src}
+        className="w-full h-full object-cover"
+        playsInline={playInline}
+        autoPlay={autoPlay}
+        muted={muted}
+        loop={loop}
+        controls={controls}
+        preload="metadata"
+        onLoadedData={() => {
+          setIsLoaded(true);
+          setHasError(false);
+        }}
+        onError={() => {
+          console.error('Failed to load video:', src);
+          setHasError(true);
+        }}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+      />
+      
+      {/* Loading state */}
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/10">
+          <div className="w-8 h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      
+      {/* Error state */}
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/90">
+          <div className="text-center text-white p-4">
+            <div className="text-3xl mb-2">⚠️</div>
+            <p className="text-sm">Video failed to load</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Custom controls for autoplay videos */}
+      {!controls && isLoaded && !hasError && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handlePlayPause();
+          }}
+          className="absolute bottom-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-colors"
+          aria-label={isPlaying ? "Pause" : "Play"}
+        >
+          <span className="text-white text-sm">
+            {isPlaying ? '⏸️' : '▶️'}
+          </span>
+        </button>
+      )}
+    </div>
+  );
+};
+
+/** Banner Component - For GIF banners (no watermark) */
+const Banner: React.FC<{
+  src: string;
+  alt?: string;
+  containerClass?: string;
+  onClick?: () => void;
+  isGif?: boolean;
+}> = ({ 
+  src, 
+  alt = '', 
+  containerClass = '', 
+  onClick,
+  isGif = true
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  // Check if it's a GIF
+  const isGifFile = src.toLowerCase().endsWith('.gif');
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl ${containerClass}`}
+      onClick={onClick}
+      style={{
+        userSelect: 'none',
+        pointerEvents: onClick ? 'auto' : 'none',
+      }}
+    >
+      {isGifFile ? (
+        // GIF Banner - use img tag with decoding="async"
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover"
+          draggable="false"
+          loading="lazy"
+          decoding="async"
+          style={{
+            opacity: isLoaded ? 1 : 0,
+            transition: 'opacity 0.3s',
+          }}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => {
+            console.error('Failed to load GIF:', src);
+            setHasError(true);
+          }}
+        />
+      ) : (
+        // Regular image banner
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover"
+          draggable="false"
+          loading="lazy"
+          style={{
+            opacity: isLoaded ? 1 : 0,
+            transition: 'opacity 0.3s',
+          }}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => {
+            console.error('Failed to load banner:', src);
+            setHasError(true);
+          }}
+        />
+      )}
+      
+      {/* Loading skeleton */}
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
+      )}
+      
+      {/* Error state */}
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-center p-4">
+            <div className="text-gray-400 text-3xl mb-2">🎬</div>
+            <p className="text-xs text-gray-500">Banner not available</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** Enhanced ErrorBoundary */
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; title?: string },
+  { hasError: boolean; error?: any }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, info: any) {
+    console.error('UI crashed:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+            <p className="font-black text-red-700">
+              {this.props.title || 'This screen crashed.'}
+            </p>
+            <p className="text-xs text-red-700 mt-2">
+              Open console to see full error.
+            </p>
+            <pre className="text-[11px] mt-3 whitespace-pre-wrap text-red-600">
+              {String(this.state.error)}
+            </pre>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Helper functions and banners remain the same...
+const getDefaultCategoryIcon = (categoryName: string): string => {
+  const name = categoryName.toLowerCase();
+  
+  if (name.includes('phone') || name.includes('simu')) return '📱';
+  if (name.includes('tv') || name.includes('television')) return '📺';
+  if (name.includes('sound') || name.includes('sauti')) return '🔊';
+  if (name.includes('camera') || name.includes('kamera')) return '📷';
+  if (name.includes('laptop') || name.includes('kompyuta')) return '💻';
+  if (name.includes('game') || name.includes('mchezo')) return '🎮';
+  if (name.includes('watch') || name.includes('saa')) return '⌚';
+  if (name.includes('home') || name.includes('nyumba')) return '🏠';
+  if (name.includes('kitchen') || name.includes('jikoni')) return '🍳';
+  if (name.includes('car') || name.includes('gari')) return '🚗';
+  if (name.includes('health') || name.includes('afya')) return '❤️';
+  if (name.includes('book') || name.includes('kitabu')) return '📚';
+  if (name.includes('fashion') || name.includes('mitindo')) return '👕';
+  if (name.includes('all') || name.includes('zote')) return '🛒';
+  if (name.includes('electronics') || name.includes('umeme')) return '🔌';
+  if (name.includes('accessories') || name.includes('vifaa')) return '🛍️';
+  
+  return '🛒';
+};
+
+const normalizeCategory = (cat: any): Category => {
+  const backendIcon = cat.icon || cat.icon_name || cat.icon_emoji || cat.icon_url;
+  
+  return {
+    id: String(cat.id || cat._id || `cat_${Date.now()}_${Math.random()}`),
+    name: String(cat.name || cat.category_name || cat.title || 'Unnamed Category'),
+    icon: backendIcon || getDefaultCategoryIcon(cat.name || ''),
+    ...cat
+  };
+};
+
+// Banner data - All GIF banners should work now
+const banners = [
+  {
+    id: 1,
+    src: "https://media.barakasonko.store/Jipatie%20kwa%20bei%20poa.gif",
+    alt: "Get products at affordable prices",
+    duration: 5000,
+    isGif: true
+  },
+  {
+    id: 2,
+    src: "https://media.barakasonko.store/uploads/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail.gif",
+    alt: "Product unboxing and review",
+    duration: 5000,
+    isGif: true
+  },
+  {
+    id: 3,
+    src: "https://media.barakasonko.store/Untitled%20design.gif",
+    alt: "Special promotions banner",
+    duration: 5000,
+    isGif: true
+  },
+  {
+    id: 4,
+    src: "https://media.barakasonko.store/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail%20(1).gif",
+    alt: "Product boxing and review",
+    duration: 5000,
+    isGif: true
+  }
+];
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -41,67 +515,179 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Guest User Management
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('sonko_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [guestActivities, setGuestActivities] = useState<GuestActivity[]>([]);
-  const [showAuth, setShowAuth] = useState(false);
-  const [showGuestWarning, setShowGuestWarning] = useState(false);
-
-  // Initialize guest user if no user exists
+  // Simple right-click prevention for product images only
   useEffect(() => {
-    if (!user) {
-      const guestUser: User = {
-        id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        username: 'Guest',
-        role: 'guest',
-        createdAt: new Date().toISOString(),
-      };
-      setUser(guestUser);
-      localStorage.setItem('sonko_user', JSON.stringify(guestUser));
-    }
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Only prevent on product images (those with watermarks)
+      if (target.classList.contains('product-image')) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
-  // Track guest activities
-  const trackGuestActivity = (activity: Omit<GuestActivity, 'timestamp'>) => {
-    if (user?.role === 'guest') {
-      const newActivity: GuestActivity = {
-        ...activity,
-        timestamp: new Date().toISOString(),
-      };
-      setGuestActivities(prev => [...prev.slice(-50), newActivity]); // Keep last 50 activities
-      
-      // Log to console for debugging
-      console.log('Guest Activity:', newActivity);
-    }
-  };
-
-  // ... (rest of your existing useEffect hooks remain the same)
-
-  // Modified handleProductClick with guest tracking
-  const handleProductClick = (product: Product) => {
-    if (user?.role === 'guest') {
-      trackGuestActivity({
-        type: 'view_product',
-        productId: product.id,
-      });
-    }
-    setSelectedProduct(product);
-    setView('product-detail');
-  };
-
-  // Modified handleCategorySelect with guest tracking
-  const handleCategorySelect = (category: Category) => {
-    if (user?.role === 'guest') {
-      trackGuestActivity({
-        type: 'view_category',
-        categoryId: category.id,
-      });
-    }
+  // Banner rotation effect
+  useEffect(() => {
+    if (view !== 'home' || banners.length <= 1) return;
     
+    const currentBanner = banners[activeBannerIndex];
+    const interval = setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+    }, currentBanner.duration);
+
+    return () => clearInterval(interval);
+  }, [activeBannerIndex, view]);
+
+  // Transform backend product data
+  const normalizeProduct = (p: any, categoriesList: Category[]): Product => {
+    const id = String(p?.id ?? '');
+    const price = Number(p?.price ?? 0);
+    const discount = p?.discount == null ? 0 : Number(p.discount);
+
+    let categoryId = String(p?.category_id ?? p?.categoryId ?? '').trim();
+    let categoryName = '';
+    let categoryIcon = '';
+
+    if (typeof p?.category === 'object' && p.category) {
+      categoryId = String(p.category.id ?? categoryId).trim();
+      categoryName = String(p.category.name ?? p.category.category_name ?? '').trim();
+      categoryIcon = String(
+        p.category.icon ?? p.category.icon_name ?? p.category.icon_emoji ?? ''
+      ).trim();
+    } else {
+      categoryName = String(
+        p?.category_name ??
+          p?.categoryName ??
+          p?.category ??
+          ''
+      ).trim();
+
+      const maybe = String(p?.category ?? '').trim();
+      if (!categoryId && /^\d+$/.test(maybe)) categoryId = maybe;
+    }
+
+    if ((!categoryName || categoryName === '0') && categoryId) {
+      const found = categoriesList.find(c => String(c.id) === String(categoryId));
+      if (found) {
+        categoryName = found.name;
+        categoryIcon = categoryIcon || found.icon || '';
+      }
+    }
+
+    const category = categoryName;
+
+    const getProductCategoryIcon = () => {
+      if (categoryIcon) return categoryIcon;
+      
+      const matchingCat = categoriesList.find(c => 
+        c.name.toLowerCase() === categoryName.toLowerCase() ||
+        c.name.toLowerCase() === category.toLowerCase()
+      );
+      
+      return matchingCat?.icon || getDefaultCategoryIcon(categoryName);
+    };
+
+    return {
+      ...p,
+      id,
+      price: Number.isFinite(price) ? price : 0,
+      discount: Number.isFinite(discount) ? discount : 0,
+      category,
+      categoryName,
+      categoryId: categoryId || undefined,
+      category_id: categoryId || undefined,
+      category_name: categoryName,
+      categoryIcon: getProductCategoryIcon(),
+      image: p?.image || p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || '',
+      images: Array.isArray(p?.images)
+        ? p.images
+        : Array.isArray(p?.image_urls)
+        ? p.image_urls
+        : Array.isArray(p?.image_urls_json)
+        ? p.image_urls_json
+        : [],
+      descriptionImages: Array.isArray(p?.descriptionImages)
+        ? p.descriptionImages
+        : Array.isArray(p?.description_images)
+        ? p.description_images
+        : [],
+      videoUrl: String(p?.videoUrl ?? p?.video_url ?? ''),
+    } as any;
+  };
+
+  // Fetch initial data
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        setIsLoading(true);
+        setFetchError(null);
+        
+        const [prodRes, catRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/categories'),
+        ]);
+
+        const prodData = await prodRes.json().catch(() => ({
+          success: false,
+          error: 'Invalid JSON from products API'
+        }));
+        
+        const catData = await catRes.json().catch(() => ({
+          success: false,
+          error: 'Invalid JSON from categories API'
+        }));
+
+        let normalizedCats: Category[] = [];
+        if (catData?.success) {
+          const rawCats = Array.isArray(catData.data) ? catData.data : [];
+          normalizedCats = rawCats.map(normalizeCategory);
+          setCategories(normalizedCats);
+        } else {
+          setFetchError(prev => prev ? `${prev}; Categories: ${catData?.error}` : `Categories: ${catData?.error || 'Unknown error'}`);
+        }
+
+        if (prodData?.success) {
+          const raw = Array.isArray(prodData.data) ? prodData.data : [];
+          const normalized = raw.map(p => normalizeProduct(p, normalizedCats));
+          setProducts(normalized);
+        } else {
+          setFetchError(prev => prev ? `${prev}; Products: ${prodData?.error}` : `Products: ${prodData?.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        console.error('❌ App: Failed to initialize app', error);
+        setFetchError(error.message || 'Network or server error');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initApp();
+  }, []);
+
+  // Search Logic
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return products.filter((p) => {
+      const categoryField = (p.category || (p as any).categoryName || '').toLowerCase();
+      return p.title?.toLowerCase().includes(q) || categoryField.includes(q);
+    });
+  }, [searchQuery, products]);
+
+  const filteredCategories = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return categories.filter((c) => c.name.toLowerCase().includes(q));
+  }, [searchQuery, categories]);
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setView('search-results');
+  };
+
+  const handleCategorySelect = (category: Category) => {
     if (category.name === 'Bidhaa Zote' || category.name.toLowerCase().includes('all')) {
       setView('all-products');
       setIsSidebarOpen(false);
@@ -113,50 +699,19 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
   };
 
-  // Modified handleSearch with guest tracking
-  const handleSearch = (query: string) => {
-    if (user?.role === 'guest') {
-      trackGuestActivity({
-        type: 'search',
-        query: query,
-      });
-    }
-    setSearchQuery(query);
-    setView('search-results');
-  };
+  // Mock Admin session
+  const [user, setUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('sonko_user');
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  // Modified handleAdminAccess with guest restriction
-  const handleAdminAccess = () => {
-    if (!user || user.role === 'guest') {
-      setShowGuestWarning(true);
-      setShowAuth(true);
-    } else if (user.role === 'user') {
-      setView('admin');
-    }
-  };
+  const [showAuth, setShowAuth] = useState(false);
 
-  // Modified addProduct with guest restriction
   const addProduct = async (newProduct: Product) => {
-    // Check if user is guest
-    if (user?.role === 'guest') {
-      alert('Guest users cannot add products. Please login or create an account.');
-      setShowAuth(true);
-      return false;
-    }
-
-    // Check if user is regular user (not admin)
-    if (user?.role === 'user') {
-      alert('Only admin users can add products. Please contact administrator.');
-      return false;
-    }
-
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(user?.token && { 'Authorization': `Bearer ${user.token}` })
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newProduct),
       });
 
@@ -184,20 +739,10 @@ const App: React.FC = () => {
     }
   };
 
-  // Modified deleteProduct with guest restriction
   const deleteProduct = async (id: string) => {
-    // Check if user is guest or regular user
-    if (user?.role === 'guest' || user?.role === 'user') {
-      alert('Only admin users can delete products.');
-      return;
-    }
-
     try {
       const response = await fetch(`/api/products?id=${encodeURIComponent(String(id))}`, {
         method: 'DELETE',
-        headers: {
-          ...(user?.token && { 'Authorization': `Bearer ${user.token}` })
-        },
       });
       const result = await response.json().catch(() => null);
       if (result?.success) {
@@ -208,74 +753,100 @@ const App: React.FC = () => {
     }
   };
 
-  // Modified handleLogin to set proper role
+  const handleAdminAccess = () => {
+    if (!user) setShowAuth(true);
+    else setView('admin');
+  };
+
   const handleLogin = (newUser: User) => {
     setUser(newUser);
     localStorage.setItem('sonko_user', JSON.stringify(newUser));
     setShowAuth(false);
-    
-    // If user is admin, go to admin view
-    if (newUser.role === 'admin') {
-      setView('admin');
-    } else {
-      setView('home');
-    }
+    setView('admin');
   };
 
   const handleLogout = () => {
-    // Create new guest user after logout
-    const guestUser: User = {
-      id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      username: 'Guest',
-      role: 'guest',
-      createdAt: new Date().toISOString(),
-    };
-    setUser(guestUser);
-    localStorage.setItem('sonko_user', JSON.stringify(guestUser));
-    setGuestActivities([]);
+    setUser(null);
+    localStorage.removeItem('sonko_user');
     setView('home');
   };
 
-  // Add WhatsApp click tracking for guests
-  const handleWhatsAppClick = (product: Product) => {
-    if (user?.role === 'guest') {
-      trackGuestActivity({
-        type: 'click_whatsapp',
-        productId: product.id,
-      });
-    }
-    // WhatsApp URL will open normally
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setView('product-detail');
   };
 
-  // Add call click tracking for guests
-  const handleCallClick = (product: Product) => {
-    if (user?.role === 'guest') {
-      trackGuestActivity({
-        type: 'click_call',
-        productId: product.id,
-      });
-    }
-    // Phone call will initiate normally
+  const handleBannerClick = () => {
+    setView('all-products');
   };
 
-  // ... (rest of your existing functions remain the same)
+  const goToNextBanner = () => {
+    setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+  };
+
+  const goToPrevBanner = () => {
+    setActiveBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
+  };
+
+  const navView =
+    view === 'admin'
+      ? 'admin'
+      : view === 'categories'
+      ? 'categories'
+      : view === 'all-products'
+      ? 'all-products'
+      : view === 'search-results'
+      ? 'search-results'
+      : view === 'category-results'
+      ? 'categories'
+      : 'home';
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-white flex flex-col items-center justify-center space-y-4">
+        <div className="text-3xl font-black italic text-orange-600 animate-pulse">SONKO</div>
+        <div className="flex space-x-1.5">
+          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
+        <p className="text-xs text-gray-500 mt-4">Loading store data...</p>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="fixed inset-0 bg-white flex flex-col items-center justify-center space-y-4 p-8">
+        <div className="text-3xl font-black italic text-orange-600">SONKO</div>
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 max-w-md">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <span className="text-red-600 text-xl">⚠️</span>
+            </div>
+            <div>
+              <h3 className="font-black text-red-700">Connection Error</h3>
+              <p className="text-xs text-red-600">Failed to load store data</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-700 mb-4">{fetchError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full bg-orange-600 text-white font-black py-3 rounded-xl hover:bg-orange-700 transition-colors"
+          >
+            Retry Loading
+          </button>
+          <p className="text-xs text-gray-500 mt-4 text-center">
+            Check your internet connection and try again
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-white">
-      {/* Guest Warning Banner */}
-      {showGuestWarning && (
-        <div className="fixed top-0 left-0 right-0 bg-orange-600 text-white text-xs font-black py-2 px-4 text-center z-50">
-          ⚠️ Guest users have limited access. Login for full features.
-          <button 
-            onClick={() => setShowGuestWarning(false)}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Product Detail View - Updated to pass tracking functions */}
+      {/* Product Detail View */}
       {view === 'product-detail' && selectedProduct && (
         <ProductDetailView
           product={selectedProduct}
@@ -283,62 +854,128 @@ const App: React.FC = () => {
           onBack={() => setView('home')}
           onProductClick={handleProductClick}
           WatermarkedImage={WatermarkedImage}
-          onWhatsAppClick={() => handleWhatsAppClick(selectedProduct)}
-          onCallClick={() => handleCallClick(selectedProduct)}
+          VideoPlayer={VideoPlayer}
+          Banner={Banner}
         />
       )}
 
-      {/* Auth View - Updated to show guest info */}
-      {showAuth && (
-        <AuthView 
-          onLogin={handleLogin} 
-          onBack={() => setShowAuth(false)}
-          currentUser={user}
+      {/* Auth View */}
+      {showAuth && <AuthView onLogin={handleLogin} onBack={() => setShowAuth(false)} />}
+
+      {/* Sidebar */}
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        onCategorySelect={handleCategorySelect}
+      />
+
+      {/* Header */}
+      {view !== 'product-detail' && (
+        <Header
+          onMenuClick={() => setIsSidebarOpen(true)}
+          onSearch={handleSearch}
+          initialValue={searchQuery}
         />
       )}
-
-      {/* ... (rest of your JSX remains similar, but update components to pass user info) */}
 
       <main className="w-full max-w-[600px] mx-auto pb-24">
         {view === 'home' ? (
           <>
-            <HeroBanner onClick={() => {
-              if (user?.role === 'guest') {
-                trackGuestActivity({ type: 'view_category', categoryId: 'all' });
-              }
-              setView('all-products');
-            }} />
+            <HeroBanner onClick={() => setView('all-products')} />
 
-            {/* ... (rest of home view components) */}
-
-            {/* Show login prompt for guests in product grid */}
-            {user?.role === 'guest' && (
-              <div className="mx-4 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                <div className="flex items-center space-x-2">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 text-sm">👤</span>
+            {/* Rotating Banner Carousel - GIF banners work perfectly now */}
+            <div className="relative w-full overflow-hidden">
+              <div className="relative h-[350px]">
+                {banners.map((banner, index) => (
+                  <div
+                    key={banner.id}
+                    className={`absolute inset-0 transition-all duration-500 ease-in-out ${
+                      index === activeBannerIndex
+                        ? 'opacity-100 translate-x-0'
+                        : 'opacity-0 translate-x-full'
+                    }`}
+                  >
+                    <Banner
+                      src={banner.src}
+                      onClick={handleBannerClick}
+                      containerClass="h-[350px]"
+                      alt={banner.alt}
+                      isGif={true}
+                    />
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-blue-800">Guest Mode</p>
-                    <p className="text-[10px] text-blue-600">
-                      Viewing only. <button 
-                        onClick={() => setShowAuth(true)}
-                        className="font-bold underline"
-                      >
-                        Login
-                      </button> to save favorites and more.
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
-            )}
+
+              {/* Banner Navigation */}
+              {banners.length > 1 && (
+                <>
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    {banners.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setActiveBannerIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === activeBannerIndex
+                            ? 'bg-orange-600 w-6'
+                            : 'bg-gray-300 hover:bg-gray-400'
+                        }`}
+                        aria-label={`Go to banner ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={goToPrevBanner}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
+                    aria-label="Previous banner"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={goToNextBanner}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
+                    aria-label="Next banner"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
+
+            <QuickActions onActionSelect={() => setView('all-products')} />
+
+            <CategorySection
+              categories={categories}
+              onCategorySelect={handleCategorySelect}
+              onMore={() => setView('categories')}
+            />
+
+            <FlashSale
+              products={products.slice(0, 5)}
+              onProductClick={handleProductClick}
+              onSeeAll={() => setView('all-products')}
+              WatermarkedImage={WatermarkedImage}
+            />
+
+            {/* Promotion Banner */}
+            <div className="p-4">
+              <Banner
+                src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
+                onClick={() => setView('all-products')}
+                containerClass="h-[110px]"
+                alt="Special promotion banner"
+                isGif={true}
+              />
+            </div>
 
             <ProductGrid
               title="Daily Discoveries"
               products={products.slice(0, 10)}
               onProductClick={handleProductClick}
               WatermarkedImage={WatermarkedImage}
-              userRole={user?.role}
             />
           </>
         ) : view === 'all-products' ? (
@@ -348,7 +985,74 @@ const App: React.FC = () => {
             onLoadMore={() => {}}
             isLoading={false}
             WatermarkedImage={WatermarkedImage}
-            userRole={user?.role}
+          />
+        ) : view === 'category-results' ? (
+          <div className="animate-fadeIn p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                {selectedCategory?.icon && (
+                  <span className="text-xl">{selectedCategory.icon}</span>
+                )}
+                <h2 className="text-sm font-bold text-gray-500 uppercase">
+                  {selectedCategory ? selectedCategory.name : 'Category'}
+                </h2>
+              </div>
+              <button
+                className="text-xs font-black text-orange-600"
+                onClick={() => setView('all-products')}
+              >
+                View All
+              </button>
+            </div>
+
+            <ProductGrid
+              products={products.filter((p) => {
+                const cat = String((p as any).category ?? (p as any).categoryName ?? '').toLowerCase();
+                const target = String(selectedCategory?.name ?? '').toLowerCase();
+                return target ? cat === target : true;
+              })}
+              onProductClick={handleProductClick}
+              WatermarkedImage={WatermarkedImage}
+            />
+          </div>
+        ) : view === 'search-results' ? (
+          <div className="animate-fadeIn p-4">
+            <h2 className="text-sm font-bold text-gray-500 uppercase mb-4">
+              {searchQuery ? `Results for "${searchQuery}"` : 'Search'}
+            </h2>
+
+            {filteredCategories.length > 0 && (
+              <div className="mb-6">
+                <p className="text-[11px] font-black text-gray-400 uppercase mb-2">Matching Categories</p>
+                <div className="flex flex-wrap gap-2">
+                  {filteredCategories.slice(0, 8).map((c) => (
+                    <button
+                      key={c.id}
+                      className="px-3 py-2 rounded-full bg-gray-100 text-xs font-black text-gray-700 flex items-center space-x-2 hover:bg-orange-100 hover:text-orange-700 transition-colors"
+                      onClick={() => handleCategorySelect(c)}
+                    >
+                      {c.icon && <span>{c.icon}</span>}
+                      <span>{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <ProductGrid 
+              products={filteredProducts} 
+              onProductClick={handleProductClick}
+              WatermarkedImage={WatermarkedImage}
+            />
+          </div>
+        ) : view === 'categories' ? (
+          <CategoriesView
+            categories={categories}
+            onCategorySelect={handleCategorySelect}
+            onShowAllProducts={() => setView('all-products')}
+            suggestedProducts={products}
+            onProductClick={handleProductClick}
+            WatermarkedImage={WatermarkedImage}
           />
         ) : view === 'admin' ? (
           <ErrorBoundary title="Admin screen crashed">
@@ -360,17 +1064,12 @@ const App: React.FC = () => {
               WatermarkedImage={WatermarkedImage}
               VideoPlayer={VideoPlayer}
               Banner={Banner}
-              currentUser={user}
-              onUnauthorized={() => {
-                setShowAuth(true);
-                setView('home');
-              }}
             />
           </ErrorBoundary>
         ) : null}
       </main>
 
-      {/* Bottom Nav - Updated to show user status */}
+      {/* Bottom Nav */}
       {view !== 'product-detail' && (
         <BottomNav
           currentView={navView as any}
@@ -378,18 +1077,13 @@ const App: React.FC = () => {
             if (v === 'admin') handleAdminAccess();
             else setView(v);
           }}
-          userRole={user?.role}
-          onLoginClick={() => setShowAuth(true)}
-          onLogoutClick={handleLogout}
         />
       )}
 
-      {/* Guest Stats Footer (only visible in development) */}
-      {process.env.NODE_ENV === 'development' && user?.role === 'guest' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white text-[10px] p-1 text-center">
-          Guest Activities: {guestActivities.length} | Last: {guestActivities[guestActivities.length - 1]?.type || 'none'}
-        </div>
-      )}
+      {/* Copyright Footer */}
+      <div className="fixed bottom-0 left-0 right-0 bg-black text-white text-center py-2 text-xs z-40">
+        ©barakasonko - Product images protected
+      </div>
     </div>
   );
 };
