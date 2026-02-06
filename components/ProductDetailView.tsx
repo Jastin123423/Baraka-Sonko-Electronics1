@@ -9,6 +9,8 @@ interface ProductDetailViewProps {
   onBack: () => void;
   onProductClick: (product: Product) => void;
   WatermarkedImage: React.ComponentType<any>;
+  onWhatsAppClick?: () => void;
+  onCallClick?: () => void;
 }
 
 // Large Watermarked Image Component specifically for Product Detail View
@@ -59,31 +61,46 @@ const LargeWatermarkedImage: React.FC<{
         <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
       )}
       
-      {/* SINGLE LARGE CENTERED WATERMARK - Only one watermark in the middle */}
+      {/* SINGLE LARGE HIGH-CONTRAST WATERMARK */}
       {isLoaded && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          {/* Large Center Watermark - Very visible */}
-          <div className="relative w-36 h-36 opacity-30"> {/* Increased size, reduced opacity */}
+          {/* Large Center Watermark with HIGH CONTRAST */}
+          <div className="relative w-40 h-40 opacity-80"> {/* Increased opacity and size */}
             <img
               src={logoUrl}
               alt="Watermark"
               className="w-full h-full object-contain"
               draggable="false"
               style={{
-                filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.7))',
+                // HIGH CONTRAST FILTERS
+                filter: `
+                  drop-shadow(0 0 15px rgba(0,0,0,0.8)) 
+                  drop-shadow(0 0 25px rgba(0,0,0,0.6))
+                  brightness(1.2) 
+                  contrast(1.5)
+                `,
+                // Add subtle white outline for contrast
+                WebkitFilter: `
+                  drop-shadow(0 0 15px rgba(0,0,0,0.8)) 
+                  drop-shadow(0 0 25px rgba(0,0,0,0.6))
+                  brightness(1.2) 
+                  contrast(1.5)
+                `,
               }}
             />
           </div>
           
-          {/* Copyright Text - Keep it visible */}
+          {/* Copyright Text with higher contrast */}
           <div
-            className="absolute bottom-4 left-4 px-3 py-1.5 rounded"
+            className="absolute bottom-6 left-6 px-4 py-2 rounded-lg"
             style={{
-              background: 'rgba(0,0,0,0.7)',
+              background: 'rgba(0,0,0,0.85)', // Darker background
               color: 'white',
-              fontSize: '11px',
+              fontSize: '12px',
               fontWeight: 'bold',
-              opacity: 0.9,
+              opacity: 0.95,
+              textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+              border: '2px solid rgba(255,255,255,0.3)', // White border for contrast
             }}
           >
             ©barakasonko
@@ -99,7 +116,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   allProducts, 
   onBack, 
   onProductClick,
-  WatermarkedImage
+  WatermarkedImage,
+  onWhatsAppClick,
+  onCallClick
 }) => {
   const [activeImage, setActiveImage] = useState(0);
   const gallery = product.images && product.images.length > 0 ? product.images : [product.image];
@@ -128,6 +147,16 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     if (contentArea) contentArea.scrollTo(0, 0);
   }, [product.id]);
 
+  const handleWhatsApp = () => {
+    onWhatsAppClick?.();
+    window.open(WHATSAPP_URL, '_blank');
+  };
+
+  const handleCall = () => {
+    onCallClick?.();
+    window.location.href = `tel:${PHONE_NUMBER}`;
+  };
+
   return (
     <div className="fixed inset-0 bg-white z-[100] flex flex-col animate-fadeIn overflow-hidden">
       {/* Top Header - Fixed at Top */}
@@ -146,7 +175,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
       {/* Scrollable Content Area */}
       <div id="product-detail-scroll-area" className="flex-grow overflow-y-auto no-scrollbar bg-white">
-        {/* Hero Image Slider with SINGLE LARGE Watermark */}
+        {/* Hero Image Slider with HIGH-CONTRAST Watermark */}
         <div className="relative w-full aspect-square bg-[#f9f9f9] border-b border-gray-50">
           <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full" 
                onScroll={(e) => {
@@ -202,7 +231,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             {product.title}
           </h1>
 
-          {/* ORIGINAL VIDEO PLAYER - Working version */}
+          {/* Video Player */}
           {product.videoUrl && (
             <div className="mb-8 py-6 border-y border-gray-50">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Product Experience</h3>
@@ -213,7 +242,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   controls 
                   playsInline
                   preload="metadata"
-                  controlsList="nodownload" // Prevent downloading
+                  controlsList="nodownload"
                 >
                   Your browser does not support the video tag.
                 </video>
@@ -229,17 +258,16 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
           </div>
 
-          {/* Gallery Details Images - RESTORED TO ORIGINAL SIZE */}
+          {/* Gallery Details Images */}
           {descImages.length > 0 && (
             <div className="mt-8 space-y-3">
                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Gallery Details</h3>
                {descImages.map((img, idx) => (
                  <div key={idx} className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
-                   {/* Original size - no aspect-video class */}
                    <LargeWatermarkedImage
                      src={img}
                      alt={`Product detail ${idx + 1}`}
-                     containerClass="w-full h-auto" /* Changed from h-full to h-auto */
+                     containerClass="w-full h-auto"
                      productId={`${product.id}-desc-${idx}`}
                    />
                  </div>
@@ -247,7 +275,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
           )}
 
-          {/* Related Products Grid - Using original WatermarkedImage for consistency */}
+          {/* Related Products Grid */}
           {relatedProducts.length > 0 && (
             <div className="mt-12 mb-10">
               <div className="mb-4 flex items-center justify-between px-1">
@@ -291,11 +319,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </div>
       </div>
 
-      {/* FIXED BOTTOM ACTION BAR - Always Visible */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-100 p-3 pb-6 flex items-center justify-between space-x-3 shadow-[0_-4px_16px(rgba(0,0,0,0.05)]">
+      {/* FIXED BOTTOM ACTION BAR */}
+      <div className="flex-shrink-0 bg-white border-t border-gray-100 p-3 pb-6 flex items-center justify-between space-x-3 shadow-[0_-4px_16px_rgba(0,0,0,0.05)]">
         {/* Call Button */}
-        <a 
-          href={`tel:${PHONE_NUMBER}`}
+        <button
+          onClick={handleCall}
           className="flex-1 flex flex-col items-center justify-center py-2 rounded-xl border-2 active:scale-95 transition-all"
           style={{ borderColor: COLORS.primary, color: COLORS.primary }}
         >
@@ -303,13 +331,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
           </svg>
           <span className="text-[10px] font-black uppercase tracking-widest mt-0.5">Call</span>
-        </a>
+        </button>
 
         {/* Weka Oda (WhatsApp) Button */}
-        <a 
-          href={WHATSAPP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={handleWhatsApp}
           className="flex-[2] flex items-center justify-center space-x-2 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all shadow-lg"
           style={{ backgroundColor: COLORS.primary, boxShadow: `0 8px 20px -4px ${COLORS.primary}60` }}
         >
@@ -317,7 +343,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.438 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
           </svg>
           <span>Weka oda</span>
-        </a>
+        </button>
       </div>
     </div>
   );
