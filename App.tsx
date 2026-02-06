@@ -15,7 +15,7 @@ import CategoriesView from './components/CategoriesView';
 import AllProductsView from './components/AllProductsView';
 import { Product, User, Category } from './types';
 
-/** Advanced Watermarked Media Component with Multi-layer Protection */
+/** Advanced Watermarked Media Component - Optimized for Video Playback */
 const ProtectedMedia: React.FC<{
   src: string;
   alt?: string;
@@ -24,17 +24,35 @@ const ProtectedMedia: React.FC<{
   onClick?: () => void;
   fullWidth?: boolean;
   productId?: string;
-}> = ({ src, alt = '', isVideo = false, containerClass = '', onClick, fullWidth = false, productId = '' }) => {
+  playInline?: boolean;
+  autoPlay?: boolean;
+  muted?: boolean;
+  loop?: boolean;
+}> = ({ 
+  src, 
+  alt = '', 
+  isVideo = false, 
+  containerClass = '', 
+  onClick, 
+  fullWidth = false, 
+  productId = '',
+  playInline = false,
+  autoPlay = false,
+  muted = false,
+  loop = false
+}) => {
   const logoUrl = "https://media.barakasonko.store/download__82_-removebg-preview.png";
-  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   // Generate unique watermark pattern based on product ID
   const getWatermarkPattern = () => {
     const patterns = [
-      { positions: ['center', 'bottom-right', 'top-left'], opacities: [0.15, 0.6, 0.4] },
-      { positions: ['top-right', 'bottom-left', 'center'], opacities: [0.5, 0.5, 0.2] },
-      { positions: ['diagonal-1', 'diagonal-2', 'diagonal-3'], opacities: [0.3, 0.3, 0.3] },
+      { positions: ['bottom-right', 'top-left'], opacities: [0.6, 0.4], sizes: [30, 25] },
+      { positions: ['top-right', 'bottom-left'], opacities: [0.5, 0.5], sizes: [28, 28] },
+      { positions: ['center-bottom', 'left-middle'], opacities: [0.4, 0.3], sizes: [35, 22] },
     ];
     const patternIndex = productId ? parseInt(productId, 36) % patterns.length : 0;
     return patterns[patternIndex];
@@ -42,17 +60,52 @@ const ProtectedMedia: React.FC<{
 
   const pattern = getWatermarkPattern();
 
-  const renderWatermark = (position: string, opacity: number) => {
-    const baseSize = 40;
+  const renderWatermark = (position: string, opacity: number, size: number) => {
     const positions: Record<string, React.CSSProperties> = {
-      'center': { top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: baseSize * 1.5, height: baseSize * 1.5 },
-      'bottom-right': { bottom: '10px', right: '10px', width: baseSize, height: baseSize },
-      'top-left': { top: '10px', left: '10px', width: baseSize * 0.8, height: baseSize * 0.8 },
-      'top-right': { top: '10px', right: '10px', width: baseSize, height: baseSize },
-      'bottom-left': { bottom: '10px', left: '10px', width: baseSize, height: baseSize },
-      'diagonal-1': { top: '20%', left: '20%', width: baseSize * 0.7, height: baseSize * 0.7 },
-      'diagonal-2': { top: '60%', left: '70%', width: baseSize * 0.9, height: baseSize * 0.9 },
-      'diagonal-3': { top: '70%', left: '20%', width: baseSize * 0.6, height: baseSize * 0.6 },
+      'bottom-right': { 
+        bottom: '8px', 
+        right: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'top-left': { 
+        top: '8px', 
+        left: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'top-right': { 
+        top: '8px', 
+        right: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'bottom-left': { 
+        bottom: '8px', 
+        left: '8px', 
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'center-bottom': { 
+        bottom: '15px', 
+        left: '50%', 
+        transform: 'translateX(-50%)',
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
+      'left-middle': { 
+        top: '50%', 
+        left: '8px', 
+        transform: 'translateY(-50%)',
+        width: `${size}px`, 
+        height: `${size}px`,
+        zIndex: 10
+      },
     };
 
     return (
@@ -62,8 +115,7 @@ const ProtectedMedia: React.FC<{
         style={{
           ...positions[position],
           opacity,
-          filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.3))',
-          zIndex: 10,
+          filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.2))',
         }}
       >
         <img
@@ -72,16 +124,40 @@ const ProtectedMedia: React.FC<{
           className="w-full h-full object-contain"
           draggable="false"
           onContextMenu={(e) => e.preventDefault()}
+          style={{ pointerEvents: 'none' }}
         />
       </div>
     );
   };
 
+  // Video controls handler
+  const handleVideoPlay = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play().then(() => {
+          setIsVideoPlaying(true);
+        }).catch(e => {
+          console.error('Video play failed:', e);
+          // Fallback: try with muted
+          videoRef.current!.muted = true;
+          videoRef.current!.play().then(() => setIsVideoPlaying(true));
+        });
+      } else {
+        videoRef.current.pause();
+        setIsVideoPlaying(false);
+      }
+    }
+  };
+
   return (
     <div
-      ref={containerRef}
       className={`relative overflow-hidden rounded-xl bg-gray-100 ${containerClass}`}
-      onClick={onClick}
+      onClick={(e) => {
+        // Don't trigger onClick if clicking on video controls
+        if (!isVideo || !(e.target as HTMLElement).closest('.video-controls-overlay')) {
+          onClick?.();
+        }
+      }}
       style={{
         userSelect: 'none',
         WebkitUserSelect: 'none',
@@ -89,7 +165,6 @@ const ProtectedMedia: React.FC<{
         msUserSelect: 'none',
         pointerEvents: onClick ? 'auto' : 'none',
         position: 'relative',
-        // Anti-screenshot measures
         WebkitTouchCallout: 'none',
         WebkitTapHighlightColor: 'transparent',
       }}
@@ -101,49 +176,134 @@ const ProtectedMedia: React.FC<{
         e.preventDefault();
         return false;
       }}
-      onCopy={(e) => {
-        e.preventDefault();
-        return false;
-      }}
-      onCut={(e) => {
-        e.preventDefault();
-        return false;
-      }}
     >
-      {/* Anti-screenshot overlay */}
-      <div
-        className="absolute inset-0 pointer-events-none z-20"
-        style={{
-          background: 'linear-gradient(45deg, transparent 49%, rgba(255,255,255,0.02) 50%, transparent 51%)',
-          backgroundSize: '10px 10px',
-          mixBlendMode: 'overlay',
-        }}
-      />
-      
-      {/* Main Image or Video */}
       {isVideo ? (
-        <div className="relative w-full h-full">
-          <video
-            src={src}
-            className="w-full h-full object-cover"
-            controls
-            controlsList="nodownload noremoteplayback noplaybackrate"
-            disablePictureInPicture
-            style={{ pointerEvents: 'auto' }}
-            onContextMenu={(e) => e.preventDefault()}
-            onLoadedData={() => setIsLoaded(true)}
-          >
-            <track kind="captions" />
-          </video>
-          
-          {/* Video watermarks */}
-          <div className="absolute inset-0 pointer-events-none z-10">
-            {pattern.positions.map((pos, idx) => 
-              renderWatermark(pos, pattern.opacities[idx])
+        <div className="relative w-full h-full group">
+          {/* Video Container */}
+          <div className="relative w-full h-full overflow-hidden">
+            <video
+              ref={videoRef}
+              src={src}
+              className="w-full h-full object-cover"
+              playsInline={playInline}
+              autoPlay={autoPlay}
+              muted={muted}
+              loop={loop}
+              preload="metadata"
+              controls={false} // We'll use custom controls
+              onLoadedData={() => {
+                setIsLoaded(true);
+                setVideoError(false);
+              }}
+              onError={() => {
+                setVideoError(true);
+                setIsLoaded(true);
+              }}
+              onPlay={() => setIsVideoPlaying(true)}
+              onPause={() => setIsVideoPlaying(false)}
+              style={{ pointerEvents: 'auto' }}
+            >
+              Your browser does not support the video tag.
+            </video>
+            
+            {/* Video loading state */}
+            {!isLoaded && !videoError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-900/10">
+                <div className="w-8 h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+              </div>
             )}
+            
+            {/* Video error state */}
+            {videoError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 text-white p-4">
+                <div className="text-3xl mb-2">⚠️</div>
+                <p className="text-sm text-center">Video failed to load</p>
+                <button
+                  onClick={() => {
+                    setVideoError(false);
+                    setIsLoaded(false);
+                    if (videoRef.current) {
+                      videoRef.current.load();
+                    }
+                  }}
+                  className="mt-2 px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* Video Controls Overlay */}
+          <div 
+            className="video-controls-overlay absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            onClick={(e) => e.stopPropagation()}
+            style={{ zIndex: 20 }}
+          >
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleVideoPlay}
+                className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                aria-label={isVideoPlaying ? "Pause video" : "Play video"}
+              >
+                {isVideoPlaying ? (
+                  <span className="text-white">⏸️</span>
+                ) : (
+                  <span className="text-white">▶️</span>
+                )}
+              </button>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    if (videoRef.current) {
+                      videoRef.current.muted = !videoRef.current.muted;
+                    }
+                  }}
+                  className="text-white text-sm"
+                  aria-label="Toggle mute"
+                >
+                  {videoRef.current?.muted ? '🔇' : '🔊'}
+                </button>
+                
+                <button
+                  onClick={() => {
+                    if (videoRef.current) {
+                      videoRef.current.requestFullscreen();
+                    }
+                  }}
+                  className="text-white text-sm"
+                  aria-label="Fullscreen"
+                >
+                  ⛶
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Video Watermarks - Smaller and less intrusive */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
+            {pattern.positions.map((pos, idx) => 
+              renderWatermark(pos, pattern.opacities[idx], pattern.sizes[idx])
+            )}
+            
+            {/* Subtle copyright text for videos */}
+            <div
+              className="absolute bottom-2 left-2 px-2 py-0.5 rounded"
+              style={{
+                background: 'rgba(0,0,0,0.5)',
+                color: 'white',
+                fontSize: '9px',
+                fontWeight: 'bold',
+                opacity: 0.7,
+              }}
+            >
+              ©barakasonko
+            </div>
           </div>
         </div>
       ) : (
+        // IMAGE VERSION
         <div className="relative w-full h-full">
           <img
             src={src}
@@ -167,13 +327,13 @@ const ProtectedMedia: React.FC<{
             <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
           )}
           
-          {/* Image watermarks */}
-          <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Image Watermarks */}
+          <div className="absolute inset-0 pointer-events-none">
             {pattern.positions.map((pos, idx) => 
-              renderWatermark(pos, pattern.opacities[idx])
+              renderWatermark(pos, pattern.opacities[idx], pattern.sizes[idx])
             )}
             
-            {/* Text watermark overlay */}
+            {/* Copyright text for images */}
             <div
               className="absolute bottom-2 left-2 px-2 py-1 rounded"
               style={{
@@ -184,25 +344,16 @@ const ProtectedMedia: React.FC<{
                 opacity: 0.8,
               }}
             >
-              © BarakaSonko.store
+              ©barakasonko
             </div>
           </div>
-          
-          {/* Protection overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
-              mixBlendMode: 'hard-light',
-            }}
-          />
         </div>
       )}
     </div>
   );
 };
 
-/** Enhanced ErrorBoundary with screenshot protection */
+/** Enhanced ErrorBoundary */
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; title?: string },
   { hasError: boolean; error?: any }
@@ -226,7 +377,7 @@ class ErrorBoundary extends React.Component<
               {this.props.title || 'This screen crashed.'}
             </p>
             <p className="text-xs text-red-700 mt-2">
-              Open console to see full error. Most likely a bad product field (price/id/image) from backend.
+              Open console to see full error.
             </p>
             <pre className="text-[11px] mt-3 whitespace-pre-wrap text-red-600">
               {String(this.state.error)}
@@ -239,7 +390,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Helper function to get default icon for category
+// Helper functions and banners remain the same...
 const getDefaultCategoryIcon = (categoryName: string): string => {
   const name = categoryName.toLowerCase();
   
@@ -263,7 +414,6 @@ const getDefaultCategoryIcon = (categoryName: string): string => {
   return '🛒';
 };
 
-// Transform backend category data to ensure proper format
 const normalizeCategory = (cat: any): Category => {
   const backendIcon = cat.icon || cat.icon_name || cat.icon_emoji || cat.icon_url;
   
@@ -328,136 +478,35 @@ const App: React.FC = () => {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [protectionActive, setProtectionActive] = useState(true);
 
-  // Advanced protection against screenshots and copying
+  // Simplified protection - Focus on watermarking rather than blocking
   useEffect(() => {
-    if (!protectionActive) return;
-
-    const protectionStyles = `
-      * {
-        -webkit-touch-callout: none !important;
-        -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-        user-select: none !important;
-      }
-      
-      img, video {
-        -webkit-user-drag: none !important;
-        -khtml-user-drag: none !important;
-        -moz-user-drag: none !important;
-        -o-user-drag: none !important;
-        user-drag: none !important;
-        pointer-events: none !important;
-      }
-      
-      /* Prevent text selection */
-      ::selection {
-        background: transparent !important;
-        color: inherit !important;
-      }
-      ::-moz-selection {
-        background: transparent !important;
-        color: inherit !important;
-      }
-      
-      /* Anti-screenshot pattern */
-      .anti-screenshot {
-        background-image: repeating-linear-gradient(
-          45deg,
-          transparent,
-          transparent 10px,
-          rgba(255,255,255,0.02) 10px,
-          rgba(255,255,255,0.02) 20px
-        ) !important;
-      }
-    `;
-
-    // Add protection styles
-    const styleSheet = document.createElement("style");
-    styleSheet.textContent = protectionStyles;
-    document.head.appendChild(styleSheet);
-
-    // Prevent DevTools opening
-    const preventDevTools = (e: KeyboardEvent) => {
-      // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
-      if (
-        e.keyCode === 123 || // F12
-        (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || // Ctrl+Shift+I/J/C
-        (e.ctrlKey && e.keyCode === 85) // Ctrl+U
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }
-    };
-
-    // Prevent right-click
-    const preventContextMenu = (e: MouseEvent) => {
+    const preventDefaults = (e: Event) => {
       e.preventDefault();
-      return false;
     };
 
-    // Prevent drag and drop
-    const preventDragDrop = (e: DragEvent) => {
-      e.preventDefault();
-      return false;
-    };
-
-    // Prevent print screen
-    const preventPrintScreen = (e: KeyboardEvent) => {
-      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p')) {
+    // Only prevent right-click on images/videos
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
         e.preventDefault();
-        // Show warning
-        alert('Screenshots and printing are disabled for copyright protection.');
-        return false;
       }
     };
 
-    // Detect screen recording attempts (limited capability in browser)
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // User might be switching to screenshot tool
-        console.warn('Tab visibility changed - possible screenshot attempt');
+    document.addEventListener('contextmenu', handleContextMenu);
+    
+    // Allow all other interactions for better UX
+    document.addEventListener('selectstart', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
+        e.preventDefault();
       }
-    };
-
-    // Add event listeners
-    document.addEventListener('keydown', preventDevTools);
-    document.addEventListener('keydown', preventPrintScreen);
-    document.addEventListener('contextmenu', preventContextMenu);
-    document.addEventListener('dragstart', preventDragDrop);
-    document.addEventListener('drop', preventDragDrop);
-    document.addEventListener('selectstart', (e) => e.preventDefault());
-    document.addEventListener('copy', (e) => e.preventDefault());
-    document.addEventListener('cut', (e) => e.preventDefault());
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Add blur event to detect window switching
-    window.addEventListener('blur', () => {
-      console.warn('Window lost focus - possible screenshot attempt');
-    });
-
-    // Add beforeunload to warn users
-    window.addEventListener('beforeunload', (e) => {
-      // Optional: Add cleanup or warning
     });
 
     return () => {
-      // Cleanup
-      document.head.removeChild(styleSheet);
-      document.removeEventListener('keydown', preventDevTools);
-      document.removeEventListener('keydown', preventPrintScreen);
-      document.removeEventListener('contextmenu', preventContextMenu);
-      document.removeEventListener('dragstart', preventDragDrop);
-      document.removeEventListener('drop', preventDragDrop);
-      document.removeEventListener('selectstart', (e) => e.preventDefault());
-      document.removeEventListener('copy', (e) => e.preventDefault());
-      document.removeEventListener('cut', (e) => e.preventDefault());
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', () => {});
-      window.removeEventListener('beforeunload', () => {});
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('selectstart', (e) => {});
     };
-  }, [protectionActive]);
+  }, []);
 
   // Banner rotation effect
   useEffect(() => {
@@ -555,8 +604,6 @@ const App: React.FC = () => {
         setIsLoading(true);
         setFetchError(null);
         
-        console.log('📡 App: Fetching initial data...');
-        
         const [prodRes, catRes] = await Promise.all([
           fetch('/api/products'),
           fetch('/api/categories'),
@@ -572,7 +619,6 @@ const App: React.FC = () => {
           error: 'Invalid JSON from categories API'
         }));
 
-        // First process categories
         let normalizedCats: Category[] = [];
         if (catData?.success) {
           const rawCats = Array.isArray(catData.data) ? catData.data : [];
@@ -582,7 +628,6 @@ const App: React.FC = () => {
           setFetchError(prev => prev ? `${prev}; Categories: ${catData?.error}` : `Categories: ${catData?.error || 'Unknown error'}`);
         }
 
-        // Then process products with the normalized categories
         if (prodData?.success) {
           const raw = Array.isArray(prodData.data) ? prodData.data : [];
           const normalized = raw.map(p => normalizeProduct(p, normalizedCats));
@@ -779,23 +824,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div 
-      className="relative min-h-screen bg-white anti-screenshot"
-      style={{
-        WebkitUserSelect: 'none',
-        MozUserSelect: 'none',
-        msUserSelect: 'none',
-        userSelect: 'none',
-        cursor: 'default',
-      }}
-    >
-      {/* Protection Warning Banner */}
-      {protectionActive && (
-        <div className="fixed top-0 left-0 right-0 bg-orange-600 text-white text-xs font-black py-1 px-4 text-center z-50">
-          ⚠️ Copyright Protected - Screenshots & Copying Disabled
-        </div>
-      )}
-
+    <div className="relative min-h-screen bg-white">
       {/* Product Detail View */}
       {view === 'product-detail' && selectedProduct && (
         <ProductDetailView
@@ -826,7 +855,7 @@ const App: React.FC = () => {
         />
       )}
 
-      <main className="w-full max-w-[600px] mx-auto pb-24 pt-6">
+      <main className="w-full max-w-[600px] mx-auto pb-24">
         {view === 'home' ? (
           <>
             <HeroBanner onClick={() => setView('all-products')} />
@@ -849,6 +878,11 @@ const App: React.FC = () => {
                       containerClass="h-[350px]"
                       fullWidth={true}
                       alt={banner.alt}
+                      isVideo={banner.src.includes('.gif')} // Treat GIFs as videos for better playback
+                      playInline={true}
+                      muted={true}
+                      loop={true}
+                      autoPlay={true}
                     />
                   </div>
                 ))}
@@ -914,6 +948,10 @@ const App: React.FC = () => {
                 onClick={() => setView('all-products')}
                 containerClass="h-[110px]"
                 alt="Special promotion banner"
+                isVideo={true}
+                playInline={true}
+                muted={true}
+                loop={true}
               />
             </div>
 
@@ -1028,7 +1066,7 @@ const App: React.FC = () => {
 
       {/* Copyright Footer */}
       <div className="fixed bottom-0 left-0 right-0 bg-black text-white text-center py-2 text-xs z-40">
-        © {new Date().getFullYear()} BarakaSonko.store - All media protected by digital watermarking
+        ©barakasonko - All media protected by digital watermarking
       </div>
     </div>
   );
