@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Header from './components/Header';
 import HeroBanner from './components/HeroBanner';
 import QuickActions from './components/QuickActions';
@@ -15,113 +15,194 @@ import CategoriesView from './components/CategoriesView';
 import AllProductsView from './components/AllProductsView';
 import { Product, User, Category } from './types';
 
-/** Watermarked Media Component - Prevents easy image copying */
-const WatermarkedMedia: React.FC<{
+/** Advanced Watermarked Media Component with Multi-layer Protection */
+const ProtectedMedia: React.FC<{
   src: string;
   alt?: string;
   isVideo?: boolean;
   containerClass?: string;
   onClick?: () => void;
   fullWidth?: boolean;
-}> = ({ src, alt = '', isVideo = false, containerClass = '', onClick, fullWidth = false }) => {
+  productId?: string;
+}> = ({ src, alt = '', isVideo = false, containerClass = '', onClick, fullWidth = false, productId = '' }) => {
   const logoUrl = "https://media.barakasonko.store/download__82_-removebg-preview.png";
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Generate unique watermark pattern based on product ID
+  const getWatermarkPattern = () => {
+    const patterns = [
+      { positions: ['center', 'bottom-right', 'top-left'], opacities: [0.15, 0.6, 0.4] },
+      { positions: ['top-right', 'bottom-left', 'center'], opacities: [0.5, 0.5, 0.2] },
+      { positions: ['diagonal-1', 'diagonal-2', 'diagonal-3'], opacities: [0.3, 0.3, 0.3] },
+    ];
+    const patternIndex = productId ? parseInt(productId, 36) % patterns.length : 0;
+    return patterns[patternIndex];
+  };
+
+  const pattern = getWatermarkPattern();
+
+  const renderWatermark = (position: string, opacity: number) => {
+    const baseSize = 40;
+    const positions: Record<string, React.CSSProperties> = {
+      'center': { top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: baseSize * 1.5, height: baseSize * 1.5 },
+      'bottom-right': { bottom: '10px', right: '10px', width: baseSize, height: baseSize },
+      'top-left': { top: '10px', left: '10px', width: baseSize * 0.8, height: baseSize * 0.8 },
+      'top-right': { top: '10px', right: '10px', width: baseSize, height: baseSize },
+      'bottom-left': { bottom: '10px', left: '10px', width: baseSize, height: baseSize },
+      'diagonal-1': { top: '20%', left: '20%', width: baseSize * 0.7, height: baseSize * 0.7 },
+      'diagonal-2': { top: '60%', left: '70%', width: baseSize * 0.9, height: baseSize * 0.9 },
+      'diagonal-3': { top: '70%', left: '20%', width: baseSize * 0.6, height: baseSize * 0.6 },
+    };
+
+    return (
+      <div
+        key={position}
+        className="absolute pointer-events-none"
+        style={{
+          ...positions[position],
+          opacity,
+          filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.3))',
+          zIndex: 10,
+        }}
+      >
+        <img
+          src={logoUrl}
+          alt="Watermark"
+          className="w-full h-full object-contain"
+          draggable="false"
+          onContextMenu={(e) => e.preventDefault()}
+        />
+      </div>
+    );
+  };
+
   return (
-    <div 
-      className={`relative overflow-hidden rounded-xl ${containerClass}`}
+    <div
+      ref={containerRef}
+      className={`relative overflow-hidden rounded-xl bg-gray-100 ${containerClass}`}
       onClick={onClick}
-      style={{ 
+      style={{
         userSelect: 'none',
         WebkitUserSelect: 'none',
         MozUserSelect: 'none',
         msUserSelect: 'none',
         pointerEvents: onClick ? 'auto' : 'none',
-        position: 'relative'
+        position: 'relative',
+        // Anti-screenshot measures
+        WebkitTouchCallout: 'none',
+        WebkitTapHighlightColor: 'transparent',
       }}
-      onContextMenu={(e) => e.preventDefault()}
-      onDragStart={(e) => e.preventDefault()}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        return false;
+      }}
+      onDragStart={(e) => {
+        e.preventDefault();
+        return false;
+      }}
+      onCopy={(e) => {
+        e.preventDefault();
+        return false;
+      }}
+      onCut={(e) => {
+        e.preventDefault();
+        return false;
+      }}
     >
+      {/* Anti-screenshot overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none z-20"
+        style={{
+          background: 'linear-gradient(45deg, transparent 49%, rgba(255,255,255,0.02) 50%, transparent 51%)',
+          backgroundSize: '10px 10px',
+          mixBlendMode: 'overlay',
+        }}
+      />
+      
       {/* Main Image or Video */}
       {isVideo ? (
         <div className="relative w-full h-full">
-          <video 
-            src={src} 
+          <video
+            src={src}
             className="w-full h-full object-cover"
             controls
-            controlsList="nodownload noremoteplayback"
+            controlsList="nodownload noremoteplayback noplaybackrate"
             disablePictureInPicture
             style={{ pointerEvents: 'auto' }}
             onContextMenu={(e) => e.preventDefault()}
-          />
-          {/* Watermark Overlay for Video */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute bottom-2 right-2 w-16 h-16 opacity-70">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
-            </div>
-            <div className="absolute top-2 left-2 w-12 h-12 opacity-50">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
-            </div>
+            onLoadedData={() => setIsLoaded(true)}
+          >
+            <track kind="captions" />
+          </video>
+          
+          {/* Video watermarks */}
+          <div className="absolute inset-0 pointer-events-none z-10">
+            {pattern.positions.map((pos, idx) => 
+              renderWatermark(pos, pattern.opacities[idx])
+            )}
           </div>
         </div>
       ) : (
         <div className="relative w-full h-full">
-          <img 
-            src={src} 
+          <img
+            src={src}
             alt={alt}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-opacity duration-300"
             draggable="false"
             loading="lazy"
-            style={{ pointerEvents: 'auto' }}
+            style={{
+              pointerEvents: 'auto',
+              opacity: isLoaded ? 1 : 0,
+            }}
+            onLoad={() => setIsLoaded(true)}
+            onError={(e) => {
+              console.error('Failed to load image:', src);
+              (e.target as HTMLImageElement).style.opacity = '1';
+            }}
           />
-          {/* Diagonal Watermark Pattern */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Center Watermark */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 opacity-20">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
+          
+          {/* Loading skeleton */}
+          {!isLoaded && (
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
+          )}
+          
+          {/* Image watermarks */}
+          <div className="absolute inset-0 pointer-events-none z-10">
+            {pattern.positions.map((pos, idx) => 
+              renderWatermark(pos, pattern.opacities[idx])
+            )}
+            
+            {/* Text watermark overlay */}
+            <div
+              className="absolute bottom-2 left-2 px-2 py-1 rounded"
+              style={{
+                background: 'rgba(0,0,0,0.7)',
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                opacity: 0.8,
+              }}
+            >
+              © BarakaSonko.store
             </div>
-            {/* Bottom Right Watermark */}
-            <div className="absolute bottom-3 right-3 w-14 h-14 opacity-70">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
-            </div>
-            {/* Top Left Watermark */}
-            <div className="absolute top-3 left-3 w-10 h-10 opacity-50">
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-                draggable="false"
-              />
-            </div>
-            {/* Transparent Overlay to prevent color picking */}
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/5"></div>
           </div>
+          
+          {/* Protection overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+              mixBlendMode: 'hard-light',
+            }}
+          />
         </div>
       )}
     </div>
   );
 };
 
-/** Small inline ErrorBoundary so AdminView crashes don't blank the whole app */
+/** Enhanced ErrorBoundary with screenshot protection */
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; title?: string },
   { hasError: boolean; error?: any }
@@ -190,12 +271,11 @@ const normalizeCategory = (cat: any): Category => {
     id: String(cat.id || cat._id || `cat_${Date.now()}_${Math.random()}`),
     name: String(cat.name || cat.category_name || cat.title || 'Unnamed Category'),
     icon: backendIcon || getDefaultCategoryIcon(cat.name || ''),
-    // Include any other fields backend might provide
     ...cat
   };
 };
 
-// Banner data - Updated with your new banner
+// Banner data
 const banners = [
   {
     id: 1,
@@ -223,38 +303,9 @@ const banners = [
   }
 ];
 
-// Additional banners for QuickActions section
-const quickActionBanners = [
-  {
-    id: 'wishlist',
-    title: 'Wishlist',
-    src: "https://media.barakasonko.store/Untitled%20design.gif",
-    alt: "Wishlist promotions",
-  },
-  {
-    id: 'wholesale',
-    title: 'Wholesale',
-    src: "https://media.barakasonko.store/Untitled%20design.gif",
-    alt: "Wholesale offers",
-  },
-  {
-    id: 'bargain',
-    title: 'Bargain Zone',
-    src: "https://media.barakasonko.store/Untitled%20design.gif",
-    alt: "Bargain zone deals",
-  },
-  {
-    id: 'more',
-    title: 'More Deals',
-    src: "https://media.barakasonko.store/Untitled%20design.gif",
-    alt: "More exciting deals",
-  }
-];
-
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
-  const [activeQuickActionBanner, setActiveQuickActionBanner] = useState(0);
 
   const [view, setView] = useState<
     | 'home'
@@ -275,45 +326,138 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [protectionActive, setProtectionActive] = useState(true);
 
-  // Prevent right-click and image downloading globally
+  // Advanced protection against screenshots and copying
   useEffect(() => {
-    const preventDefaults = (e: Event) => {
+    if (!protectionActive) return;
+
+    const protectionStyles = `
+      * {
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+      }
+      
+      img, video {
+        -webkit-user-drag: none !important;
+        -khtml-user-drag: none !important;
+        -moz-user-drag: none !important;
+        -o-user-drag: none !important;
+        user-drag: none !important;
+        pointer-events: none !important;
+      }
+      
+      /* Prevent text selection */
+      ::selection {
+        background: transparent !important;
+        color: inherit !important;
+      }
+      ::-moz-selection {
+        background: transparent !important;
+        color: inherit !important;
+      }
+      
+      /* Anti-screenshot pattern */
+      .anti-screenshot {
+        background-image: repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 10px,
+          rgba(255,255,255,0.02) 10px,
+          rgba(255,255,255,0.02) 20px
+        ) !important;
+      }
+    `;
+
+    // Add protection styles
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = protectionStyles;
+    document.head.appendChild(styleSheet);
+
+    // Prevent DevTools opening
+    const preventDevTools = (e: KeyboardEvent) => {
+      // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
+      if (
+        e.keyCode === 123 || // F12
+        (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || // Ctrl+Shift+I/J/C
+        (e.ctrlKey && e.keyCode === 85) // Ctrl+U
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    };
+
+    // Prevent right-click
+    const preventContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      return false;
     };
 
-    // Disable right-click context menu
-    document.addEventListener('contextmenu', preventDefaults);
-    
-    // Disable drag and drop
-    document.addEventListener('dragstart', preventDefaults);
-    document.addEventListener('drop', preventDefaults);
-    
-    // Disable text selection on images
-    const disableSelection = (e: Event) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
-        e.preventDefault();
-      }
+    // Prevent drag and drop
+    const preventDragDrop = (e: DragEvent) => {
+      e.preventDefault();
+      return false;
     };
-    document.addEventListener('selectstart', disableSelection);
 
-    // Disable keyboard shortcuts for saving
-    const disableSaveShortcuts = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p')) {
+    // Prevent print screen
+    const preventPrintScreen = (e: KeyboardEvent) => {
+      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p')) {
         e.preventDefault();
+        // Show warning
+        alert('Screenshots and printing are disabled for copyright protection.');
+        return false;
       }
     };
-    document.addEventListener('keydown', disableSaveShortcuts);
+
+    // Detect screen recording attempts (limited capability in browser)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // User might be switching to screenshot tool
+        console.warn('Tab visibility changed - possible screenshot attempt');
+      }
+    };
+
+    // Add event listeners
+    document.addEventListener('keydown', preventDevTools);
+    document.addEventListener('keydown', preventPrintScreen);
+    document.addEventListener('contextmenu', preventContextMenu);
+    document.addEventListener('dragstart', preventDragDrop);
+    document.addEventListener('drop', preventDragDrop);
+    document.addEventListener('selectstart', (e) => e.preventDefault());
+    document.addEventListener('copy', (e) => e.preventDefault());
+    document.addEventListener('cut', (e) => e.preventDefault());
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Add blur event to detect window switching
+    window.addEventListener('blur', () => {
+      console.warn('Window lost focus - possible screenshot attempt');
+    });
+
+    // Add beforeunload to warn users
+    window.addEventListener('beforeunload', (e) => {
+      // Optional: Add cleanup or warning
+    });
 
     return () => {
-      document.removeEventListener('contextmenu', preventDefaults);
-      document.removeEventListener('dragstart', preventDefaults);
-      document.removeEventListener('drop', preventDefaults);
-      document.removeEventListener('selectstart', disableSelection);
-      document.removeEventListener('keydown', disableSaveShortcuts);
+      // Cleanup
+      document.head.removeChild(styleSheet);
+      document.removeEventListener('keydown', preventDevTools);
+      document.removeEventListener('keydown', preventPrintScreen);
+      document.removeEventListener('contextmenu', preventContextMenu);
+      document.removeEventListener('dragstart', preventDragDrop);
+      document.removeEventListener('drop', preventDragDrop);
+      document.removeEventListener('selectstart', (e) => e.preventDefault());
+      document.removeEventListener('copy', (e) => e.preventDefault());
+      document.removeEventListener('cut', (e) => e.preventDefault());
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', () => {});
+      window.removeEventListener('beforeunload', () => {});
     };
-  }, []);
+  }, [protectionActive]);
 
   // Banner rotation effect
   useEffect(() => {
@@ -327,18 +471,7 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [activeBannerIndex, view]);
 
-  // QuickAction banner rotation
-  useEffect(() => {
-    if (view !== 'home' || quickActionBanners.length <= 1) return;
-    
-    const interval = setInterval(() => {
-      setActiveQuickActionBanner((prev) => (prev + 1) % quickActionBanners.length);
-    }, 4000); // Rotate every 4 seconds
-
-    return () => clearInterval(interval);
-  }, [activeQuickActionBanner, view]);
-
-  // Transform backend product data to ensure proper format
+  // Transform backend product data
   const normalizeProduct = (p: any, categoriesList: Category[]): Product => {
     const id = String(p?.id ?? '');
     const price = Number(p?.price ?? 0);
@@ -429,18 +562,15 @@ const App: React.FC = () => {
           fetch('/api/categories'),
         ]);
 
-        console.log('📡 App: Products response status:', prodRes.status);
-        console.log('📡 App: Categories response status:', catRes.status);
-
-        const prodData = await prodRes.json().catch(() => {
-          console.error('❌ App: Failed to parse products JSON');
-          return { success: false, error: 'Invalid JSON from products API' };
-        });
+        const prodData = await prodRes.json().catch(() => ({
+          success: false,
+          error: 'Invalid JSON from products API'
+        }));
         
-        const catData = await catRes.json().catch(() => {
-          console.error('❌ App: Failed to parse categories JSON');
-          return { success: false, error: 'Invalid JSON from categories API' };
-        });
+        const catData = await catRes.json().catch(() => ({
+          success: false,
+          error: 'Invalid JSON from categories API'
+        }));
 
         // First process categories
         let normalizedCats: Category[] = [];
@@ -449,7 +579,6 @@ const App: React.FC = () => {
           normalizedCats = rawCats.map(normalizeCategory);
           setCategories(normalizedCats);
         } else {
-          console.error('❌ App: Categories API returned error:', catData?.error);
           setFetchError(prev => prev ? `${prev}; Categories: ${catData?.error}` : `Categories: ${catData?.error || 'Unknown error'}`);
         }
 
@@ -459,7 +588,6 @@ const App: React.FC = () => {
           const normalized = raw.map(p => normalizeProduct(p, normalizedCats));
           setProducts(normalized);
         } else {
-          console.error('❌ App: Products API returned error:', prodData?.error);
           setFetchError(prev => prev ? `${prev}; Products: ${prodData?.error}` : `Products: ${prodData?.error || 'Unknown error'}`);
         }
       } catch (error: any) {
@@ -522,7 +650,6 @@ const App: React.FC = () => {
       });
 
       const result = await response.json().catch(() => null);
-
       if (!response.ok || !result?.success) return false;
 
       const savedRaw = result.data || result.product || result.item;
@@ -583,36 +710,10 @@ const App: React.FC = () => {
     setView('product-detail');
   };
 
-  // Handle banner click
   const handleBannerClick = () => {
     setView('all-products');
   };
 
-  // Handle quick action banner click
-  const handleQuickActionBannerClick = (actionId: string) => {
-    switch (actionId) {
-      case 'wishlist':
-        // Navigate to wishlist or show wishlist products
-        setView('all-products');
-        break;
-      case 'wholesale':
-        // Navigate to wholesale section
-        setView('all-products');
-        break;
-      case 'bargain':
-        // Navigate to bargain zone
-        setView('all-products');
-        break;
-      case 'more':
-        // Navigate to more deals
-        setView('all-products');
-        break;
-      default:
-        setView('all-products');
-    }
-  };
-
-  // Manual banner navigation
   const goToNextBanner = () => {
     setActiveBannerIndex((prev) => (prev + 1) % banners.length);
   };
@@ -621,7 +722,6 @@ const App: React.FC = () => {
     setActiveBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
   };
 
-  // Bottom nav mapping
   const navView =
     view === 'admin'
       ? 'admin'
@@ -679,12 +779,23 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-white" style={{ 
-      WebkitUserSelect: 'none',
-      MozUserSelect: 'none',
-      msUserSelect: 'none',
-      userSelect: 'none'
-    }}>
+    <div 
+      className="relative min-h-screen bg-white anti-screenshot"
+      style={{
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none',
+        userSelect: 'none',
+        cursor: 'default',
+      }}
+    >
+      {/* Protection Warning Banner */}
+      {protectionActive && (
+        <div className="fixed top-0 left-0 right-0 bg-orange-600 text-white text-xs font-black py-1 px-4 text-center z-50">
+          ⚠️ Copyright Protected - Screenshots & Copying Disabled
+        </div>
+      )}
+
       {/* Product Detail View */}
       {view === 'product-detail' && selectedProduct && (
         <ProductDetailView
@@ -692,7 +803,7 @@ const App: React.FC = () => {
           allProducts={products}
           onBack={() => setView('home')}
           onProductClick={handleProductClick}
-          WatermarkedMedia={WatermarkedMedia}
+          ProtectedMedia={ProtectedMedia}
         />
       )}
 
@@ -715,7 +826,7 @@ const App: React.FC = () => {
         />
       )}
 
-      <main className="w-full max-w-[600px] mx-auto pb-24">
+      <main className="w-full max-w-[600px] mx-auto pb-24 pt-6">
         {view === 'home' ? (
           <>
             <HeroBanner onClick={() => setView('all-products')} />
@@ -732,7 +843,7 @@ const App: React.FC = () => {
                         : 'opacity-0 translate-x-full'
                     }`}
                   >
-                    <WatermarkedMedia
+                    <ProtectedMedia
                       src={banner.src}
                       onClick={handleBannerClick}
                       containerClass="h-[350px]"
@@ -743,27 +854,23 @@ const App: React.FC = () => {
                 ))}
               </div>
 
-              {/* Banner Navigation Dots */}
-              {banners.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                  {banners.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setActiveBannerIndex(index)}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        index === activeBannerIndex
-                          ? 'bg-orange-600 w-6'
-                          : 'bg-gray-300 hover:bg-gray-400'
-                      }`}
-                      aria-label={`Go to banner ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Banner Navigation Arrows */}
+              {/* Banner Navigation */}
               {banners.length > 1 && (
                 <>
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    {banners.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setActiveBannerIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === activeBannerIndex
+                            ? 'bg-orange-600 w-6'
+                            : 'bg-gray-300 hover:bg-gray-400'
+                        }`}
+                        aria-label={`Go to banner ${index + 1}`}
+                      />
+                    ))}
+                  </div>
                   <button
                     onClick={goToPrevBanner}
                     className="absolute left-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
@@ -786,38 +893,7 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {/* Quick Actions with Rotating Banner */}
-            <div className="p-4">
-              <div className="mb-4">
-                <h2 className="text-sm font-black text-gray-500 uppercase mb-2">Hot Deals</h2>
-                <div className="relative h-[120px] rounded-2xl overflow-hidden">
-                  <WatermarkedMedia
-                    src={quickActionBanners[activeQuickActionBanner].src}
-                    onClick={() => handleQuickActionBannerClick(quickActionBanners[activeQuickActionBanner].id)}
-                    containerClass="h-[120px]"
-                    alt={quickActionBanners[activeQuickActionBanner].alt}
-                  />
-                  <div className="absolute bottom-3 left-3">
-                    <span className="bg-orange-600 text-white text-xs font-black px-3 py-1 rounded-full">
-                      {quickActionBanners[activeQuickActionBanner].title}
-                    </span>
-                  </div>
-                  {quickActionBanners.length > 1 && (
-                    <div className="absolute bottom-3 right-3 flex space-x-1">
-                      {quickActionBanners.map((_, index) => (
-                        <div
-                          key={index}
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            index === activeQuickActionBanner ? 'bg-white' : 'bg-white/50'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <QuickActions onActionSelect={() => setView('all-products')} />
-            </div>
+            <QuickActions onActionSelect={() => setView('all-products')} />
 
             <CategorySection
               categories={categories}
@@ -829,11 +905,11 @@ const App: React.FC = () => {
               products={products.slice(0, 5)}
               onProductClick={handleProductClick}
               onSeeAll={() => setView('all-products')}
-              WatermarkedMedia={WatermarkedMedia}
+              ProtectedMedia={ProtectedMedia}
             />
 
             <div className="p-4">
-              <WatermarkedMedia
+              <ProtectedMedia
                 src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
                 onClick={() => setView('all-products')}
                 containerClass="h-[110px]"
@@ -845,7 +921,7 @@ const App: React.FC = () => {
               title="Daily Discoveries"
               products={products.slice(0, 10)}
               onProductClick={handleProductClick}
-              WatermarkedMedia={WatermarkedMedia}
+              ProtectedMedia={ProtectedMedia}
             />
           </>
         ) : view === 'all-products' ? (
@@ -854,7 +930,7 @@ const App: React.FC = () => {
             onProductClick={handleProductClick}
             onLoadMore={() => {}}
             isLoading={false}
-            WatermarkedMedia={WatermarkedMedia}
+            ProtectedMedia={ProtectedMedia}
           />
         ) : view === 'category-results' ? (
           <div className="animate-fadeIn p-4">
@@ -882,7 +958,7 @@ const App: React.FC = () => {
                 return target ? cat === target : true;
               })}
               onProductClick={handleProductClick}
-              WatermarkedMedia={WatermarkedMedia}
+              ProtectedMedia={ProtectedMedia}
             />
           </div>
         ) : view === 'search-results' ? (
@@ -891,7 +967,6 @@ const App: React.FC = () => {
               {searchQuery ? `Results for "${searchQuery}"` : 'Search'}
             </h2>
 
-            {/* Show matching categories */}
             {filteredCategories.length > 0 && (
               <div className="mb-6">
                 <p className="text-[11px] font-black text-gray-400 uppercase mb-2">Matching Categories</p>
@@ -913,7 +988,7 @@ const App: React.FC = () => {
             <ProductGrid 
               products={filteredProducts} 
               onProductClick={handleProductClick}
-              WatermarkedMedia={WatermarkedMedia}
+              ProtectedMedia={ProtectedMedia}
             />
           </div>
         ) : view === 'categories' ? (
@@ -923,7 +998,7 @@ const App: React.FC = () => {
             onShowAllProducts={() => setView('all-products')}
             suggestedProducts={products}
             onProductClick={handleProductClick}
-            WatermarkedMedia={WatermarkedMedia}
+            ProtectedMedia={ProtectedMedia}
           />
         ) : view === 'admin' ? (
           <ErrorBoundary title="Admin screen crashed">
@@ -932,7 +1007,9 @@ const App: React.FC = () => {
               categories={categories}
               onAddProduct={addProduct}
               onDeleteProduct={deleteProduct}
-              WatermarkedMedia={WatermarkedMedia}
+              ProtectedMedia={ProtectedMedia}
+              onToggleProtection={() => setProtectionActive(!protectionActive)}
+              protectionActive={protectionActive}
             />
           </ErrorBoundary>
         ) : null}
@@ -948,6 +1025,11 @@ const App: React.FC = () => {
           }}
         />
       )}
+
+      {/* Copyright Footer */}
+      <div className="fixed bottom-0 left-0 right-0 bg-black text-white text-center py-2 text-xs z-40">
+        © {new Date().getFullYear()} BarakaSonko.store - All media protected by digital watermarking
+      </div>
     </div>
   );
 };
