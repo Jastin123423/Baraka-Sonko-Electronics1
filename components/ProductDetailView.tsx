@@ -1,4 +1,5 @@
 // ProductDetailView.tsx
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Comment } from '../types';
 import { COLORS } from '../constants';
@@ -146,13 +147,13 @@ const CommentButton: React.FC<{
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
       </svg>
       <span className="text-sm font-semibold">
-        {count > 0 ? `${count.toLocaleString()} Maoni` : 'Ongeza Maoni'}
+        {count > 0 ? `${count.toLocaleString()} Comments` : 'Add Comment'}
       </span>
     </button>
   );
 };
 
-// Share Panel Component with Swahili instructions
+// Share Panel Component with English instructions
 const SharePanel: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -165,8 +166,8 @@ const SharePanel: React.FC<{
     return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   });
 
-  // Generate share text in Swahili
-  const shareText = `Angalia "${productTitle}" kwenye App ya BARAKA SONKO! 🛒\n${productLink}\n\n#barakasonko #dukala mtandaoni #tanzania`;
+  // Generate share text in English
+  const shareText = `Check out "${productTitle}" on BARAKA SONKO App! 🛒\n${productLink}\n\n#barakasonko #onlinestore #tanzania`;
 
   const handleShare = (platform: 'whatsapp' | 'facebook' | 'instagram' | 'tiktok') => {
     switch (platform) {
@@ -181,7 +182,7 @@ const SharePanel: React.FC<{
       case 'facebook':
         // Facebook Share Dialog with link pre-filled
         window.open(
-          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(`Angalia "${productTitle}" kwenye Duka la BARAKA SONKO!`)}`,
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(`Check "${productTitle}" on BARAKA SONKO Store!`)}`,
           '_blank',
           'width=600,height=400'
         );
@@ -193,7 +194,7 @@ const SharePanel: React.FC<{
           setCopied(true);
           setTimeout(() => {
             setCopied(false);
-            alert('Share Instagram.');
+            alert('Link copied. Open Instagram to share.');
           }, 300);
         } else {
           // On desktop, open Instagram web
@@ -201,7 +202,7 @@ const SharePanel: React.FC<{
           setCopied(true);
           setTimeout(() => {
             setCopied(false);
-            alert('Share Instagram);
+            alert('Link copied. Paste on Instagram.');
           }, 300);
         }
         break;
@@ -212,7 +213,7 @@ const SharePanel: React.FC<{
           setCopied(true);
           setTimeout(() => {
             setCopied(false);
-            alert('Share TikTok.');
+            alert('Link copied. Open TikTok to share.');
           }, 300);
         } else {
           // On desktop, copy link
@@ -220,7 +221,7 @@ const SharePanel: React.FC<{
           setCopied(true);
           setTimeout(() => {
             setCopied(false);
-            alert('share.');
+            alert('Link copied. Use anywhere.');
           }, 300);
         }
         break;
@@ -242,7 +243,7 @@ const SharePanel: React.FC<{
   const handleNativeShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `Angalia ${productTitle} - BARAKA SONKO`,
+        title: `Check ${productTitle} - BARAKA SONKO`,
         text: shareText,
         url: productLink,
       })
@@ -277,14 +278,14 @@ const SharePanel: React.FC<{
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-800">Share Bidhaa</h3>
-              <p className="text-xs text-gray-500">Share bidhaa hii na marafiki zako</p>
+              <h3 className="text-lg font-bold text-gray-800">Share Product</h3>
+              <p className="text-xs text-gray-500">Share this product with friends</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Funga"
+            aria-label="Close"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -307,7 +308,7 @@ const SharePanel: React.FC<{
                 </svg>
               </div>
               <span className="text-sm font-semibold text-gray-800">WhatsApp</span>
-              <span className="text-xs text-gray-500 mt-1 text-center">Shiriki na marafiki</span>
+              <span className="text-xs text-gray-500 mt-1 text-center">Share with friends</span>
             </button>
 
             {/* Facebook */}
@@ -321,7 +322,7 @@ const SharePanel: React.FC<{
                 </svg>
               </div>
               <span className="text-sm font-semibold text-gray-800">Facebook</span>
-              <span className="text-xs text-gray-500 mt-1 text-center">Chapisha kwenye ukurasa</span>
+              <span className="text-xs text-gray-500 mt-1 text-center">Post on timeline</span>
             </button>
 
             {/* Instagram */}
@@ -335,7 +336,7 @@ const SharePanel: React.FC<{
                 </svg>
               </div>
               <span className="text-sm font-semibold text-gray-800">Instagram</span>
-              <span className="text-xs text-gray-500 mt-1 text-center">Hadithi au posti</span>
+              <span className="text-xs text-gray-500 mt-1 text-center">Story or post</span>
             </button>
 
             {/* TikTok */}
@@ -349,7 +350,7 @@ const SharePanel: React.FC<{
                 </svg>
               </div>
               <span className="text-sm font-semibold text-gray-800">TikTok</span>
-              <span className="text-xs text-gray-500 mt-1 text-center">Ongeza kwenye video</span>
+              <span className="text-xs text-gray-500 mt-1 text-center">Add to video</span>
             </button>
           </div>
 
@@ -363,21 +364,21 @@ const SharePanel: React.FC<{
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                   <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
                 </svg>
-                <span>Share</span>
+                <span>Share Now</span>
               </button>
               <p className="text-xs text-gray-500 text-center mt-2">
-                (share sasa)
+                (Quick share on your device)
               </p>
             </div>
           )}
 
-          {/* Link Copy Section - IMPROVED for mobile */}
+          {/* Link Copy Section */}
           <div className="mb-6">
-            <p className="text-sm font-medium text-gray-700 mb-2">Au nakili kiungo hapa chini:</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">Or copy link below:</p>
             <div className="bg-gray-100 rounded-xl p-3 border border-gray-300">
               <div className="flex items-start space-x-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1">Kiungo cha bidhaa:</p>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Product link:</p>
                   <div className="bg-white p-3 rounded-lg border border-gray-200 overflow-hidden">
                     <div className="overflow-x-auto no-scrollbar">
                       <p className="text-sm text-gray-700 font-mono whitespace-nowrap select-all">
@@ -386,7 +387,7 @@ const SharePanel: React.FC<{
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Bonyeza link hapo juu kwa muda mrefu kuchagua, kisha nakili
+                    Long press link above to select, then copy
                   </p>
                 </div>
                 <button
@@ -403,7 +404,7 @@ const SharePanel: React.FC<{
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                           <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
-                        <span>Imenakiliwa!</span>
+                        <span>Copied!</span>
                       </>
                     ) : (
                       <>
@@ -411,7 +412,7 @@ const SharePanel: React.FC<{
                           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                         </svg>
-                        <span>Nakili</span>
+                        <span>Copy</span>
                       </>
                     )}
                   </div>
@@ -422,25 +423,25 @@ const SharePanel: React.FC<{
 
           {/* Quick Share Tips */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-            <h4 className="text-sm font-semibold text-blue-800 mb-2">🔥 Usaidizi wa Haraka:</h4>
+            <h4 className="text-sm font-semibold text-blue-800 mb-2">🔥 Quick Help:</h4>
             <ul className="text-xs text-blue-700 space-y-1">
               <li className="flex items-start">
                 <span className="mr-2">✅</span>
-                <span><strong>WhatsApp:</strong> link kitawekwa kiotomatiki kwenye ujumbe</span>
+                <span><strong>WhatsApp:</strong> Link auto-added to message</span>
               </li>
               <li className="flex items-start">
                 <span className="mr-2">✅</span>
-                <span><strong>Facebook:</strong> Kitawekwa kwenye eneo la kuchapisha</span>
+                <span><strong>Facebook:</strong> Auto-filled in post area</span>
               </li>
               <li className="flex items-start">
                 <span className="mr-2">✅</span>
-                <span><strong>Instagram/TikTok:</strong> Kiungo kitanakiliwa kiotomatiki</span>
+                <span><strong>Instagram/TikTok:</strong> Link auto-copied</span>
               </li>
             </ul>
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Share kunasaidia wengine kupata bidhaa nzuri kutoka BARAKA SONKO!
+            Sharing helps others find great products from BARAKA SONKO!
           </p>
         </div>
 
@@ -450,7 +451,7 @@ const SharePanel: React.FC<{
             onClick={onClose}
             className="w-full py-3.5 text-gray-700 font-semibold rounded-xl border-2 border-gray-300 hover:bg-gray-50 transition-all duration-200 active:scale-95"
           >
-            Funga Panel
+            Close Panel
           </button>
         </div>
       </div>
@@ -510,14 +511,14 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   }, [product.id]);
 
   const WHATSAPP_TEXT = useMemo(() => {
-    const title = String(product.title || 'Bidhaa').trim();
+    const title = String(product.title || 'Product').trim();
     const price = Number(product.price || 0);
     const priceStr = Number.isFinite(price) ? price.toLocaleString() : '0';
 
     const lines = [
-      `Hi habari, ningependa kuagiza au kujua zaidi hii: ${title}`,
-      `Bei: TSh ${priceStr}`,
-      shareImageUrl ? `Picha: ${shareImageUrl}` : '',
+      `Hi, I'd like to order or know more about: ${title}`,
+      `Price: TSh ${priceStr}`,
+      shareImageUrl ? `Image: ${shareImageUrl}` : '',
       `Link: ${productLink}`,
     ].filter(Boolean);
 
@@ -636,7 +637,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           <button 
             onClick={handleShare}
             className="p-2 text-gray-800 hover:text-blue-600 transition-colors"
-            aria-label="Shiriki"
+            aria-label="Share"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="18" cy="5" r="3" />
@@ -731,12 +732,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 backgroundColor: COLORS.primary,
                 boxShadow: `0 6px 16px ${COLORS.primary}40`
               }}
-              aria-label="Shiriki kwenye mitandao ya kijamii"
+              aria-label="Share on social media"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                 <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
               </svg>
-              <span>Shiriki</span>
+              <span>Share</span>
             </button>
           </div>
 
@@ -746,8 +747,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="p-4 border-b border-gray-100 bg-gray-50">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-bold text-gray-800">Maoni ({localCommentCount})</h3>
-                    <p className="text-xs text-gray-500 mt-1">Tuambie kuhusu bidhaa hii</p>
+                    <h3 className="text-sm font-bold text-gray-800">Comments ({localCommentCount})</h3>
+                    <p className="text-xs text-gray-500 mt-1">Tell us about this product</p>
                   </div>
                   {isLoadingComments && (
                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -771,7 +772,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                               <span className="text-sm font-semibold text-gray-800">{comment.userName}</span>
                               <span className="text-xs text-gray-400">•</span>
                               <span className="text-xs text-gray-400">
-                                {new Date(comment.timestamp).toLocaleDateString('sw-TZ', {
+                                {new Date(comment.timestamp).toLocaleDateString('en-US', {
                                   month: 'short',
                                   day: 'numeric',
                                   hour: '2-digit',
@@ -808,8 +809,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 ) : (
                   <div className="p-8 text-center">
                     <div className="text-gray-400 text-4xl mb-3">💬</div>
-                    <p className="text-sm text-gray-600 font-medium"> </p>
-                    <p className="text-xs text-gray-500 mt-1"> </p>
+                    <p className="text-sm text-gray-600 font-medium">No comments yet</p>
+                    <p className="text-xs text-gray-500 mt-1">Be the first to share your thoughts</p>
                   </div>
                 )}
               </div>
@@ -824,14 +825,14 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     <textarea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Andika maoni  kuhusu bidhaa hii..."
+                      placeholder="Write your comment about this product..."
                       className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       rows={3}
                       disabled={isPostingComment}
                     />
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-xs text-gray-500">
-                        {newComment.length}/300 herufi
+                        {newComment.length}/300 characters
                       </span>
                       <button
                         onClick={handlePostComment}
@@ -845,9 +846,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         {isPostingComment ? (
                           <div className="flex items-center space-x-2">
                             <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            <span>Inatumwa...</span>
+                            <span>Sending...</span>
                           </div>
-                        ) : 'Tuma Maoni'}
+                        ) : 'Post Comment'}
                       </button>
                     </div>
                   </div>
@@ -889,7 +890,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           {/* Gallery Details Images */}
           {descImages.length > 0 ? (
             <div className="mt-8 space-y-3">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Picha Zaidi</h3>
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">More Images</h3>
               {descImages.map((img, idx) => (
                 <div
                   key={idx}
@@ -968,10 +969,10 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           >
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
           </svg>
-          <span className="text-[10px] font-black uppercase tracking-widest mt-0.5">Piga</span>
+          <span className="text-[10px] font-black uppercase tracking-widest mt-0.5">Call</span>
         </button>
 
-        {/* Weka Oda (WhatsApp) Button */}
+        {/* Place Order (WhatsApp) Button */}
         <button
           onClick={handleWhatsApp}
           className="flex-[2] flex items-center justify-center space-x-2 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all shadow-lg"
@@ -980,7 +981,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.438 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
           </svg>
-          <span>Weka oda</span>
+          <span>Place Order</span>
         </button>
       </div>
 
