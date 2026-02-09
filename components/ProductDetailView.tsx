@@ -166,7 +166,7 @@ const SharePanel: React.FC<{
   });
 
   // Generate share text in Swahili
-  const shareText = `Angalia "${productTitle}" kwenye Duka la BARAKA SONKO! 🛒\n${productLink}\n\n#barakasonko #dukala mtandaoni #tanzania`;
+  const shareText = `Angalia "${productTitle}" kwenye App ya BARAKA SONKO! 🛒\n${productLink}\n\n#barakasonko #dukala mtandaoni #tanzania`;
 
   const handleShare = (platform: 'whatsapp' | 'facebook' | 'instagram' | 'tiktok') => {
     switch (platform) {
@@ -747,7 +747,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-gray-800">Maoni ({localCommentCount})</h3>
-                    <p className="text-xs text-gray-500 mt-1">Unasema nini kuhusu bidhaa hii</p>
+                    <p className="text-xs text-gray-500 mt-1">Tuambie kuhusu bidhaa hii</p>
                   </div>
                   {isLoadingComments && (
                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -808,8 +808,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 ) : (
                   <div className="p-8 text-center">
                     <div className="text-gray-400 text-4xl mb-3">💬</div>
-                    <p className="text-sm text-gray-600 font-medium">Hakuna maoni bado</p>
-                    <p className="text-xs text-gray-500 mt-1">Kuwa wa kwanza kutoa maoni!</p>
+                    <p className="text-sm text-gray-600 font-medium"> </p>
+                    <p className="text-xs text-gray-500 mt-1"> </p>
                   </div>
                 )}
               </div>
