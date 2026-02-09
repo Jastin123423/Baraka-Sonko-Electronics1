@@ -139,78 +139,8 @@ const CommentButton: React.FC<{
   );
 };
 
-// Share Button Component with Facebook-like styling
-const ShareButton: React.FC<{
-  onClick?: () => void;
-  type?: 'facebook' | 'twitter' | 'whatsapp' | 'copy';
-  label?: string;
-}> = ({ onClick, type = 'facebook', label }) => {
-  const getButtonConfig = () => {
-    switch (type) {
-      case 'facebook':
-        return {
-          bgColor: 'bg-[#1877F2]',
-          hoverBg: 'hover:bg-[#166FE5]',
-          icon: (
-            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-            </svg>
-          ),
-          text: 'Share',
-        };
-      case 'twitter':
-        return {
-          bgColor: 'bg-[#1DA1F2]',
-          hoverBg: 'hover:bg-[#1A8CD8]',
-          icon: (
-            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.213c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
-            </svg>
-          ),
-          text: 'Tweet',
-        };
-      case 'whatsapp':
-        return {
-          bgColor: 'bg-[#25D366]',
-          hoverBg: 'hover:bg-[#22C35E]',
-          icon: (
-            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.272-.099-.47-.149-.669.149-.198.297-.767.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
-            </svg>
-          ),
-          text: 'Share',
-        };
-      case 'copy':
-        return {
-          bgColor: 'bg-gray-700',
-          hoverBg: 'hover:bg-gray-800',
-          icon: (
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          ),
-          text: 'Copy Link',
-        };
-    }
-  };
-
-  const config = getButtonConfig();
-
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-white font-medium text-sm transition-all duration-200 active:scale-95 ${config.bgColor} ${config.hoverBg}`}
-      aria-label={`Share on ${type}`}
-    >
-      {config.icon}
-      <span>{label || config.text}</span>
-    </button>
-  );
-};
-
-// Share Modal Component
-const ShareModal: React.FC<{
+// Share Panel Component
+const SharePanel: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   productTitle: string;
@@ -219,34 +149,48 @@ const ShareModal: React.FC<{
 }> = ({ isOpen, onClose, productTitle, productLink, shareImageUrl }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleShare = (platform: 'facebook' | 'twitter' | 'whatsapp') => {
-    const text = `Check out ${productTitle} on BARAKA SONKO!`;
-    
+  const shareMessage = `Check out "${productTitle}" on BARAKA SONKO Store! 🛒\n${productLink}\n\n#barakasonko #onlineshopping #tanzania`;
+
+  const handleShare = (platform: 'whatsapp' | 'facebook' | 'instagram' | 'tiktok') => {
     switch (platform) {
-      case 'facebook':
-        window.open(
-          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(text)}`,
-          '_blank',
-          'width=600,height=400'
-        );
-        break;
-      case 'twitter':
-        window.open(
-          `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(productLink)}&hashtags=barakasonko`,
-          '_blank',
-          'width=550,height=420'
-        );
-        break;
       case 'whatsapp':
         window.open(
-          `https://wa.me/?text=${encodeURIComponent(`${text}\n\n${productLink}`)}`,
+          `https://wa.me/?text=${encodeURIComponent(shareMessage)}`,
           '_blank',
           'width=600,height=600'
         );
         break;
+      case 'facebook':
+        window.open(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(`Check out "${productTitle}" on BARAKA SONKO!`)}`,
+          '_blank',
+          'width=600,height=400'
+        );
+        break;
+      case 'instagram':
+        // Instagram doesn't have direct sharing API, so we copy the link
+        navigator.clipboard.writeText(productLink);
+        setCopied(true);
+        setTimeout(() => {
+          setCopied(false);
+          alert('Product link copied! You can now paste it in your Instagram story or post.');
+        }, 300);
+        break;
+      case 'tiktok':
+        // TikTok also doesn't have direct sharing, copy link
+        navigator.clipboard.writeText(productLink);
+        setCopied(true);
+        setTimeout(() => {
+          setCopied(false);
+          alert('Product link copied! You can now paste it in your TikTok bio or video description.');
+        }, 300);
+        break;
     }
     
-    onClose();
+    // Don't close automatically for Instagram/TikTok to show message
+    if (platform === 'whatsapp' || platform === 'facebook') {
+      setTimeout(onClose, 500);
+    }
   };
 
   const handleCopyLink = () => {
@@ -258,14 +202,27 @@ const ShareModal: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div 
+      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div 
-        className="bg-white w-full max-w-md rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp"
+        className="bg-white w-full max-w-sm rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
+        {/* Panel Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <h3 className="text-lg font-bold text-gray-800">Share Product</h3>
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: COLORS.primary }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-800">Share Product</h3>
+              <p className="text-xs text-gray-500">Spread the word about this amazing product!</p>
+            </div>
+          </div>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
@@ -280,65 +237,87 @@ const ShareModal: React.FC<{
 
         {/* Share Options */}
         <div className="p-6">
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <ShareButton
-              type="facebook"
-              onClick={() => handleShare('facebook')}
-              label="Facebook"
-            />
-            <ShareButton
-              type="twitter"
-              onClick={() => handleShare('twitter')}
-              label="Twitter"
-            />
-            <ShareButton
-              type="whatsapp"
-              onClick={() => handleShare('whatsapp')}
-              label="WhatsApp"
-            />
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {/* WhatsApp */}
             <button
-              onClick={handleCopyLink}
-              className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-lg text-white font-medium text-sm transition-all duration-200 ${
-                copied ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-800'
-              }`}
+              onClick={() => handleShare('whatsapp')}
+              className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-colors active:scale-95"
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                {copied ? (
-                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                ) : (
-                  <>
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </>
-                )}
-              </svg>
-              <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+              <div className="w-12 h-12 rounded-full bg-[#25D366] flex items-center justify-center mb-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.272-.099-.47-.149-.669.149-.198.297-.767.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-gray-800">WhatsApp</span>
+              <span className="text-xs text-gray-500 mt-1">Share with friends</span>
+            </button>
+
+            {/* Facebook */}
+            <button
+              onClick={() => handleShare('facebook')}
+              className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/20 transition-colors active:scale-95"
+            >
+              <div className="w-12 h-12 rounded-full bg-[#1877F2] flex items-center justify-center mb-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-gray-800">Facebook</span>
+              <span className="text-xs text-gray-500 mt-1">Post to timeline</span>
+            </button>
+
+            {/* Instagram */}
+            <button
+              onClick={() => handleShare('instagram')}
+              className="flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500/10 hover:from-purple-500/20 hover:via-pink-500/20 hover:to-orange-500/20 transition-colors active:scale-95"
+            >
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center mb-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-gray-800">Instagram</span>
+              <span className="text-xs text-gray-500 mt-1">Share in story</span>
+            </button>
+
+            {/* TikTok */}
+            <button
+              onClick={() => handleShare('tiktok')}
+              className="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-900/10 hover:bg-gray-900/20 transition-colors active:scale-95"
+            >
+              <div className="w-12 h-12 rounded-full bg-gray-900 flex items-center justify-center mb-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                  <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 10.692 6.33 6.33 0 0 0 10.857-4.424V8.687a8.182 8.182 0 0 0 4.773 1.526V6.79a4.831 4.831 0 0 1-1.003-.104z" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-gray-800">TikTok</span>
+              <span className="text-xs text-gray-500 mt-1">Add to video</span>
             </button>
           </div>
 
-          {/* Link Preview */}
-          <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-            <p className="text-xs text-gray-500 mb-1 font-semibold">Product Link:</p>
+          {/* Link Copy Section */}
+          <div className="mb-4">
+            <p className="text-sm font-medium text-gray-700 mb-2">Or copy product link:</p>
             <div className="flex items-center">
-              <input
-                type="text"
-                readOnly
-                value={productLink}
-                className="flex-1 text-sm text-gray-700 bg-transparent border-none outline-none truncate"
-                onClick={(e) => (e.target as HTMLInputElement).select()}
-              />
+              <div className="flex-1 bg-gray-100 rounded-l-lg p-3 border border-r-0 border-gray-300">
+                <p className="text-sm text-gray-600 font-medium truncate">{productLink}</p>
+              </div>
+              <button
+                onClick={handleCopyLink}
+                className={`px-4 py-3 rounded-r-lg font-medium transition-colors ${
+                  copied 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-gray-800 text-white hover:bg-gray-900'
+                }`}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Close Button */}
-        <div className="p-4 border-t border-gray-100">
-          <button
-            onClick={onClose}
-            className="w-full py-3 text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
+          <p className="text-xs text-gray-500 text-center">
+            Sharing helps others discover amazing products on BARAKA SONKO!
+          </p>
         </div>
       </div>
     </div>
@@ -356,9 +335,10 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 }) => {
   const [activeImage, setActiveImage] = useState(0);
   const [showComments, setShowComments] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
+  const [showSharePanel, setShowSharePanel] = useState(false);
   const [commentCount, setCommentCount] = useState(Math.floor(Math.random() * 50) + 10);
   const [hasCommented, setHasCommented] = useState(false);
+  const [newComment, setNewComment] = useState('');
 
   const gallery = product.images && product.images.length > 0 ? product.images : [product.image];
   const descImages =
@@ -426,6 +406,46 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       .slice(0, 6);
   }, [allProducts, product.id, (product as any).category]);
 
+  // Sample comments data
+  const sampleComments = useMemo(() => [
+    {
+      id: 1,
+      name: 'John D.',
+      initials: 'JD',
+      time: '2 hours ago',
+      comment: 'Great product! The quality is amazing and delivery was super fast. Highly recommended!',
+      color: 'bg-blue-100',
+      textColor: 'text-blue-600'
+    },
+    {
+      id: 2,
+      name: 'Sarah M.',
+      initials: 'SM',
+      time: '1 day ago',
+      comment: 'Bought this last week and it works perfectly. The customer service was also excellent!',
+      color: 'bg-green-100',
+      textColor: 'text-green-600'
+    },
+    {
+      id: 3,
+      name: 'Michael T.',
+      initials: 'MT',
+      time: '3 days ago',
+      comment: 'Value for money! Better than what I expected. Will definitely order again from BARAKA SONKO.',
+      color: 'bg-purple-100',
+      textColor: 'text-purple-600'
+    },
+    {
+      id: 4,
+      name: 'Amina J.',
+      initials: 'AJ',
+      time: '1 week ago',
+      comment: 'Perfect for my needs. The product arrived well packaged and in perfect condition.',
+      color: 'bg-orange-100',
+      textColor: 'text-orange-600'
+    }
+  ], []);
+
   useEffect(() => {
     // Reset scroll when product changes
     const contentArea = document.getElementById('product-detail-scroll-area');
@@ -450,17 +470,17 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     }
   };
 
-  const handleShare = () => {
-    setShowShareModal(true);
+  const handlePostComment = () => {
+    if (newComment.trim()) {
+      // In a real app, you would send this to your backend
+      setCommentCount(prev => prev + 1);
+      setNewComment('');
+      alert('Comment posted successfully!');
+    }
   };
 
-  const handleQuickShare = (platform: 'facebook' | 'twitter') => {
-    const text = `Check out ${product.title} on BARAKA SONKO! - TSh ${Number(product.price || 0).toLocaleString()}`;
-    const url = platform === 'facebook'
-      ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}`
-      : `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(productLink)}`;
-    
-    window.open(url, '_blank', 'width=600,height=400');
+  const handleShare = () => {
+    setShowSharePanel(true);
   };
 
   return (
@@ -563,44 +583,86 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               isActive={showComments}
             />
             
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handleQuickShare('twitter')}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-[#1DA1F2]/10 active:scale-95"
-                aria-label="Share on Twitter"
-              >
-                <svg width="18" height="18" fill="#1DA1F2" viewBox="0 0 24 24">
-                  <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.213c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
-                </svg>
-                <span className="text-xs font-semibold text-gray-600">Tweet</span>
-              </button>
-              
-              <button
-                onClick={() => handleQuickShare('facebook')}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-[#1877F2]/10 active:scale-95"
-                aria-label="Share on Facebook"
-              >
-                <svg width="18" height="18" fill="#1877F2" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-                <span className="text-xs font-semibold text-gray-600">Share</span>
-              </button>
-
-              <button
-                onClick={handleShare}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-gray-100 active:scale-95"
-                aria-label="More sharing options"
-              >
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="18" cy="5" r="3" />
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="19" r="3" />
-                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                </svg>
-              </button>
-            </div>
+            {/* BARAKA SONKO Share Button */}
+            <button
+              onClick={handleShare}
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg text-white font-medium text-sm transition-all duration-200 active:scale-95 shadow-md"
+              style={{ 
+                backgroundColor: COLORS.primary,
+                boxShadow: `0 4px 12px ${COLORS.primary}40`
+              }}
+              aria-label="Share on social media"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
+              </svg>
+              <span>Share</span>
+            </button>
           </div>
+
+          {/* Comments Section (Expands below comments icon) */}
+          {showComments && (
+            <div className="mt-4 mb-6 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-gray-100 bg-gray-50">
+                <h3 className="text-sm font-bold text-gray-800">Comments ({commentCount})</h3>
+                <p className="text-xs text-gray-500 mt-1">What others are saying about this product</p>
+              </div>
+              
+              <div className="max-h-80 overflow-y-auto">
+                {sampleComments.map((comment) => (
+                  <div key={comment.id} className="p-4 border-b border-gray-100 last:border-b-0">
+                    <div className="flex items-start space-x-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${comment.color}`}>
+                        <span className={`text-sm font-bold ${comment.textColor}`}>{comment.initials}</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-semibold text-gray-800">{comment.name}</span>
+                          <span className="text-xs text-gray-400">•</span>
+                          <span className="text-xs text-gray-400">{comment.time}</span>
+                        </div>
+                        <p className="text-sm text-gray-700 mt-2 leading-relaxed">{comment.comment}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add Comment Section */}
+              <div className="p-4 bg-gray-50">
+                <div className="flex items-start space-x-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-gray-600">Y</span>
+                  </div>
+                  <div className="flex-1">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Add your comment about this product..."
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={3}
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-gray-500">
+                        {newComment.length}/250 characters
+                      </span>
+                      <button
+                        onClick={handlePostComment}
+                        disabled={!newComment.trim()}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          newComment.trim()
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        Post Comment
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Video Player */}
           {(product as any).videoUrl ? (
@@ -631,51 +693,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </p>
             </div>
           </div>
-
-          {/* Comments Section (Collapsible) */}
-          {showComments && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-              <h3 className="text-sm font-bold text-gray-800 mb-3">Comments ({commentCount})</h3>
-              <div className="space-y-3">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-xs font-bold text-blue-600">JD</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-semibold">John D.</span>
-                      <span className="text-xs text-gray-400">2h ago</span>
-                    </div>
-                    <p className="text-sm text-gray-700 mt-1">Great product! Delivery was fast.</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                    <span className="text-xs font-bold text-green-600">SM</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-semibold">Sarah M.</span>
-                      <span className="text-xs text-gray-400">1d ago</span>
-                    </div>
-                    <p className="text-sm text-gray-700 mt-1">Quality exceeded my expectations!</p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 pt-3 border-t border-gray-200">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    placeholder="Add a comment..."
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-                    Post
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Gallery Details Images */}
           {descImages.length > 0 ? (
@@ -775,10 +792,10 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </button>
       </div>
 
-      {/* Share Modal */}
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
+      {/* Share Panel */}
+      <SharePanel
+        isOpen={showSharePanel}
+        onClose={() => setShowSharePanel(false)}
         productTitle={product.title}
         productLink={productLink}
         shareImageUrl={shareImageUrl}
