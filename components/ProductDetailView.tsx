@@ -193,7 +193,7 @@ const SharePanel: React.FC<{
           setCopied(true);
           setTimeout(() => {
             setCopied(false);
-            alert('Kiungo kimepangwa! Sasa unaweza kupachika kwenye hadithi yako ya Instagram.');
+            alert('Share Instagram.');
           }, 300);
         } else {
           // On desktop, open Instagram web
@@ -201,7 +201,7 @@ const SharePanel: React.FC<{
           setCopied(true);
           setTimeout(() => {
             setCopied(false);
-            alert('Kiungo kimepangwa! Fungua Instagram.com na utumie kiungo hiki.');
+            alert('Share Instagram);
           }, 300);
         }
         break;
@@ -212,7 +212,7 @@ const SharePanel: React.FC<{
           setCopied(true);
           setTimeout(() => {
             setCopied(false);
-            alert('Kiungo kimepangwa! Sasa unaweza kupachika kwenye video yako ya TikTok.');
+            alert('Share TikTok.');
           }, 300);
         } else {
           // On desktop, copy link
@@ -220,7 +220,7 @@ const SharePanel: React.FC<{
           setCopied(true);
           setTimeout(() => {
             setCopied(false);
-            alert('Kiungo kimepangwa! Fungua TikTok.com na utumie kiungo hiki.');
+            alert('share.');
           }, 300);
         }
         break;
@@ -277,8 +277,8 @@ const SharePanel: React.FC<{
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-800">Shiriki Bidhaa</h3>
-              <p className="text-xs text-gray-500">Shiriki bidhaa hii na marafiki zako</p>
+              <h3 className="text-lg font-bold text-gray-800">Share Bidhaa</h3>
+              <p className="text-xs text-gray-500">Share bidhaa hii na marafiki zako</p>
             </div>
           </div>
           <button
@@ -363,10 +363,10 @@ const SharePanel: React.FC<{
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                   <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
                 </svg>
-                <span>Shiriki Kwa Mfumo Wako</span>
+                <span>Share</span>
               </button>
               <p className="text-xs text-gray-500 text-center mt-2">
-                (Itatumia programu ya kushiriki ya simu yako)
+                (share sasa)
               </p>
             </div>
           )}
@@ -386,7 +386,7 @@ const SharePanel: React.FC<{
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Bonyeza kiungo hapo juu kwa muda mrefu kuchagua, kisha nakili
+                    Bonyeza link hapo juu kwa muda mrefu kuchagua, kisha nakili
                   </p>
                 </div>
                 <button
@@ -426,7 +426,7 @@ const SharePanel: React.FC<{
             <ul className="text-xs text-blue-700 space-y-1">
               <li className="flex items-start">
                 <span className="mr-2">✅</span>
-                <span><strong>WhatsApp:</strong> Kiungo kitawekwa kiotomatiki kwenye ujumbe</span>
+                <span><strong>WhatsApp:</strong> link kitawekwa kiotomatiki kwenye ujumbe</span>
               </li>
               <li className="flex items-start">
                 <span className="mr-2">✅</span>
@@ -440,7 +440,7 @@ const SharePanel: React.FC<{
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Kushiriki kunasaidia wengine kupata bidhaa nzuri kutoka BARAKA SONKO!
+            Share kunasaidia wengine kupata bidhaa nzuri kutoka BARAKA SONKO!
           </p>
         </div>
 
@@ -747,7 +747,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-gray-800">Maoni ({localCommentCount})</h3>
-                    <p className="text-xs text-gray-500 mt-1">Watu wanasema nini kuhusu bidhaa hii</p>
+                    <p className="text-xs text-gray-500 mt-1">Unasema nini kuhusu bidhaa hii</p>
                   </div>
                   {isLoadingComments && (
                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -824,7 +824,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     <textarea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Andika maoni yako hapa kuhusu bidhaa hii..."
+                      placeholder="Andika maoni  kuhusu bidhaa hii..."
                       className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       rows={3}
                       disabled={isPostingComment}
@@ -889,7 +889,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           {/* Gallery Details Images */}
           {descImages.length > 0 ? (
             <div className="mt-8 space-y-3">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Gallery Details</h3>
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Picha Zaidi</h3>
               {descImages.map((img, idx) => (
                 <div
                   key={idx}
