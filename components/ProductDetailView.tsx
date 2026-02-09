@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Comment } from '../types';
 import { COLORS } from '../constants';
@@ -13,7 +12,7 @@ interface ProductDetailViewProps {
   Banner?: React.ComponentType<any>;
   onWhatsAppClick?: () => void;
   onCallClick?: () => void;
-  // New comments props
+  // Comments props
   comments?: Comment[];
   commentCount?: number;
   onFetchComments?: () => void;
@@ -21,6 +20,9 @@ interface ProductDetailViewProps {
   onLikeComment?: (commentId: string) => Promise<boolean>;
   onDeleteComment?: (commentId: string) => Promise<boolean>;
   isLoadingComments?: boolean;
+  // Views
+  viewCount?: number;
+  onRecordView?: () => void;
 }
 
 // Large Watermarked Image Component specifically for Product Detail View
@@ -363,7 +365,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   WatermarkedImage,
   onWhatsAppClick,
   onCallClick,
-  // New comments props
+  // Comments props
   comments = [],
   commentCount = 0,
   onFetchComments,
@@ -371,6 +373,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   onLikeComment,
   onDeleteComment,
   isLoadingComments = false,
+  // Views
+  viewCount = 0,
+  onRecordView,
 }) => {
   const [activeImage, setActiveImage] = useState(0);
   const [showComments, setShowComments] = useState(false);
@@ -399,7 +404,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const productLink = useMemo(() => {
     try {
       const origin = window.location.origin;
-      // You can enhance this with product-specific URLs later
       return `${origin}/product/${encodeURIComponent(String(product.id))}`;
     } catch {
       return 'https://barakasonko.store';
@@ -426,32 +430,23 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     return `https://wa.me/${digits}?text=${encodeURIComponent(WHATSAPP_TEXT)}`;
   }, [PHONE_NUMBER, WHATSAPP_TEXT]);
 
-  // Generate a random-ish view count based on product ID
-  const viewCount = useMemo(() => {
-    const seed = String(product.id || '')
-      .split('')
-      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return (seed % 900) + 120;
-  }, [product.id]);
-
-  // Calculate original price if not provided
-  const originalPriceValue =
-    (product as any).originalPrice ||
-    ((product as any).discount ? Math.round(Number(product.price || 0) * (1 + Number((product as any).discount) / 100)) : null);
-
-  // Related products logic: products in same category, excluding current
-  const relatedProducts = useMemo(() => {
-    return allProducts
-      .filter((p) => String(p.id) !== String(product.id) && (p as any).category === (product as any).category)
-      .slice(0, 6);
-  }, [allProducts, product.id, (product as any).category]);
-
-  // Load comments when component mounts
+  // Record a view once when product opens
   useEffect(() => {
-    if (onFetchComments) {
-      onFetchComments();
-    }
-  }, [onFetchComments]);
+    onRecordView?.();
+  }, [product.id, onRecordView]);
+
+  // Prevent repeated comment fetching
+  const fetchedForProductRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!onFetchComments) return;
+    const pid = String(product.id);
+
+    if (fetchedForProductRef.current === pid) return;
+    fetchedForProductRef.current = pid;
+
+    onFetchComments();
+  }, [product.id, onFetchComments]);
 
   // Update local comment count when prop changes
   useEffect(() => {
@@ -508,6 +503,18 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const handleShare = () => {
     setShowSharePanel(true);
   };
+
+  // Calculate original price if not provided
+  const originalPriceValue =
+    (product as any).originalPrice ||
+    ((product as any).discount ? Math.round(Number(product.price || 0) * (1 + Number((product as any).discount) / 100)) : null);
+
+  // Related products logic: products in same category, excluding current
+  const relatedProducts = useMemo(() => {
+    return allProducts
+      .filter((p) => String(p.id) !== String(product.id) && (p as any).category === (product as any).category)
+      .slice(0, 6);
+  }, [allProducts, product.id, (product as any).category]);
 
   // Generate user initials
   const getUserInitials = (name: string) => {
