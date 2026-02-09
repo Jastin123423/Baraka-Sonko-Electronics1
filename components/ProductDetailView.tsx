@@ -1,6 +1,6 @@
 // ProductDetailView.tsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { Product } from '../types';
+import { Product, Comment } from '../types';
 import { COLORS } from '../constants';
 
 interface ProductDetailViewProps {
@@ -13,6 +13,14 @@ interface ProductDetailViewProps {
   Banner?: React.ComponentType<any>;
   onWhatsAppClick?: () => void;
   onCallClick?: () => void;
+  // New comments props
+  comments?: Comment[];
+  commentCount?: number;
+  onFetchComments?: () => void;
+  onAddComment?: (content: string) => Promise<Comment | null>;
+  onLikeComment?: (commentId: string) => Promise<boolean>;
+  onDeleteComment?: (commentId: string) => Promise<boolean>;
+  isLoadingComments?: boolean;
 }
 
 // Large Watermarked Image Component specifically for Product Detail View
@@ -106,7 +114,7 @@ const LargeWatermarkedImage: React.FC<{
   );
 };
 
-// Comment Button Component with Twitter-like styling
+// LARGER Comment Button Component with Twitter-like styling
 const CommentButton: React.FC<{
   count?: number;
   onClick?: () => void;
@@ -115,31 +123,36 @@ const CommentButton: React.FC<{
   return (
     <button
       onClick={onClick}
-      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-blue-50 active:scale-95"
+      className="flex items-center space-x-2 px-4 py-2.5 rounded-full transition-all duration-200 hover:bg-blue-50 active:scale-95"
       style={{
         color: isActive ? '#1d9bf0' : '#536471',
-        backgroundColor: isActive ? 'rgba(29, 155, 240, 0.1)' : 'transparent',
+        backgroundColor: isActive ? 'rgba(29, 155, 240, 0.15)' : 'transparent',
+        border: isActive ? '2px solid rgba(29, 155, 240, 0.3)' : '2px solid #e5e7eb',
+        fontSize: '14px',
+        fontWeight: '600',
       }}
       aria-label={`${count} comments`}
     >
       <svg
-        width="20"
-        height="20"
+        width="22"
+        height="22"
         viewBox="0 0 24 24"
         fill={isActive ? '#1d9bf0' : 'none'}
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
       </svg>
-      <span className="text-xs font-semibold">{count > 0 ? count.toLocaleString() : 'Comment'}</span>
+      <span className="text-sm font-semibold">
+        {count > 0 ? `${count.toLocaleString()} Maoni` : 'Ongeza Maoni'}
+      </span>
     </button>
   );
 };
 
-// Share Panel Component
+// Share Panel Component with Swahili instructions
 const SharePanel: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -148,42 +161,68 @@ const SharePanel: React.FC<{
   shareImageUrl: string;
 }> = ({ isOpen, onClose, productTitle, productLink, shareImageUrl }) => {
   const [copied, setCopied] = useState(false);
+  const [isMobile] = useState(() => {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  });
 
-  const shareMessage = `Check out "${productTitle}" on BARAKA SONKO Store! 🛒\n${productLink}\n\n#barakasonko #onlineshopping #tanzania`;
+  // Generate share text in Swahili
+  const shareText = `Angalia "${productTitle}" kwenye Duka la BARAKA SONKO! 🛒\n${productLink}\n\n#barakasonko #dukala mtandaoni #tanzania`;
 
   const handleShare = (platform: 'whatsapp' | 'facebook' | 'instagram' | 'tiktok') => {
     switch (platform) {
       case 'whatsapp':
+        // WhatsApp Web with pre-filled message
         window.open(
-          `https://wa.me/?text=${encodeURIComponent(shareMessage)}`,
+          `https://wa.me/?text=${encodeURIComponent(shareText)}`,
           '_blank',
           'width=600,height=600'
         );
         break;
       case 'facebook':
+        // Facebook Share Dialog with link pre-filled
         window.open(
-          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(`Check out "${productTitle}" on BARAKA SONKO!`)}`,
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(`Angalia "${productTitle}" kwenye Duka la BARAKA SONKO!`)}`,
           '_blank',
           'width=600,height=400'
         );
         break;
       case 'instagram':
-        // Instagram doesn't have direct sharing API, so we copy the link
-        navigator.clipboard.writeText(productLink);
-        setCopied(true);
-        setTimeout(() => {
-          setCopied(false);
-          alert('Product link copied! You can now paste it in your Instagram story or post.');
-        }, 300);
+        if (isMobile) {
+          // On mobile, copy link for Instagram
+          navigator.clipboard.writeText(productLink);
+          setCopied(true);
+          setTimeout(() => {
+            setCopied(false);
+            alert('Kiungo kimepangwa! Sasa unaweza kupachika kwenye hadithi yako ya Instagram.');
+          }, 300);
+        } else {
+          // On desktop, open Instagram web
+          navigator.clipboard.writeText(productLink);
+          setCopied(true);
+          setTimeout(() => {
+            setCopied(false);
+            alert('Kiungo kimepangwa! Fungua Instagram.com na utumie kiungo hiki.');
+          }, 300);
+        }
         break;
       case 'tiktok':
-        // TikTok also doesn't have direct sharing, copy link
-        navigator.clipboard.writeText(productLink);
-        setCopied(true);
-        setTimeout(() => {
-          setCopied(false);
-          alert('Product link copied! You can now paste it in your TikTok bio or video description.');
-        }, 300);
+        if (isMobile) {
+          // On mobile, copy link for TikTok
+          navigator.clipboard.writeText(productLink);
+          setCopied(true);
+          setTimeout(() => {
+            setCopied(false);
+            alert('Kiungo kimepangwa! Sasa unaweza kupachika kwenye video yako ya TikTok.');
+          }, 300);
+        } else {
+          // On desktop, copy link
+          navigator.clipboard.writeText(productLink);
+          setCopied(true);
+          setTimeout(() => {
+            setCopied(false);
+            alert('Kiungo kimepangwa! Fungua TikTok.com na utumie kiungo hiki.');
+          }, 300);
+        }
         break;
     }
     
@@ -199,6 +238,25 @@ const SharePanel: React.FC<{
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Try to use Web Share API if available
+  const handleNativeShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: `Angalia ${productTitle} - BARAKA SONKO`,
+        text: shareText,
+        url: productLink,
+      })
+      .then(() => onClose())
+      .catch((error) => {
+        console.log('Native sharing cancelled or failed:', error);
+        // Fallback to copy link
+        handleCopyLink();
+      });
+    } else {
+      handleCopyLink();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -207,11 +265,11 @@ const SharePanel: React.FC<{
       onClick={onClose}
     >
       <div 
-        className="bg-white w-full max-w-sm rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp"
+        className="bg-white w-full max-w-md rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Panel Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: COLORS.primary }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
@@ -219,14 +277,14 @@ const SharePanel: React.FC<{
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-800">Share Product</h3>
-              <p className="text-xs text-gray-500">Spread the word about this amazing product!</p>
+              <h3 className="text-lg font-bold text-gray-800">Shiriki Bidhaa</h3>
+              <p className="text-xs text-gray-500">Shiriki bidhaa hii na marafiki zako</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Close"
+            aria-label="Funga"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -241,83 +299,159 @@ const SharePanel: React.FC<{
             {/* WhatsApp */}
             <button
               onClick={() => handleShare('whatsapp')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-colors active:scale-95"
+              className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-all duration-200 active:scale-95 border border-[#25D366]/20"
             >
-              <div className="w-12 h-12 rounded-full bg-[#25D366] flex items-center justify-center mb-2">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <div className="w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center mb-3 shadow-lg">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.272-.099-.47-.149-.669.149-.198.297-.767.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
                 </svg>
               </div>
               <span className="text-sm font-semibold text-gray-800">WhatsApp</span>
-              <span className="text-xs text-gray-500 mt-1">Share with friends</span>
+              <span className="text-xs text-gray-500 mt-1 text-center">Shiriki na marafiki</span>
             </button>
 
             {/* Facebook */}
             <button
               onClick={() => handleShare('facebook')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/20 transition-colors active:scale-95"
+              className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/20 transition-all duration-200 active:scale-95 border border-[#1877F2]/20"
             >
-              <div className="w-12 h-12 rounded-full bg-[#1877F2] flex items-center justify-center mb-2">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <div className="w-14 h-14 rounded-full bg-[#1877F2] flex items-center justify-center mb-3 shadow-lg">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
               </div>
               <span className="text-sm font-semibold text-gray-800">Facebook</span>
-              <span className="text-xs text-gray-500 mt-1">Post to timeline</span>
+              <span className="text-xs text-gray-500 mt-1 text-center">Chapisha kwenye ukurasa</span>
             </button>
 
             {/* Instagram */}
             <button
               onClick={() => handleShare('instagram')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500/10 hover:from-purple-500/20 hover:via-pink-500/20 hover:to-orange-500/20 transition-colors active:scale-95"
+              className="flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10 hover:from-purple-500/20 hover:via-pink-500/20 hover:to-orange-500/20 transition-all duration-200 active:scale-95 border border-pink-300/20"
             >
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center mb-2">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center mb-3 shadow-lg">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
                   <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
                 </svg>
               </div>
               <span className="text-sm font-semibold text-gray-800">Instagram</span>
-              <span className="text-xs text-gray-500 mt-1">Share in story</span>
+              <span className="text-xs text-gray-500 mt-1 text-center">Hadithi au posti</span>
             </button>
 
             {/* TikTok */}
             <button
               onClick={() => handleShare('tiktok')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-900/10 hover:bg-gray-900/20 transition-colors active:scale-95"
+              className="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-900/10 hover:bg-gray-900/20 transition-all duration-200 active:scale-95 border border-gray-300/20"
             >
-              <div className="w-12 h-12 rounded-full bg-gray-900 flex items-center justify-center mb-2">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <div className="w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center mb-3 shadow-lg">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
                   <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 10.692 6.33 6.33 0 0 0 10.857-4.424V8.687a8.182 8.182 0 0 0 4.773 1.526V6.79a4.831 4.831 0 0 1-1.003-.104z" />
                 </svg>
               </div>
               <span className="text-sm font-semibold text-gray-800">TikTok</span>
-              <span className="text-xs text-gray-500 mt-1">Add to video</span>
+              <span className="text-xs text-gray-500 mt-1 text-center">Ongeza kwenye video</span>
             </button>
           </div>
 
-          {/* Link Copy Section */}
-          <div className="mb-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">Or copy product link:</p>
-            <div className="flex items-center">
-              <div className="flex-1 bg-gray-100 rounded-l-lg p-3 border border-r-0 border-gray-300">
-                <p className="text-sm text-gray-600 font-medium truncate">{productLink}</p>
-              </div>
+          {/* Native Share Button for Mobile */}
+          {navigator.share && (
+            <div className="mb-6">
               <button
-                onClick={handleCopyLink}
-                className={`px-4 py-3 rounded-r-lg font-medium transition-colors ${
-                  copied 
-                    ? 'bg-green-600 text-white' 
-                    : 'bg-gray-800 text-white hover:bg-gray-900'
-                }`}
+                onClick={handleNativeShare}
+                className="w-full flex items-center justify-center space-x-2 py-3.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-xl hover:opacity-90 transition-all duration-200 active:scale-95 shadow-lg"
               >
-                {copied ? 'Copied!' : 'Copy'}
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
+                </svg>
+                <span>Shiriki Kwa Mfumo Wako</span>
               </button>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                (Itatumia programu ya kushiriki ya simu yako)
+              </p>
+            </div>
+          )}
+
+          {/* Link Copy Section - IMPROVED for mobile */}
+          <div className="mb-6">
+            <p className="text-sm font-medium text-gray-700 mb-2">Au nakili kiungo hapa chini:</p>
+            <div className="bg-gray-100 rounded-xl p-3 border border-gray-300">
+              <div className="flex items-start space-x-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-500 mb-1">Kiungo cha bidhaa:</p>
+                  <div className="bg-white p-3 rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="overflow-x-auto no-scrollbar">
+                      <p className="text-sm text-gray-700 font-mono whitespace-nowrap select-all">
+                        {productLink}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Bonyeza kiungo hapo juu kwa muda mrefu kuchagua, kisha nakili
+                  </p>
+                </div>
+                <button
+                  onClick={handleCopyLink}
+                  className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 flex-shrink-0 ${
+                    copied 
+                      ? 'bg-green-600 text-white shadow-lg' 
+                      : 'bg-gray-800 text-white hover:bg-gray-900 active:scale-95'
+                  }`}
+                >
+                  <div className="flex items-center space-x-1">
+                    {copied ? (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span>Imenakiliwa!</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                        <span>Nakili</span>
+                      </>
+                    )}
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
 
+          {/* Quick Share Tips */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+            <h4 className="text-sm font-semibold text-blue-800 mb-2">🔥 Usaidizi wa Haraka:</h4>
+            <ul className="text-xs text-blue-700 space-y-1">
+              <li className="flex items-start">
+                <span className="mr-2">✅</span>
+                <span><strong>WhatsApp:</strong> Kiungo kitawekwa kiotomatiki kwenye ujumbe</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">✅</span>
+                <span><strong>Facebook:</strong> Kitawekwa kwenye eneo la kuchapisha</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">✅</span>
+                <span><strong>Instagram/TikTok:</strong> Kiungo kitanakiliwa kiotomatiki</span>
+              </li>
+            </ul>
+          </div>
+
           <p className="text-xs text-gray-500 text-center">
-            Sharing helps others discover amazing products on BARAKA SONKO!
+            Kushiriki kunasaidia wengine kupata bidhaa nzuri kutoka BARAKA SONKO!
           </p>
+        </div>
+
+        {/* Close Button */}
+        <div className="p-4 border-t border-gray-100 sticky bottom-0 bg-white">
+          <button
+            onClick={onClose}
+            className="w-full py-3.5 text-gray-700 font-semibold rounded-xl border-2 border-gray-300 hover:bg-gray-50 transition-all duration-200 active:scale-95"
+          >
+            Funga Panel
+          </button>
         </div>
       </div>
     </div>
@@ -332,13 +466,22 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   WatermarkedImage,
   onWhatsAppClick,
   onCallClick,
+  // New comments props
+  comments = [],
+  commentCount = 0,
+  onFetchComments,
+  onAddComment,
+  onLikeComment,
+  onDeleteComment,
+  isLoadingComments = false,
 }) => {
   const [activeImage, setActiveImage] = useState(0);
   const [showComments, setShowComments] = useState(false);
   const [showSharePanel, setShowSharePanel] = useState(false);
-  const [commentCount, setCommentCount] = useState(Math.floor(Math.random() * 50) + 10);
+  const [localCommentCount, setLocalCommentCount] = useState(commentCount);
   const [hasCommented, setHasCommented] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [isPostingComment, setIsPostingComment] = useState(false);
 
   const gallery = product.images && product.images.length > 0 ? product.images : [product.image];
   const descImages =
@@ -406,45 +549,17 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       .slice(0, 6);
   }, [allProducts, product.id, (product as any).category]);
 
-  // Sample comments data
-  const sampleComments = useMemo(() => [
-    {
-      id: 1,
-      name: 'John D.',
-      initials: 'JD',
-      time: '2 hours ago',
-      comment: 'Great product! The quality is amazing and delivery was super fast. Highly recommended!',
-      color: 'bg-blue-100',
-      textColor: 'text-blue-600'
-    },
-    {
-      id: 2,
-      name: 'Sarah M.',
-      initials: 'SM',
-      time: '1 day ago',
-      comment: 'Bought this last week and it works perfectly. The customer service was also excellent!',
-      color: 'bg-green-100',
-      textColor: 'text-green-600'
-    },
-    {
-      id: 3,
-      name: 'Michael T.',
-      initials: 'MT',
-      time: '3 days ago',
-      comment: 'Value for money! Better than what I expected. Will definitely order again from BARAKA SONKO.',
-      color: 'bg-purple-100',
-      textColor: 'text-purple-600'
-    },
-    {
-      id: 4,
-      name: 'Amina J.',
-      initials: 'AJ',
-      time: '1 week ago',
-      comment: 'Perfect for my needs. The product arrived well packaged and in perfect condition.',
-      color: 'bg-orange-100',
-      textColor: 'text-orange-600'
+  // Load comments when component mounts
+  useEffect(() => {
+    if (onFetchComments) {
+      onFetchComments();
     }
-  ], []);
+  }, [onFetchComments]);
+
+  // Update local comment count when prop changes
+  useEffect(() => {
+    setLocalCommentCount(commentCount);
+  }, [commentCount]);
 
   useEffect(() => {
     // Reset scroll when product changes
@@ -465,22 +580,46 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const handleComment = () => {
     setShowComments(!showComments);
     if (!hasCommented) {
-      setCommentCount(prev => prev + 1);
       setHasCommented(true);
     }
   };
 
-  const handlePostComment = () => {
-    if (newComment.trim()) {
-      // In a real app, you would send this to your backend
-      setCommentCount(prev => prev + 1);
-      setNewComment('');
-      alert('Comment posted successfully!');
+  const handlePostComment = async () => {
+    if (!newComment.trim() || !onAddComment || isPostingComment) return;
+    
+    setIsPostingComment(true);
+    try {
+      const savedComment = await onAddComment(newComment.trim());
+      if (savedComment) {
+        setNewComment('');
+        setLocalCommentCount(prev => prev + 1);
+        setHasCommented(true);
+      }
+    } catch (error) {
+      console.error('Failed to post comment:', error);
+    } finally {
+      setIsPostingComment(false);
+    }
+  };
+
+  const handleLikeComment = async (commentId: string) => {
+    if (onLikeComment) {
+      await onLikeComment(commentId);
     }
   };
 
   const handleShare = () => {
     setShowSharePanel(true);
+  };
+
+  // Generate user initials
+  const getUserInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -497,7 +636,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           <button 
             onClick={handleShare}
             className="p-2 text-gray-800 hover:text-blue-600 transition-colors"
-            aria-label="Share"
+            aria-label="Shiriki"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="18" cy="5" r="3" />
@@ -575,87 +714,140 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
           <h1 className="text-lg font-bold text-gray-800 leading-tight mb-2">{product.title}</h1>
 
-          {/* Social Interaction Row */}
-          <div className="flex items-center justify-between py-3 mb-4 border-y border-gray-100">
+          {/* Social Interaction Row - IMPROVED with larger buttons */}
+          <div className="flex items-center justify-between py-4 mb-6 border-y border-gray-100">
+            {/* LARGER Comment Button */}
             <CommentButton 
-              count={commentCount}
+              count={localCommentCount}
               onClick={handleComment}
               isActive={showComments}
             />
             
-            {/* BARAKA SONKO Share Button */}
+            {/* BARAKA SONKO Share Button - also larger */}
             <button
               onClick={handleShare}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg text-white font-medium text-sm transition-all duration-200 active:scale-95 shadow-md"
+              className="flex items-center space-x-2 px-5 py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 active:scale-95 shadow-lg"
               style={{ 
                 backgroundColor: COLORS.primary,
-                boxShadow: `0 4px 12px ${COLORS.primary}40`
+                boxShadow: `0 6px 16px ${COLORS.primary}40`
               }}
-              aria-label="Share on social media"
+              aria-label="Shiriki kwenye mitandao ya kijamii"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                 <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
               </svg>
-              <span>Share</span>
+              <span>Shiriki</span>
             </button>
           </div>
 
           {/* Comments Section (Expands below comments icon) */}
           {showComments && (
-            <div className="mt-4 mb-6 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="mt-4 mb-8 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-4 border-b border-gray-100 bg-gray-50">
-                <h3 className="text-sm font-bold text-gray-800">Comments ({commentCount})</h3>
-                <p className="text-xs text-gray-500 mt-1">What others are saying about this product</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-800">Maoni ({localCommentCount})</h3>
+                    <p className="text-xs text-gray-500 mt-1">Watu wanasema nini kuhusu bidhaa hii</p>
+                  </div>
+                  {isLoadingComments && (
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  )}
+                </div>
               </div>
               
-              <div className="max-h-80 overflow-y-auto">
-                {sampleComments.map((comment) => (
-                  <div key={comment.id} className="p-4 border-b border-gray-100 last:border-b-0">
-                    <div className="flex items-start space-x-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${comment.color}`}>
-                        <span className={`text-sm font-bold ${comment.textColor}`}>{comment.initials}</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-semibold text-gray-800">{comment.name}</span>
-                          <span className="text-xs text-gray-400">•</span>
-                          <span className="text-xs text-gray-400">{comment.time}</span>
+              <div className="max-h-96 overflow-y-auto">
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <div key={comment.id} className="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors">
+                      <div className="flex items-start space-x-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${comment.userColor} flex-shrink-0`}>
+                          <span className={`text-sm font-bold ${comment.textColor}`}>
+                            {getUserInitials(comment.userName)}
+                          </span>
                         </div>
-                        <p className="text-sm text-gray-700 mt-2 leading-relaxed">{comment.comment}</p>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-semibold text-gray-800">{comment.userName}</span>
+                              <span className="text-xs text-gray-400">•</span>
+                              <span className="text-xs text-gray-400">
+                                {new Date(comment.timestamp).toLocaleDateString('sw-TZ', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleLikeComment(comment.id)}
+                              className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs transition-colors ${
+                                comment.isLiked
+                                  ? 'bg-red-50 text-red-600'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              <svg 
+                                width="12" 
+                                height="12" 
+                                viewBox="0 0 24 24" 
+                                fill={comment.isLiked ? 'currentColor' : 'none'} 
+                                stroke="currentColor" 
+                                strokeWidth="2"
+                              >
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                              </svg>
+                              <span>{comment.likes}</span>
+                            </button>
+                          </div>
+                          <p className="text-sm text-gray-700 mt-2 leading-relaxed">{comment.content}</p>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center">
+                    <div className="text-gray-400 text-4xl mb-3">💬</div>
+                    <p className="text-sm text-gray-600 font-medium">Hakuna maoni bado</p>
+                    <p className="text-xs text-gray-500 mt-1">Kuwa wa kwanza kutoa maoni!</p>
                   </div>
-                ))}
+                )}
               </div>
 
               {/* Add Comment Section */}
-              <div className="p-4 bg-gray-50">
+              <div className="p-4 bg-gray-50 border-t border-gray-200">
                 <div className="flex items-start space-x-3">
                   <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-gray-600">Y</span>
+                    <span className="text-sm font-bold text-gray-600">+</span>
                   </div>
                   <div className="flex-1">
                     <textarea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Add your comment about this product..."
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Andika maoni yako hapa kuhusu bidhaa hii..."
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       rows={3}
+                      disabled={isPostingComment}
                     />
-                    <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center justify-between mt-3">
                       <span className="text-xs text-gray-500">
-                        {newComment.length}/250 characters
+                        {newComment.length}/300 herufi
                       </span>
                       <button
                         onClick={handlePostComment}
-                        disabled={!newComment.trim()}
-                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                          newComment.trim()
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        disabled={!newComment.trim() || isPostingComment}
+                        className={`px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                          newComment.trim() && !isPostingComment
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        Post Comment
+                        {isPostingComment ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Inatumwa...</span>
+                          </div>
+                        ) : 'Tuma Maoni'}
                       </button>
                     </div>
                   </div>
@@ -776,7 +968,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           >
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
           </svg>
-          <span className="text-[10px] font-black uppercase tracking-widest mt-0.5">Call</span>
+          <span className="text-[10px] font-black uppercase tracking-widest mt-0.5">Piga</span>
         </button>
 
         {/* Weka Oda (WhatsApp) Button */}
