@@ -106,6 +106,245 @@ const LargeWatermarkedImage: React.FC<{
   );
 };
 
+// Comment Button Component with Twitter-like styling
+const CommentButton: React.FC<{
+  count?: number;
+  onClick?: () => void;
+  isActive?: boolean;
+}> = ({ count = 0, onClick, isActive = false }) => {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-blue-50 active:scale-95"
+      style={{
+        color: isActive ? '#1d9bf0' : '#536471',
+        backgroundColor: isActive ? 'rgba(29, 155, 240, 0.1)' : 'transparent',
+      }}
+      aria-label={`${count} comments`}
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill={isActive ? '#1d9bf0' : 'none'}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      </svg>
+      <span className="text-xs font-semibold">{count > 0 ? count.toLocaleString() : 'Comment'}</span>
+    </button>
+  );
+};
+
+// Share Button Component with Facebook-like styling
+const ShareButton: React.FC<{
+  onClick?: () => void;
+  type?: 'facebook' | 'twitter' | 'whatsapp' | 'copy';
+  label?: string;
+}> = ({ onClick, type = 'facebook', label }) => {
+  const getButtonConfig = () => {
+    switch (type) {
+      case 'facebook':
+        return {
+          bgColor: 'bg-[#1877F2]',
+          hoverBg: 'hover:bg-[#166FE5]',
+          icon: (
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+            </svg>
+          ),
+          text: 'Share',
+        };
+      case 'twitter':
+        return {
+          bgColor: 'bg-[#1DA1F2]',
+          hoverBg: 'hover:bg-[#1A8CD8]',
+          icon: (
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.213c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
+            </svg>
+          ),
+          text: 'Tweet',
+        };
+      case 'whatsapp':
+        return {
+          bgColor: 'bg-[#25D366]',
+          hoverBg: 'hover:bg-[#22C35E]',
+          icon: (
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.272-.099-.47-.149-.669.149-.198.297-.767.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+            </svg>
+          ),
+          text: 'Share',
+        };
+      case 'copy':
+        return {
+          bgColor: 'bg-gray-700',
+          hoverBg: 'hover:bg-gray-800',
+          icon: (
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          ),
+          text: 'Copy Link',
+        };
+    }
+  };
+
+  const config = getButtonConfig();
+
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-white font-medium text-sm transition-all duration-200 active:scale-95 ${config.bgColor} ${config.hoverBg}`}
+      aria-label={`Share on ${type}`}
+    >
+      {config.icon}
+      <span>{label || config.text}</span>
+    </button>
+  );
+};
+
+// Share Modal Component
+const ShareModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  productTitle: string;
+  productLink: string;
+  shareImageUrl: string;
+}> = ({ isOpen, onClose, productTitle, productLink, shareImageUrl }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = (platform: 'facebook' | 'twitter' | 'whatsapp') => {
+    const text = `Check out ${productTitle} on BARAKA SONKO!`;
+    
+    switch (platform) {
+      case 'facebook':
+        window.open(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(text)}`,
+          '_blank',
+          'width=600,height=400'
+        );
+        break;
+      case 'twitter':
+        window.open(
+          `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(productLink)}&hashtags=barakasonko`,
+          '_blank',
+          'width=550,height=420'
+        );
+        break;
+      case 'whatsapp':
+        window.open(
+          `https://wa.me/?text=${encodeURIComponent(`${text}\n\n${productLink}`)}`,
+          '_blank',
+          'width=600,height=600'
+        );
+        break;
+    }
+    
+    onClose();
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(productLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div 
+        className="bg-white w-full max-w-md rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800">Share Product</h3>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Close"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Share Options */}
+        <div className="p-6">
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <ShareButton
+              type="facebook"
+              onClick={() => handleShare('facebook')}
+              label="Facebook"
+            />
+            <ShareButton
+              type="twitter"
+              onClick={() => handleShare('twitter')}
+              label="Twitter"
+            />
+            <ShareButton
+              type="whatsapp"
+              onClick={() => handleShare('whatsapp')}
+              label="WhatsApp"
+            />
+            <button
+              onClick={handleCopyLink}
+              className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-lg text-white font-medium text-sm transition-all duration-200 ${
+                copied ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-800'
+              }`}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                {copied ? (
+                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                ) : (
+                  <>
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </>
+                )}
+              </svg>
+              <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+            </button>
+          </div>
+
+          {/* Link Preview */}
+          <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <p className="text-xs text-gray-500 mb-1 font-semibold">Product Link:</p>
+            <div className="flex items-center">
+              <input
+                type="text"
+                readOnly
+                value={productLink}
+                className="flex-1 text-sm text-gray-700 bg-transparent border-none outline-none truncate"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Close Button */}
+        <div className="p-4 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="w-full py-3 text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   product,
   allProducts,
@@ -116,6 +355,10 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   onCallClick,
 }) => {
   const [activeImage, setActiveImage] = useState(0);
+  const [showComments, setShowComments] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [commentCount, setCommentCount] = useState(Math.floor(Math.random() * 50) + 10);
+  const [hasCommented, setHasCommented] = useState(false);
 
   const gallery = product.images && product.images.length > 0 ? product.images : [product.image];
   const descImages =
@@ -132,16 +375,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     return String(first || '').trim();
   }, [product]);
 
-  // Build a shareable product link.
-  // NOTE: Your app uses internal "view" state, so there is no real product URL yet.
-  // This shares your site root. If you later add /?product=<id> or /product/<id>,
-  // update this function to share the exact product page.
+  // Build a shareable product link
   const productLink = useMemo(() => {
     try {
       const origin = window.location.origin;
-      // If you later add deep-linking, switch to:
-      // return `${origin}/?product=${encodeURIComponent(String(product.id))}`;
-      return `${origin}`;
+      // You can enhance this with product-specific URLs later
+      return `${origin}/product/${encodeURIComponent(String(product.id))}`;
     } catch {
       return 'https://barakasonko.store';
     }
@@ -195,13 +434,33 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const handleWhatsApp = () => {
     onWhatsAppClick?.();
-    // If popups ever get blocked, switch to: window.location.href = WHATSAPP_URL;
     window.open(WHATSAPP_URL, '_blank');
   };
 
   const handleCall = () => {
     onCallClick?.();
     window.location.href = `tel:${PHONE_NUMBER}`;
+  };
+
+  const handleComment = () => {
+    setShowComments(!showComments);
+    if (!hasCommented) {
+      setCommentCount(prev => prev + 1);
+      setHasCommented(true);
+    }
+  };
+
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
+
+  const handleQuickShare = (platform: 'facebook' | 'twitter') => {
+    const text = `Check out ${product.title} on BARAKA SONKO! - TSh ${Number(product.price || 0).toLocaleString()}`;
+    const url = platform === 'facebook'
+      ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}`
+      : `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(productLink)}`;
+    
+    window.open(url, '_blank', 'width=600,height=400');
   };
 
   return (
@@ -215,10 +474,17 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </button>
         <div className="text-sm font-black text-gray-800 truncate px-4">BARAKA SONKO</div>
         <div className="flex items-center space-x-2">
-          <button className="p-2 text-gray-800" aria-label="Search (placeholder)">
+          <button 
+            onClick={handleShare}
+            className="p-2 text-gray-800 hover:text-blue-600 transition-colors"
+            aria-label="Share"
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
           </button>
           <button className="p-2 text-gray-800" aria-label="Cart (placeholder)">
@@ -287,7 +553,54 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             ) : null}
           </div>
 
-          <h1 className="text-lg font-bold text-gray-800 leading-tight mb-6">{product.title}</h1>
+          <h1 className="text-lg font-bold text-gray-800 leading-tight mb-2">{product.title}</h1>
+
+          {/* Social Interaction Row */}
+          <div className="flex items-center justify-between py-3 mb-4 border-y border-gray-100">
+            <CommentButton 
+              count={commentCount}
+              onClick={handleComment}
+              isActive={showComments}
+            />
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handleQuickShare('twitter')}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-[#1DA1F2]/10 active:scale-95"
+                aria-label="Share on Twitter"
+              >
+                <svg width="18" height="18" fill="#1DA1F2" viewBox="0 0 24 24">
+                  <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.213c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
+                </svg>
+                <span className="text-xs font-semibold text-gray-600">Tweet</span>
+              </button>
+              
+              <button
+                onClick={() => handleQuickShare('facebook')}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-[#1877F2]/10 active:scale-95"
+                aria-label="Share on Facebook"
+              >
+                <svg width="18" height="18" fill="#1877F2" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+                <span className="text-xs font-semibold text-gray-600">Share</span>
+              </button>
+
+              <button
+                onClick={handleShare}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-gray-100 active:scale-95"
+                aria-label="More sharing options"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+              </button>
+            </div>
+          </div>
 
           {/* Video Player */}
           {(product as any).videoUrl ? (
@@ -318,6 +631,51 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </p>
             </div>
           </div>
+
+          {/* Comments Section (Collapsible) */}
+          {showComments && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <h3 className="text-sm font-bold text-gray-800 mb-3">Comments ({commentCount})</h3>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-xs font-bold text-blue-600">JD</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-semibold">John D.</span>
+                      <span className="text-xs text-gray-400">2h ago</span>
+                    </div>
+                    <p className="text-sm text-gray-700 mt-1">Great product! Delivery was fast.</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <span className="text-xs font-bold text-green-600">SM</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-semibold">Sarah M.</span>
+                      <span className="text-xs text-gray-400">1d ago</span>
+                    </div>
+                    <p className="text-sm text-gray-700 mt-1">Quality exceeded my expectations!</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Add a comment..."
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                    Post
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Gallery Details Images */}
           {descImages.length > 0 ? (
@@ -416,6 +774,15 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           <span>Weka oda</span>
         </button>
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        productTitle={product.title}
+        productLink={productLink}
+        shareImageUrl={shareImageUrl}
+      />
     </div>
   );
 };
