@@ -1,4 +1,4 @@
-// ProductDetailView.tsx
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Comment } from '../types';
 import { COLORS } from '../constants';
