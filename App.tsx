@@ -1,5 +1,5 @@
 // App.tsx
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Header from './components/Header';
 import HeroBanner from './components/HeroBanner';
 import QuickActions from './components/QuickActions';
@@ -568,6 +568,37 @@ class CommentsService {
   }
 }
 
+// Views API Service
+class ViewsService {
+  private static API_BASE = '/api/views';
+
+  static async getViews(productId: string): Promise<number> {
+    try {
+      const res = await fetch(`${this.API_BASE}?productId=${encodeURIComponent(productId)}`);
+      if (!res.ok) return 0;
+      const data = await res.json().catch(() => null);
+      return data?.success ? Number(data.data?.views ?? 0) : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  static async recordView(productId: string, viewerKey: string): Promise<number> {
+    try {
+      const res = await fetch(this.API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, viewerKey }),
+      });
+      if (!res.ok) return 0;
+      const data = await res.json().catch(() => null);
+      return data?.success ? Number(data.data?.views ?? 0) : 0;
+    } catch {
+      return 0;
+    }
+  }
+}
+
 // Banner data - All GIF banners should work now
 const banners = [
   {
@@ -625,6 +656,10 @@ const App: React.FC = () => {
   const [productComments, setProductComments] = useState<Record<string, Comment[]>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [isLoadingComments, setIsLoadingComments] = useState<Record<string, boolean>>({});
+
+  // Views state
+  const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
+  const [isRecordingView, setIsRecordingView] = useState<Record<string, boolean>>({});
 
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -771,11 +806,17 @@ const App: React.FC = () => {
           // Initialize comment counts
           const initialCounts: Record<string, number> = {};
           normalized.forEach(product => {
-            // Generate random comment count between 10-100
-            const seed = product.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            initialCounts[product.id] = (seed % 90) + 10;
+            // Initialize with 0, will be fetched from backend
+            initialCounts[product.id] = 0;
           });
           setCommentCounts(initialCounts);
+          
+          // Initialize view counts
+          const initialViewCounts: Record<string, number> = {};
+          normalized.forEach(product => {
+            initialViewCounts[product.id] = 0;
+          });
+          setViewCounts(initialViewCounts);
         } else {
           setFetchError(prev => prev ? `${prev}; Products: ${prodData?.error}` : `Products: ${prodData?.error || 'Unknown error'}`);
         }
@@ -820,6 +861,43 @@ const App: React.FC = () => {
     setView('category-results');
     setIsSidebarOpen(false);
     window.scrollTo(0, 0);
+  };
+
+  // Helper functions for user management
+  const getOrCreateUserId = (): string => {
+    let userId = localStorage.getItem('sonko_user_id');
+    if (!userId) {
+      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('sonko_user_id', userId);
+    }
+    return userId;
+  };
+
+  // Make guest commenters always "Mteja"
+  const generateAnonymousUser = () => {
+    const userId = getOrCreateUserId();
+    
+    const colors = [
+      { bg: 'bg-blue-100', text: 'text-blue-600' },
+      { bg: 'bg-green-100', text: 'text-green-600' },
+      { bg: 'bg-purple-100', text: 'text-purple-600' },
+      { bg: 'bg-orange-100', text: 'text-orange-600' },
+      { bg: 'bg-pink-100', text: 'text-pink-600' },
+      { bg: 'bg-teal-100', text: 'text-teal-600' },
+      { bg: 'bg-indigo-100', text: 'text-indigo-600' },
+      { bg: 'bg-yellow-100', text: 'text-yellow-600' },
+    ];
+    
+    const seed = userId.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const idx = seed % colors.length;
+
+    return {
+      id: userId,
+      name: 'Mteja',
+      initials: 'MT',
+      color: colors[idx].bg,
+      textColor: colors[idx].text,
+    };
   };
 
   // Comments API integration
@@ -932,54 +1010,68 @@ const App: React.FC = () => {
     return false;
   };
 
-  // Helper functions for user management
-  const getOrCreateUserId = (): string => {
-    let userId = localStorage.getItem('sonko_user_id');
-    if (!userId) {
-      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem('sonko_user_id', userId);
-    }
-    return userId;
+  // When opening product, fetch comments + views
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setView('product-detail');
+
+    // Preload comments + views in background
+    fetchCommentsForProduct(product.id);
+
+    // Record view
+    (async () => {
+      const viewerKey = getOrCreateUserId();
+      const newCount = await ViewsService.recordView(product.id, viewerKey);
+      setViewCounts(prev => ({ ...prev, [product.id]: newCount }));
+    })();
   };
 
-  const generateAnonymousUser = () => {
-    const userId = getOrCreateUserId();
-    
-    // Generate consistent user info based on user ID
-    const colors = [
-      { bg: 'bg-blue-100', text: 'text-blue-600' },
-      { bg: 'bg-green-100', text: 'text-green-600' },
-      { bg: 'bg-purple-100', text: 'text-purple-600' },
-      { bg: 'bg-orange-100', text: 'text-orange-600' },
-      { bg: 'bg-pink-100', text: 'text-pink-600' },
-      { bg: 'bg-teal-100', text: 'text-teal-600' },
-      { bg: 'bg-indigo-100', text: 'text-indigo-600' },
-      { bg: 'bg-yellow-100', text: 'text-yellow-600' },
-    ];
-    
-    const names = [
-      'John D.', 'Sarah M.', 'Michael T.', 'Amina J.', 'David K.', 
-      'Lisa W.', 'Robert P.', 'Fatima A.', 'James B.', 'Maria S.',
-      'Paul G.', 'Susan L.', 'Thomas R.', 'Emily C.', 'Daniel M.',
-      'Jennifer H.', 'William F.', 'Patricia B.', 'Charles D.', 'Nancy W.'
-    ];
-    
-    const initials = names.map(name => 
-      name.split(' ').map(n => n[0]).join('').toUpperCase()
-    );
-    
-    // Use user ID to get consistent colors and names
-    const seed = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const colorIndex = seed % colors.length;
-    const nameIndex = seed % names.length;
-    
-    return {
-      id: userId,
-      name: names[nameIndex],
-      initials: initials[nameIndex],
-      color: colors[colorIndex].bg,
-      textColor: colors[colorIndex].text,
-    };
+  // Create stable callbacks for ProductDetailView
+  const fetchSelectedProductComments = useCallback(() => {
+    if (!selectedProduct?.id) return;
+    fetchCommentsForProduct(selectedProduct.id);
+  }, [selectedProduct?.id]);
+
+  const addSelectedProductComment = useCallback((content: string) => {
+    if (!selectedProduct?.id) return Promise.resolve(null);
+    return handleAddComment(selectedProduct.id, content);
+  }, [selectedProduct?.id]);
+
+  const likeSelectedProductComment = useCallback((commentId: string) => {
+    if (!selectedProduct?.id) return Promise.resolve(false);
+    return handleLikeComment(commentId, selectedProduct.id);
+  }, [selectedProduct?.id]);
+
+  const deleteSelectedProductComment = useCallback((commentId: string) => {
+    if (!selectedProduct?.id) return Promise.resolve(false);
+    return handleDeleteComment(commentId, selectedProduct.id);
+  }, [selectedProduct?.id]);
+
+  const recordSelectedProductView = useCallback(async () => {
+    if (!selectedProduct?.id) return;
+    const pid = selectedProduct.id;
+    if (isRecordingView[pid]) return;
+
+    setIsRecordingView(prev => ({ ...prev, [pid]: true }));
+    try {
+      const viewerKey = getOrCreateUserId();
+      const newCount = await ViewsService.recordView(pid, viewerKey);
+      setViewCounts(prev => ({ ...prev, [pid]: newCount }));
+    } finally {
+      setIsRecordingView(prev => ({ ...prev, [pid]: false }));
+    }
+  }, [selectedProduct?.id, isRecordingView]);
+
+  const handleBannerClick = () => {
+    setView('all-products');
+  };
+
+  const goToNextBanner = () => {
+    setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+  };
+
+  const goToPrevBanner = () => {
+    setActiveBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
   };
 
   // Mock Admin session
@@ -1008,6 +1100,12 @@ const App: React.FC = () => {
         
         // Initialize comment count for new product
         setCommentCounts(prev => ({
+          ...prev,
+          [saved.id]: 0
+        }));
+        
+        // Initialize view count for new product
+        setViewCounts(prev => ({
           ...prev,
           [saved.id]: 0
         }));
@@ -1050,6 +1148,13 @@ const App: React.FC = () => {
           delete newCounts[id];
           return newCounts;
         });
+        
+        // Remove view data for deleted product
+        setViewCounts(prev => {
+          const newCounts = { ...prev };
+          delete newCounts[id];
+          return newCounts;
+        });
       }
     } catch (e) {
       console.error(e);
@@ -1072,23 +1177,6 @@ const App: React.FC = () => {
     setUser(null);
     localStorage.removeItem('sonko_user');
     setView('home');
-  };
-
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product);
-    setView('product-detail');
-  };
-
-  const handleBannerClick = () => {
-    setView('all-products');
-  };
-
-  const goToNextBanner = () => {
-    setActiveBannerIndex((prev) => (prev + 1) % banners.length);
-  };
-
-  const goToPrevBanner = () => {
-    setActiveBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
   };
 
   const navView =
@@ -1159,14 +1247,17 @@ const App: React.FC = () => {
           WatermarkedImage={WatermarkedImage}
           VideoPlayer={VideoPlayer}
           Banner={Banner}
-          // Pass comments props
+          // comments
           comments={productComments[selectedProduct.id] || []}
           commentCount={commentCounts[selectedProduct.id] || 0}
-          onFetchComments={() => fetchCommentsForProduct(selectedProduct.id)}
-          onAddComment={(content) => handleAddComment(selectedProduct.id, content)}
-          onLikeComment={(commentId) => handleLikeComment(commentId, selectedProduct.id)}
-          onDeleteComment={(commentId) => handleDeleteComment(commentId, selectedProduct.id)}
+          onFetchComments={fetchSelectedProductComments}
+          onAddComment={addSelectedProductComment}
+          onLikeComment={likeSelectedProductComment}
+          onDeleteComment={deleteSelectedProductComment}
           isLoadingComments={isLoadingComments[selectedProduct.id] || false}
+          // ✅ views
+          viewCount={viewCounts[selectedProduct.id] || 0}
+          onRecordView={recordSelectedProductView}
         />
       )}
 
