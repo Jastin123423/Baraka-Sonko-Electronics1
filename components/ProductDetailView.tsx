@@ -1,5 +1,4 @@
 // ProductDetailView.tsx
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Comment } from '../types';
 import { COLORS } from '../constants';
@@ -147,13 +146,13 @@ const CommentButton: React.FC<{
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
       </svg>
       <span className="text-sm font-semibold">
-        {count > 0 ? `${count.toLocaleString()} Comments` : 'Add Comment'}
+        {count > 0 ? `${count.toLocaleString()} Maoni` : 'Weka Maoni'}
       </span>
     </button>
   );
 };
 
-// Share Panel Component with English instructions
+// Share Panel Component - REDESIGNED to be more compact and professional
 const SharePanel: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -166,13 +165,12 @@ const SharePanel: React.FC<{
     return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   });
 
-  // Generate share text in English
-  const shareText = `Check out "${productTitle}" on BARAKA SONKO App! 🛒\n${productLink}\n\n#barakasonko #onlinestore #tanzania`;
+  // Generate share text
+  const shareText = `Check out "${productTitle}" on BARAKA SONKO ELECTRONICS APP! 🛒\n${productLink}\n\n#barakasonko #electronics #tanzania`;
 
   const handleShare = (platform: 'whatsapp' | 'facebook' | 'instagram' | 'tiktok') => {
     switch (platform) {
       case 'whatsapp':
-        // WhatsApp Web with pre-filled message
         window.open(
           `https://wa.me/?text=${encodeURIComponent(shareText)}`,
           '_blank',
@@ -180,82 +178,43 @@ const SharePanel: React.FC<{
         );
         break;
       case 'facebook':
-        // Facebook Share Dialog with link pre-filled
         window.open(
-          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(`Check "${productTitle}" on BARAKA SONKO Store!`)}`,
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(`Check out "${productTitle}" on BARAKA SONKO!`)}`,
           '_blank',
           'width=600,height=400'
         );
         break;
       case 'instagram':
         if (isMobile) {
-          // On mobile, copy link for Instagram
           navigator.clipboard.writeText(productLink);
           setCopied(true);
-          setTimeout(() => {
-            setCopied(false);
-            alert('Link copied. Open Instagram to share.');
-          }, 300);
         } else {
-          // On desktop, open Instagram web
           navigator.clipboard.writeText(productLink);
           setCopied(true);
-          setTimeout(() => {
-            setCopied(false);
-            alert('Link copied. Paste on Instagram.');
-          }, 300);
         }
         break;
       case 'tiktok':
         if (isMobile) {
-          // On mobile, copy link for TikTok
           navigator.clipboard.writeText(productLink);
           setCopied(true);
-          setTimeout(() => {
-            setCopied(false);
-            alert('Link copied. Open TikTok to share.');
-          }, 300);
         } else {
-          // On desktop, copy link
           navigator.clipboard.writeText(productLink);
           setCopied(true);
-          setTimeout(() => {
-            setCopied(false);
-            alert('Link copied. Use anywhere.');
-          }, 300);
         }
         break;
     }
     
-    // Don't close automatically for Instagram/TikTok to show message
-    if (platform === 'whatsapp' || platform === 'facebook') {
-      setTimeout(onClose, 500);
-    }
+    setTimeout(() => {
+      if (platform === 'whatsapp' || platform === 'facebook') {
+        onClose();
+      }
+    }, 500);
   };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(productLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Try to use Web Share API if available
-  const handleNativeShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: `Check ${productTitle} - BARAKA SONKO`,
-        text: shareText,
-        url: productLink,
-      })
-      .then(() => onClose())
-      .catch((error) => {
-        console.log('Native sharing cancelled or failed:', error);
-        // Fallback to copy link
-        handleCopyLink();
-      });
-    } else {
-      handleCopyLink();
-    }
   };
 
   if (!isOpen) return null;
@@ -266,192 +225,129 @@ const SharePanel: React.FC<{
       onClick={onClose}
     >
       <div 
-        className="bg-white w-full max-w-md rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp max-h-[90vh] overflow-y-auto"
+        className="bg-white w-full max-w-sm rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp max-h-[70vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Panel Header */}
+        {/* Panel Header - COMPACT */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: COLORS.primary }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: COLORS.primary }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
                 <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-800">Share Product</h3>
-              <p className="text-xs text-gray-500">Share this product with friends</p>
+              <h3 className="text-base font-bold text-gray-800">Share Bidhaa</h3>
+              <p className="text-xs text-gray-500">Share bidhaa hii na marafiki zako</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
             aria-label="Close"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
 
-        {/* Share Options */}
-        <div className="p-6">
-          <div className="grid grid-cols-2 gap-4 mb-6">
+        {/* Share Options - COMPACT */}
+        <div className="p-4">
+          <div className="grid grid-cols-4 gap-3 mb-4">
             {/* WhatsApp */}
             <button
               onClick={() => handleShare('whatsapp')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-all duration-200 active:scale-95 border border-[#25D366]/20"
+              className="flex flex-col items-center justify-center p-3 rounded-lg bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-all duration-200 active:scale-95"
             >
-              <div className="w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center mb-3 shadow-lg">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+              <div className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center mb-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.272-.099-.47-.149-.669.149-.198.297-.767.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-gray-800">WhatsApp</span>
-              <span className="text-xs text-gray-500 mt-1 text-center">Share with friends</span>
+              <span className="text-xs font-medium text-gray-800">WhatsApp</span>
+              <span className="text-[10px] text-gray-500 mt-0.5">Share</span>
             </button>
 
             {/* Facebook */}
             <button
               onClick={() => handleShare('facebook')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/20 transition-all duration-200 active:scale-95 border border-[#1877F2]/20"
+              className="flex flex-col items-center justify-center p-3 rounded-lg bg-[#1877F2]/10 hover:bg-[#1877F2]/20 transition-all duration-200 active:scale-95"
             >
-              <div className="w-14 h-14 rounded-full bg-[#1877F2] flex items-center justify-center mb-3 shadow-lg">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+              <div className="w-10 h-10 rounded-full bg-[#1877F2] flex items-center justify-center mb-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-gray-800">Facebook</span>
-              <span className="text-xs text-gray-500 mt-1 text-center">Post on timeline</span>
+              <span className="text-xs font-medium text-gray-800">Facebook</span>
+              <span className="text-[10px] text-gray-500 mt-0.5">Share</span>
             </button>
 
             {/* Instagram */}
             <button
               onClick={() => handleShare('instagram')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10 hover:from-purple-500/20 hover:via-pink-500/20 hover:to-orange-500/20 transition-all duration-200 active:scale-95 border border-pink-300/20"
+              className="flex flex-col items-center justify-center p-3 rounded-lg bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10 hover:from-purple-500/20 hover:via-pink-500/20 hover:to-orange-500/20 transition-all duration-200 active:scale-95"
             >
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center mb-3 shadow-lg">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center mb-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                   <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-gray-800">Instagram</span>
-              <span className="text-xs text-gray-500 mt-1 text-center">Story or post</span>
+              <span className="text-xs font-medium text-gray-800">Instagram</span>
+              <span className="text-[10px] text-gray-500 mt-0.5">Post</span>
             </button>
 
             {/* TikTok */}
             <button
               onClick={() => handleShare('tiktok')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-900/10 hover:bg-gray-900/20 transition-all duration-200 active:scale-95 border border-gray-300/20"
+              className="flex flex-col items-center justify-center p-3 rounded-lg bg-gray-900/10 hover:bg-gray-900/20 transition-all duration-200 active:scale-95"
             >
-              <div className="w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center mb-3 shadow-lg">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+              <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center mb-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                   <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 10.692 6.33 6.33 0 0 0 10.857-4.424V8.687a8.182 8.182 0 0 0 4.773 1.526V6.79a4.831 4.831 0 0 1-1.003-.104z" />
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-gray-800">TikTok</span>
-              <span className="text-xs text-gray-500 mt-1 text-center">Add to video</span>
+              <span className="text-xs font-medium text-gray-800">TikTok</span>
+              <span className="text-[10px] text-gray-500 mt-0.5">Share</span>
             </button>
           </div>
 
-          {/* Native Share Button for Mobile */}
-          {navigator.share && (
-            <div className="mb-6">
-              <button
-                onClick={handleNativeShare}
-                className="w-full flex items-center justify-center space-x-2 py-3.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-xl hover:opacity-90 transition-all duration-200 active:scale-95 shadow-lg"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
-                </svg>
-                <span>Share Now</span>
-              </button>
-              <p className="text-xs text-gray-500 text-center mt-2">
-                (Quick share on your device)
-              </p>
-            </div>
-          )}
-
-          {/* Link Copy Section */}
-          <div className="mb-6">
-            <p className="text-sm font-medium text-gray-700 mb-2">Or copy link below:</p>
-            <div className="bg-gray-100 rounded-xl p-3 border border-gray-300">
-              <div className="flex items-start space-x-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 mb-1">Product link:</p>
-                  <div className="bg-white p-3 rounded-lg border border-gray-200 overflow-hidden">
-                    <div className="overflow-x-auto no-scrollbar">
-                      <p className="text-sm text-gray-700 font-mono whitespace-nowrap select-all">
-                        {productLink}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Long press link above to select, then copy
-                  </p>
-                </div>
-                <button
-                  onClick={handleCopyLink}
-                  className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 flex-shrink-0 ${
-                    copied 
-                      ? 'bg-green-600 text-white shadow-lg' 
-                      : 'bg-gray-800 text-white hover:bg-gray-900 active:scale-95'
-                  }`}
-                >
-                  <div className="flex items-center space-x-1">
-                    {copied ? (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        <span>Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                        </svg>
-                        <span>Copy</span>
-                      </>
-                    )}
-                  </div>
-                </button>
+          {/* Link Copy Section - SIMPLIFIED */}
+          <div className="mb-4">
+            <p className="text-xs font-medium text-gray-700 mb-2">Copy link hapa:</p>
+            <div className="flex items-center space-x-2">
+              <div className="flex-1 bg-gray-100 rounded-lg p-2 border border-gray-300">
+                <p className="text-xs text-gray-700 truncate font-mono">{productLink}</p>
               </div>
+              <button
+                onClick={handleCopyLink}
+                className={`px-3 py-2 rounded-lg font-medium text-xs transition-all duration-200 ${
+                  copied 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-gray-800 text-white hover:bg-gray-900'
+                }`}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
             </div>
-          </div>
-
-          {/* Quick Share Tips */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-            <h4 className="text-sm font-semibold text-blue-800 mb-2">🔥 Quick Help:</h4>
-            <ul className="text-xs text-blue-700 space-y-1">
-              <li className="flex items-start">
-                <span className="mr-2">✅</span>
-                <span><strong>WhatsApp:</strong> Link auto-added to message</span>
-              </li>
-              <li className="flex items-start">
-                <span className="mr-2">✅</span>
-                <span><strong>Facebook:</strong> Auto-filled in post area</span>
-              </li>
-              <li className="flex items-start">
-                <span className="mr-2">✅</span>
-                <span><strong>Instagram/TikTok:</strong> Link auto-copied</span>
-              </li>
-            </ul>
+            <p className="text-xs text-gray-500 mt-1">
+              Bonyeza link hapo juu, kisha nakili
+            </p>
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Sharing helps others find great products from BARAKA SONKO!
+            Kushare kutasaidia wengine kupata bidhaa nzuri kutoka BARAKA SONKO!
           </p>
         </div>
 
         {/* Close Button */}
-        <div className="p-4 border-t border-gray-100 sticky bottom-0 bg-white">
+        <div className="p-3 border-t border-gray-100">
           <button
             onClick={onClose}
-            className="w-full py-3.5 text-gray-700 font-semibold rounded-xl border-2 border-gray-300 hover:bg-gray-50 transition-all duration-200 active:scale-95"
+            className="w-full py-2.5 text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-all duration-200"
           >
-            Close Panel
+            Close
           </button>
         </div>
       </div>
@@ -511,14 +407,14 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   }, [product.id]);
 
   const WHATSAPP_TEXT = useMemo(() => {
-    const title = String(product.title || 'Product').trim();
+    const title = String(product.title || 'Bidhaa').trim();
     const price = Number(product.price || 0);
     const priceStr = Number.isFinite(price) ? price.toLocaleString() : '0';
 
     const lines = [
-      `Hi, I'd like to order or know more about: ${title}`,
-      `Price: TSh ${priceStr}`,
-      shareImageUrl ? `Image: ${shareImageUrl}` : '',
+      `Hi habari, ningependa kuagiza au kujua zaidi hii: ${title}`,
+      `Bei: TSh ${priceStr}`,
+      shareImageUrl ? `Picha: ${shareImageUrl}` : '',
       `Link: ${productLink}`,
     ].filter(Boolean);
 
@@ -748,7 +644,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-gray-800">Comments ({localCommentCount})</h3>
-                    <p className="text-xs text-gray-500 mt-1">Tell us about this product</p>
+                    <p className="text-xs text-gray-500 mt-1">kuhusu bidhaa hii</p>
                   </div>
                   {isLoadingComments && (
                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -772,7 +668,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                               <span className="text-sm font-semibold text-gray-800">{comment.userName}</span>
                               <span className="text-xs text-gray-400">•</span>
                               <span className="text-xs text-gray-400">
-                                {new Date(comment.timestamp).toLocaleDateString('en-US', {
+                                {new Date(comment.timestamp).toLocaleDateString('sw-TZ', {
                                   month: 'short',
                                   day: 'numeric',
                                   hour: '2-digit',
@@ -810,7 +706,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   <div className="p-8 text-center">
                     <div className="text-gray-400 text-4xl mb-3">💬</div>
                     <p className="text-sm text-gray-600 font-medium">No comments yet</p>
-                    <p className="text-xs text-gray-500 mt-1">Be the first to share your thoughts</p>
                   </div>
                 )}
               </div>
@@ -890,7 +785,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           {/* Gallery Details Images */}
           {descImages.length > 0 ? (
             <div className="mt-8 space-y-3">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">More Images</h3>
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Gallery Details</h3>
               {descImages.map((img, idx) => (
                 <div
                   key={idx}
