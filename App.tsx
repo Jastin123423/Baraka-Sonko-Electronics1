@@ -806,7 +806,6 @@ const App: React.FC = () => {
           // Initialize comment counts
           const initialCounts: Record<string, number> = {};
           normalized.forEach(product => {
-            // Initialize with 0, will be fetched from backend
             initialCounts[product.id] = 0;
           });
           setCommentCounts(initialCounts);
@@ -873,7 +872,7 @@ const App: React.FC = () => {
     return userId;
   };
 
-  // Make guest commenters always "Mteja"
+  // Generate anonymous user for logged-out users
   const generateAnonymousUser = () => {
     const userId = getOrCreateUserId();
     
@@ -919,36 +918,40 @@ const App: React.FC = () => {
     }
   };
 
+  // Update handleAddComment to use logged-in name
   const handleAddComment = async (productId: string, content: string) => {
     try {
-      // Generate user info for anonymous commenting
-      const userInfo = generateAnonymousUser();
-      
+      const isLoggedIn = !!user;
+
+      const displayName = isLoggedIn ? 'Baraka Sonko Electronics' : 'Mteja';
+      const initials = isLoggedIn ? 'BS' : 'MT';
+
+      const anon = generateAnonymousUser();
+      const userId = isLoggedIn ? String(user?.id || 'admin') : anon.id;
+
       const newComment: Omit<Comment, 'id' | 'timestamp' | 'likes' | 'isLiked'> = {
         productId,
         content,
-        userId: userInfo.id,
-        userName: userInfo.name,
-        userInitials: userInfo.initials,
-        userColor: userInfo.color,
-        textColor: userInfo.textColor,
+        userId,
+        userName: displayName,
+        userInitials: initials,
+        userColor: isLoggedIn ? 'bg-orange-100' : anon.color,
+        textColor: isLoggedIn ? 'text-orange-700' : anon.textColor,
       };
-      
+
       const savedComment = await CommentsService.addComment(newComment);
-      
+
       if (savedComment) {
-        // Update comments for this product
         setProductComments(prev => ({
           ...prev,
-          [productId]: [savedComment, ...(prev[productId] || [])]
+          [productId]: [savedComment, ...(prev[productId] || [])],
         }));
-        
-        // Update comment count
+
         setCommentCounts(prev => ({
           ...prev,
-          [productId]: (prev[productId] || 0) + 1
+          [productId]: (prev[productId] || 0) + 1,
         }));
-        
+
         return savedComment;
       }
     } catch (error) {
@@ -1010,12 +1013,12 @@ const App: React.FC = () => {
     return false;
   };
 
-  // When opening product, fetch comments + views
+  // When opening product, fetch comments + record views
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setView('product-detail');
 
-    // Preload comments + views in background
+    // Preload comments
     fetchCommentsForProduct(product.id);
 
     // Record view
@@ -1255,7 +1258,7 @@ const App: React.FC = () => {
           onLikeComment={likeSelectedProductComment}
           onDeleteComment={deleteSelectedProductComment}
           isLoadingComments={isLoadingComments[selectedProduct.id] || false}
-          // ✅ views
+          // views
           viewCount={viewCounts[selectedProduct.id] || 0}
           onRecordView={recordSelectedProductView}
         />
