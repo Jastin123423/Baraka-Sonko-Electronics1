@@ -12,14 +12,6 @@ interface ProductDetailViewProps {
   Banner?: React.ComponentType<any>;
   onWhatsAppClick?: () => void;
   onCallClick?: () => void;
-  // Comments props
-  comments?: Comment[];
-  commentCount?: number;
-  onFetchComments?: () => void;
-  onAddComment?: (content: string) => Promise<Comment | null>;
-  onLikeComment?: (commentId: string) => Promise<boolean>;
-  onDeleteComment?: (commentId: string) => Promise<boolean>;
-  isLoadingComments?: boolean;
   // Views
   viewCount?: number;
   onRecordView?: () => void;
@@ -113,44 +105,6 @@ const LargeWatermarkedImage: React.FC<{
         </div>
       )}
     </div>
-  );
-};
-
-// LARGER Comment Button Component with Twitter-like styling
-const CommentButton: React.FC<{
-  count?: number;
-  onClick?: () => void;
-  isActive?: boolean;
-}> = ({ count = 0, onClick, isActive = false }) => {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center space-x-2 px-4 py-2.5 rounded-full transition-all duration-200 hover:bg-blue-50 active:scale-95"
-      style={{
-        color: isActive ? '#1d9bf0' : '#536471',
-        backgroundColor: isActive ? 'rgba(29, 155, 240, 0.15)' : 'transparent',
-        border: isActive ? '2px solid rgba(29, 155, 240, 0.3)' : '2px solid #e5e7eb',
-        fontSize: '14px',
-        fontWeight: '600',
-      }}
-      aria-label={`${count} comments`}
-    >
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill={isActive ? '#1d9bf0' : 'none'}
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-      </svg>
-      <span className="text-sm font-semibold">
-        {count > 0 ? `${count.toLocaleString()} Maoni` : 'Weka Maoni'}
-      </span>
-    </button>
   );
 };
 
@@ -365,25 +319,15 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   WatermarkedImage,
   onWhatsAppClick,
   onCallClick,
-  // Comments props
-  comments = [],
-  commentCount = 0,
-  onFetchComments,
-  onAddComment,
-  onLikeComment,
-  onDeleteComment,
-  isLoadingComments = false,
   // Views
   viewCount = 0,
   onRecordView,
 }) => {
   const [activeImage, setActiveImage] = useState(0);
-  const [showComments, setShowComments] = useState(false);
   const [showSharePanel, setShowSharePanel] = useState(false);
-  const [localCommentCount, setLocalCommentCount] = useState(commentCount);
-  const [hasCommented, setHasCommented] = useState(false);
-  const [newComment, setNewComment] = useState('');
-  const [isPostingComment, setIsPostingComment] = useState(false);
+  
+  // ✅ FIX: Add ref to track if view has been recorded for current product
+  const hasRecordedViewRef = useRef<string | null>(null);
 
   const gallery = product.images && product.images.length > 0 ? product.images : [product.image];
   const descImages =
@@ -430,28 +374,16 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     return `https://wa.me/${digits}?text=${encodeURIComponent(WHATSAPP_TEXT)}`;
   }, [PHONE_NUMBER, WHATSAPP_TEXT]);
 
-  // Record a view on every open/refresh
+  // ✅ FIX: Record view only once per product page open
   useEffect(() => {
-    onRecordView?.();
-  }, [product.id, onRecordView]);
-
-  // Prevent repeated comments fetch loops
-  const fetchedForProductRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!onFetchComments) return;
     const pid = String(product.id);
 
-    if (fetchedForProductRef.current === pid) return;
-    fetchedForProductRef.current = pid;
+    // Record only once per product open
+    if (hasRecordedViewRef.current === pid) return;
+    hasRecordedViewRef.current = pid;
 
-    onFetchComments();
-  }, [product.id, onFetchComments]);
-
-  // Update local comment count when prop changes
-  useEffect(() => {
-    setLocalCommentCount(commentCount);
-  }, [commentCount]);
+    onRecordView?.();
+  }, [product.id]); // ✅ IMPORTANT: do NOT depend on onRecordView
 
   useEffect(() => {
     // Reset scroll when product changes
@@ -469,37 +401,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     window.location.href = `tel:${PHONE_NUMBER}`;
   };
 
-  const handleComment = () => {
-    setShowComments(!showComments);
-    if (!hasCommented) {
-      setHasCommented(true);
-    }
-  };
-
-  const handlePostComment = async () => {
-    if (!newComment.trim() || !onAddComment || isPostingComment) return;
-    
-    setIsPostingComment(true);
-    try {
-      const savedComment = await onAddComment(newComment.trim());
-      if (savedComment) {
-        setNewComment('');
-        setLocalCommentCount(prev => prev + 1);
-        setHasCommented(true);
-      }
-    } catch (error) {
-      console.error('Failed to post comment:', error);
-    } finally {
-      setIsPostingComment(false);
-    }
-  };
-
-  const handleLikeComment = async (commentId: string) => {
-    if (onLikeComment) {
-      await onLikeComment(commentId);
-    }
-  };
-
   const handleShare = () => {
     setShowSharePanel(true);
   };
@@ -515,16 +416,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       .filter((p) => String(p.id) !== String(product.id) && (p as any).category === (product as any).category)
       .slice(0, 6);
   }, [allProducts, product.id, (product as any).category]);
-
-  // Generate user initials
-  const getUserInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   return (
     <div className="fixed inset-0 bg-white z-[100] flex flex-col animate-fadeIn overflow-hidden">
@@ -620,13 +511,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
           {/* Social Interaction Row - IMPROVED with larger buttons */}
           <div className="flex items-center justify-between py-4 mb-6 border-y border-gray-100">
-            {/* LARGER Comment Button */}
-            <CommentButton 
-              count={localCommentCount}
-              onClick={handleComment}
-              isActive={showComments}
-            />
-            
             {/* BARAKA SONKO Share Button - also larger */}
             <button
               onClick={handleShare}
@@ -643,121 +527,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <span>Share</span>
             </button>
           </div>
-
-          {/* Comments Section (Expands below comments icon) */}
-          {showComments && (
-            <div className="mt-4 mb-8 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-gray-100 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-800">Comments ({localCommentCount})</h3>
-                    <p className="text-xs text-gray-500 mt-1">kuhusu bidhaa hii</p>
-                  </div>
-                  {isLoadingComments && (
-                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                  )}
-                </div>
-              </div>
-              
-              <div className="max-h-96 overflow-y-auto">
-                {comments.length > 0 ? (
-                  comments.map((comment) => (
-                    <div key={comment.id} className="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors">
-                      <div className="flex items-start space-x-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${comment.userColor} flex-shrink-0`}>
-                          <span className={`text-sm font-bold ${comment.textColor}`}>
-                            {getUserInitials(comment.userName)}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-semibold text-gray-800">{comment.userName}</span>
-                              <span className="text-xs text-gray-400">•</span>
-                              <span className="text-xs text-gray-400">
-                                {new Date(comment.timestamp).toLocaleDateString('sw-TZ', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => handleLikeComment(comment.id)}
-                              className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs transition-colors ${
-                                comment.isLiked
-                                  ? 'bg-red-50 text-red-600'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              <svg 
-                                width="12" 
-                                height="12" 
-                                viewBox="0 0 24 24" 
-                                fill={comment.isLiked ? 'currentColor' : 'none'} 
-                                stroke="currentColor" 
-                                strokeWidth="2"
-                              >
-                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                              </svg>
-                              <span>{comment.likes}</span>
-                            </button>
-                          </div>
-                          <p className="text-sm text-gray-700 mt-2 leading-relaxed">{comment.content}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center">
-                    <div className="text-gray-400 text-4xl mb-3">💬</div>
-                    <p className="text-sm text-gray-600 font-medium">No comments yet</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Add Comment Section */}
-              <div className="p-4 bg-gray-50 border-t border-gray-200">
-                <div className="flex items-start space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-gray-600">+</span>
-                  </div>
-                  <div className="flex-1">
-                    <textarea
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Write your comment about this product..."
-                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      rows={3}
-                      disabled={isPostingComment}
-                    />
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-xs text-gray-500">
-                        {newComment.length}/300 characters
-                      </span>
-                      <button
-                        onClick={handlePostComment}
-                        disabled={!newComment.trim() || isPostingComment}
-                        className={`px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
-                          newComment.trim() && !isPostingComment
-                            ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        {isPostingComment ? (
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            <span>Sending...</span>
-                          </div>
-                        ) : 'Post Comment'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Video Player */}
           {(product as any).videoUrl ? (
@@ -874,7 +643,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           <span className="text-[10px] font-black uppercase tracking-widest mt-0.5">Call</span>
         </button>
 
-        {/* Place Order (WhatsApp) Button */}
+        {/* ✅ FIXED: Changed "Place Order" to "WEKA ODA" in Swahili */}
         <button
           onClick={handleWhatsApp}
           className="flex-[2] flex items-center justify-center space-x-2 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all shadow-lg"
@@ -883,7 +652,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.438 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
           </svg>
-          <span>Place Order</span>
+          <span>WEKA ODA</span>
         </button>
       </div>
 
