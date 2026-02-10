@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Product, Comment } from '../types';
 import { COLORS } from '../constants';
 
@@ -430,13 +430,13 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     return `https://wa.me/${digits}?text=${encodeURIComponent(WHATSAPP_TEXT)}`;
   }, [PHONE_NUMBER, WHATSAPP_TEXT]);
 
-  // Record a view once when product opens
+  // Record a view on every open/refresh
   useEffect(() => {
     onRecordView?.();
   }, [product.id, onRecordView]);
 
-  // Prevent repeated comment fetching
-  const fetchedForProductRef = React.useRef<string | null>(null);
+  // Prevent repeated comments fetch loops
+  const fetchedForProductRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!onFetchComments) return;
