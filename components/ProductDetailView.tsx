@@ -479,7 +479,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
         {/* Main Info */}
         <div className="p-4">
-          {/* Price Tag & Views */}
+          {/* Price Tag & Views with Share button extended to right */}
           <div className="flex flex-col mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -493,10 +493,29 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 ) : null}
               </div>
 
-              {/* Blinking Eye View Counter */}
-              <div className="flex items-center space-x-1.5 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
-                <div className="animate-blink text-sm">👁️</div>
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-tight">{viewCount} views</span>
+              {/* Blinking Eye View Counter with Share Button Extended to Right */}
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1.5 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                  <div className="animate-blink text-sm">👁️</div>
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-tight">{viewCount} views</span>
+                </div>
+                
+                {/* Share button extended to the right side below Views */}
+                <button
+                  onClick={handleShare}
+                  className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 transition-all duration-200 active:scale-95 border border-blue-200"
+                  style={{ color: COLORS.primary }}
+                  aria-label="Share"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                  </svg>
+                  <span className="text-[10px] font-black uppercase tracking-tight">Share</span>
+                </button>
               </div>
             </div>
 
@@ -509,25 +528,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
           <h1 className="text-lg font-bold text-gray-800 leading-tight mb-2">{product.title}</h1>
 
-          {/* Social Interaction Row - IMPROVED with larger buttons */}
-          <div className="flex items-center justify-between py-4 mb-6 border-y border-gray-100">
-            {/* BARAKA SONKO Share Button - also larger */}
-            <button
-              onClick={handleShare}
-              className="flex items-center space-x-2 px-5 py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 active:scale-95 shadow-lg"
-              style={{ 
-                backgroundColor: COLORS.primary,
-                boxShadow: `0 6px 16px ${COLORS.primary}40`
-              }}
-              aria-label="Share on social media"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
-              </svg>
-              <span>Share</span>
-            </button>
-          </div>
-
+          {/* Social Interaction Row - REMOVED the duplicate Share button */}
+          
           {/* Video Player */}
           {(product as any).videoUrl ? (
             <div className="mb-8 py-6 border-y border-gray-50">
