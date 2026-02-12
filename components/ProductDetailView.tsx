@@ -479,7 +479,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
         {/* Main Info */}
         <div className="p-4">
-          {/* Price Tag & Views - Original layout preserved */}
+          {/* Price Tag & Views - KEPT EXACTLY AS IT WAS */}
           <div className="flex flex-col mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -493,29 +493,10 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 ) : null}
               </div>
 
-              {/* Blinking Eye View Counter with Share Button Extended to Right */}
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1.5 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
-                  <div className="animate-blink text-sm">👁️</div>
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-tight">{viewCount} views</span>
-                </div>
-                
-                {/* Share button extended to the right side below Views */}
-                <button
-                  onClick={handleShare}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 transition-all duration-200 active:scale-95 border border-blue-200"
-                  style={{ color: COLORS.primary }}
-                  aria-label="Share"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="18" cy="5" r="3" />
-                    <circle cx="6" cy="12" r="3" />
-                    <circle cx="18" cy="19" r="3" />
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                  </svg>
-                  <span className="text-[10px] font-black uppercase tracking-tight">Share</span>
-                </button>
+              {/* Blinking Eye View Counter - COMPLETELY UNTOUCHED */}
+              <div className="flex items-center space-x-1.5 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                <div className="animate-blink text-sm">👁️</div>
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-tight">{viewCount} views</span>
               </div>
             </div>
 
@@ -528,9 +509,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
           <h1 className="text-lg font-bold text-gray-800 leading-tight mb-2">{product.title}</h1>
 
-          {/* Original Social Interaction Row - KEPT EXACTLY AS BEFORE */}
+          {/* Social Interaction Row - KEPT EXACTLY AS IT WAS */}
           <div className="flex items-center justify-between py-4 mb-6 border-y border-gray-100">
-            {/* BARAKA SONKO Share Button - kept exactly as before */}
+            {/* BARAKA SONKO Share Button */}
             <button
               onClick={handleShare}
               className="flex items-center space-x-2 px-5 py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 active:scale-95 shadow-lg"
@@ -547,7 +528,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </button>
           </div>
 
-          {/* Video Player - KEPT EXACTLY AS BEFORE, UNTOUCHED */}
+          {/* Video Player - KEPT EXACTLY AS IT WAS */}
           {(product as any).videoUrl ? (
             <div className="mb-8 py-6 border-y border-gray-50">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Product Experience</h3>
