@@ -479,7 +479,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
         {/* Main Info */}
         <div className="p-4">
-          {/* Price Tag & Views - KEPT EXACTLY AS IT WAS */}
+          {/* Price Tag & Views */}
           <div className="flex flex-col mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -493,7 +493,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 ) : null}
               </div>
 
-              {/* Blinking Eye View Counter - COMPLETELY UNTOUCHED */}
+              {/* Blinking Eye View Counter */}
               <div className="flex items-center space-x-1.5 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
                 <div className="animate-blink text-sm">👁️</div>
                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-tight">{viewCount} views</span>
@@ -509,9 +509,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
           <h1 className="text-lg font-bold text-gray-800 leading-tight mb-2">{product.title}</h1>
 
-          {/* Social Interaction Row - KEPT EXACTLY AS IT WAS */}
+          {/* Social Interaction Row - IMPROVED with larger buttons */}
           <div className="flex items-center justify-between py-4 mb-6 border-y border-gray-100">
-            {/* BARAKA SONKO Share Button */}
+            {/* BARAKA SONKO Share Button - also larger */}
             <button
               onClick={handleShare}
               className="flex items-center space-x-2 px-5 py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 active:scale-95 shadow-lg"
@@ -528,7 +528,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </button>
           </div>
 
-          {/* Video Player - KEPT EXACTLY AS IT WAS */}
+          {/* Video Player */}
           {(product as any).videoUrl ? (
             <div className="mb-8 py-6 border-y border-gray-50">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Product Experience</h3>
