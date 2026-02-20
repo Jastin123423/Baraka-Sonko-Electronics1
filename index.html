@@ -2,17 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+
+  <!-- Mobile Viewport -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>SONKO - Online Shopping</title>
 
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- App Title -->
+  <title>Baraka Sonko Electronics</title>
 
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+
+  <!-- Theme Color (Android status bar + splash) -->
+  <meta name="theme-color" content="#ea580c" />
+
+  <!-- iOS PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="apple-touch-icon" href="https://media.barakasonko.store/app_icon_android_1722843822884__4_-removebg-preview_1_192x192.png" />
+
+  <!-- Preconnect Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Google Font -->
   <link
     href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap"
     rel="stylesheet"
   />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
     body {
@@ -20,33 +39,51 @@
       background-color: #f5f5f5;
       -webkit-tap-highlight-color: transparent;
     }
+
     .line-clamp-2 {
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    @keyframes scaleIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-    @keyframes blink { 0%, 90%, 100% { opacity: 1; transform: scaleY(1); } 95% { opacity: 0.3; transform: scaleY(0.1); } }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    @keyframes scaleIn {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+
+    @keyframes blink {
+      0%, 90%, 100% { opacity: 1; transform: scaleY(1); }
+      95% { opacity: 0.3; transform: scaleY(0.1); }
+    }
 
     .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
     .animate-slideUp { animation: slideUp 0.3s ease-out forwards; }
     .animate-scaleIn { animation: scaleIn 0.2s ease-out forwards; transform-origin: left; }
     .animate-blink { animation: blink 3s infinite; }
   </style>
-
-  <!-- ❌ Remove importmap (Vite uses npm deps, not CDN React) -->
 </head>
 
-<body class="overflow-x-hidden">
+<body class="overflow-x-hidden bg-white">
+
+  <!-- React Root -->
   <div id="root"></div>
 
-  <!-- ✅ THIS is what makes Vite bundle and run your app -->
+  <!-- Vite Entry -->
   <script type="module" src="/index.tsx"></script>
+
 </body>
 </html>
