@@ -479,13 +479,22 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
         {/* Main Info */}
         <div className="p-4">
-          {/* Price Tag & Views */}
+          {/* Price Tag & Views - MODIFIED: Actual price appears first and is bold */}
           <div className="flex flex-col mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <span className="text-3xl font-black" style={{ color: COLORS.primary }}>
+                {/* Actual Price - NOW FIRST AND BOLD */}
+                {originalPriceValue && (
+                  <span className="text-2xl font-black text-gray-600 mr-2">
+                    TSh {Number(originalPriceValue).toLocaleString()}
+                  </span>
+                )}
+                
+                {/* Selling Price - NOW SECOND */}
+                <span className="text-3xl font-bold" style={{ color: COLORS.primary }}>
                   TSh {Number(product.price || 0).toLocaleString()}
                 </span>
+                
                 {(product as any).discount ? (
                   <span className="bg-red-50 text-red-600 text-[10px] px-2 py-1 rounded-lg font-black uppercase tracking-tighter">
                     -{(product as any).discount}% OFF
@@ -500,11 +509,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </div>
             </div>
 
-            {originalPriceValue ? (
-              <span className="text-sm text-gray-400 line-through mt-1">
-                Actual Price: TSh {Number(originalPriceValue || 0).toLocaleString()}
+            {/* Label for clarity - OPTIONAL: You can remove this if not needed */}
+            {originalPriceValue && (
+              <span className="text-xs text-gray-500 mt-1">
+                Actual Price (was) • Selling Price (now)
               </span>
-            ) : null}
+            )}
           </div>
 
           <h1 className="text-lg font-bold text-gray-800 leading-tight mb-2">{product.title}</h1>
