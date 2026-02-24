@@ -479,19 +479,19 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
         {/* Main Info */}
         <div className="p-4">
-          {/* Price Tag & Views - MODIFIED: Actual price appears first and is bold */}
+          {/* Price Tag & Views - MODIFIED: Actual price appears first with strikethrough */}
           <div className="flex flex-col mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                {/* Actual Price - NOW FIRST AND BOLD */}
+                {/* Actual Price - FIRST with strikethrough at original size */}
                 {originalPriceValue && (
-                  <span className="text-2xl font-black text-gray-600 mr-2">
+                  <span className="text-sm text-gray-400 line-through">
                     TSh {Number(originalPriceValue).toLocaleString()}
                   </span>
                 )}
                 
-                {/* Selling Price - NOW SECOND */}
-                <span className="text-3xl font-bold" style={{ color: COLORS.primary }}>
+                {/* Selling Price - SECOND at original size */}
+                <span className="text-3xl font-black" style={{ color: COLORS.primary }}>
                   TSh {Number(product.price || 0).toLocaleString()}
                 </span>
                 
@@ -508,13 +508,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-tight">{viewCount} views</span>
               </div>
             </div>
-
-            {/* Label for clarity - OPTIONAL: You can remove this if not needed */}
-            {originalPriceValue && (
-              <span className="text-xs text-gray-500 mt-1">
-                Actual Price (was) • Selling Price (now)
-              </span>
-            )}
           </div>
 
           <h1 className="text-lg font-bold text-gray-800 leading-tight mb-2">{product.title}</h1>
