@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { COLORS } from '../constants';
 import { Product } from '../types';
@@ -28,6 +26,20 @@ const FlashSale: React.FC<FlashSaleProps> = ({ products, onProductClick, onSeeAl
 
   const format = (num: number) => num.toString().padStart(2, '0');
 
+  // Helper function to get original price (with fallback)
+  const getOriginalPrice = (product: Product) => {
+    // Check if originalPrice exists directly on product
+    if ((product as any).originalPrice) {
+      return Number((product as any).originalPrice);
+    }
+    // Calculate from discount if available
+    if (product.discount && product.discount > 0) {
+      return Math.round(Number(product.price) * (1 + Number(product.discount) / 100));
+    }
+    // Fallback to same as price (no discount)
+    return Number(product.price);
+  };
+
   return (
     <div className="bg-white mb-2 py-3 px-3">
       <div className="flex items-center justify-between mb-3">
@@ -51,24 +63,45 @@ const FlashSale: React.FC<FlashSaleProps> = ({ products, onProductClick, onSeeAl
       </div>
 
       <div className="flex overflow-x-auto no-scrollbar space-x-3">
-        {products.map((p) => (
-          <div key={p.id} className="flex-shrink-0 w-24 active:opacity-70 transition-opacity" onClick={() => onProductClick(p)}>
-            <div className="relative aspect-square rounded overflow-hidden mb-1 border border-gray-100">
-              <img src={p.image} alt="" className="w-full h-full object-cover" />
-              {p.discount && (
-                <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] px-1 font-bold">
-                  -{p.discount}%
-                </div>
-              )}
+        {products.map((p) => {
+          // Safely get values with defaults
+          const discount = p.discount && p.discount > 0 ? p.discount : 0;
+          const sellingPrice = Number(p.price) || 0;
+          const originalPrice = getOriginalPrice(p);
+          
+          return (
+            <div key={p.id} className="flex-shrink-0 w-24 active:opacity-70 transition-opacity" onClick={() => onProductClick(p)}>
+              <div className="relative aspect-square rounded overflow-hidden mb-1 border border-gray-100">
+                <img 
+                  src={p.image} 
+                  alt={p.title || 'Product'} 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback for broken images
+                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/96?text=No+Image';
+                  }}
+                />
+                {discount > 0 && (
+                  <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] px-1 font-bold">
+                    -{discount}%
+                  </div>
+                )}
+              </div>
+              
+              {/* Price display - Original first (with strikethrough), then selling price */}
+              <div className="flex flex-col items-start">
+                {originalPrice > sellingPrice && (
+                  <span className="text-[9px] text-gray-400 line-through">
+                    TSh {originalPrice.toLocaleString()}
+                  </span>
+                )}
+                <span className="text-[11px] font-bold text-gray-900 truncate">
+                  TSh {sellingPrice.toLocaleString()}
+                </span>
+              </div>
             </div>
-            <div className="text-[11px] font-bold text-gray-900 truncate">TSh {p.price.toLocaleString()}</div>
-            {p.discount && (
-               <div className="text-[9px] text-gray-400 line-through">
-                 TSh {Math.round(p.price * (1 + p.discount/100)).toLocaleString()}
-               </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
