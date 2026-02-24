@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useMemo } from 'react';
 import { COLORS, ICONS } from '../constants';
 import { Product } from '../types';
