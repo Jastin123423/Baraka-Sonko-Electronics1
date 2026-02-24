@@ -1,3 +1,5 @@
+
+//
 import React, { useState, useEffect } from 'react';
 import { COLORS } from '../constants';
 import { Product } from '../types';
