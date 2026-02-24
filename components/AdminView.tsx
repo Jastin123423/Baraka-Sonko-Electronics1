@@ -31,13 +31,13 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
 
-  // Updated formData with categoryId instead of category
+  // Updated formData with originalPrice and sellingPrice
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    originalPrice: '', // Changed from 'price'
-    sellingPrice: '', // New field
-    categoryId: '', // CHANGED: Now stores ID, not name
+    originalPrice: '',     // Original/actual price (set this first)
+    sellingPrice: '',      // Discounted selling price (set this second)
+    categoryId: '', 
     videoUrl: '',
     images: [] as string[],
     descriptionImages: [] as string[],
@@ -429,14 +429,14 @@ const AdminView: React.FC<AdminViewProps> = ({
         videoUrl: formData.videoUrl || '',
         video_url: formData.videoUrl || '',
         
-        // Pricing - PROFESSIONAL: Original price and selling price
-        price: sellingPrice, // This is the final selling price that customers pay
-        originalPrice: originalPrice, // Original price before discount
-        sellingPrice: sellingPrice, // Selling price (same as price field for consistency)
+        // PROFESSIONAL PRICING: Original price first, then selling price
+        originalPrice: originalPrice,           // Original price before discount (set this first)
+        sellingPrice: sellingPrice,              // Selling price after discount (set this second)
+        price: sellingPrice,                      // For backward compatibility - this is the final price customers pay
         
-        // Discount information - calculated from original and selling price
-        discountAmount: discountAmount, // Discount amount in TSh
-        discount: discountPercentage, // Discount percentage (0 if no discount)
+        // Discount information - automatically calculated from original and selling price
+        discountAmount: discountAmount,           // Discount amount in TSh
+        discount: discountPercentage,             // Discount percentage (0 if no discount)
         
         // 🔥 REQUIRED CHANGE 4: Category - send BOTH ID and NAME
         category_id: String(selectedCat.id),
@@ -597,16 +597,16 @@ const AdminView: React.FC<AdminViewProps> = ({
               ) : (
                 <div className="divide-y divide-gray-100">
                   {products.map(product => {
-                    // Safe price handling
-                    const priceNumber = Number((product as any).price ?? 0);
-                    const originalPriceNumber = Number((product as any).originalPrice ?? priceNumber);
-                    const displayPrice = Number.isFinite(priceNumber) ? priceNumber.toLocaleString() : '0';
+                    // PROFESSIONAL PRICING DISPLAY: Show both original and selling price if discounted
+                    const originalPriceNumber = Number((product as any).originalPrice ?? 0);
+                    const sellingPriceNumber = Number((product as any).sellingPrice ?? (product as any).price ?? 0);
+                    const displaySellingPrice = Number.isFinite(sellingPriceNumber) ? sellingPriceNumber.toLocaleString() : '0';
                     const displayOriginalPrice = Number.isFinite(originalPriceNumber) ? originalPriceNumber.toLocaleString() : '0';
                     
                     // Calculate discount if available
                     const discount = product.discount || 
-                      (originalPriceNumber > priceNumber 
-                        ? Math.round(((originalPriceNumber - priceNumber) / originalPriceNumber) * 100) 
+                      (originalPriceNumber > sellingPriceNumber 
+                        ? Math.round(((originalPriceNumber - sellingPriceNumber) / originalPriceNumber) * 100) 
                         : 0);
                     
                     return (
@@ -627,11 +627,11 @@ const AdminView: React.FC<AdminViewProps> = ({
                         <div className="flex-grow min-w-0">
                           <p className="text-sm font-bold truncate">{product.title}</p>
                           <div className="flex items-center space-x-3 mt-1">
-                            {/* Show selling price with original price if discounted */}
+                            {/* PROFESSIONAL PRICING DISPLAY: Show selling price with original price if discounted */}
                             {discount > 0 ? (
                               <div className="flex items-center space-x-2">
                                 <p className="text-xs font-black text-orange-600">
-                                  TSh {displayPrice}
+                                  TSh {displaySellingPrice}
                                 </p>
                                 <p className="text-xs font-black text-gray-400 line-through">
                                   TSh {displayOriginalPrice}
@@ -639,7 +639,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                               </div>
                             ) : (
                               <p className="text-xs font-black text-orange-600">
-                                TSh {displayPrice}
+                                TSh {displaySellingPrice}
                               </p>
                             )}
                             
@@ -669,7 +669,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            {/* 🔥 FIX: Display category_name if available, fall back to other fields */}
                             Category: {(product as any).category_name || product.categoryName || product.category || 'Uncategorized'}
                           </p>
                         </div>
@@ -812,7 +811,7 @@ const AdminView: React.FC<AdminViewProps> = ({
               </div>
             )}
 
-            {/* Price Preview Section - UPDATED */}
+            {/* PROFESSIONAL PRICE PREVIEW SECTION - Shows both prices and automatic discount */}
             {(formData.originalPrice || formData.sellingPrice) && (
               <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-100">
                 <h4 className="text-sm font-black text-green-800 uppercase tracking-wide mb-3">
@@ -847,6 +846,13 @@ const AdminView: React.FC<AdminViewProps> = ({
                   <div className="mt-4 pt-4 border-t border-green-200">
                     <p className="text-xs font-bold text-green-700 text-center">
                       💡 Discount calculated automatically: ({formData.originalPrice} - {formData.sellingPrice}) / {formData.originalPrice} × 100 = {calculateDiscountPercentage()}%
+                    </p>
+                  </div>
+                )}
+                {formData.originalPrice && formData.sellingPrice && calculateDiscountPercentage() === 0 && (
+                  <div className="mt-4 pt-4 border-t border-green-200">
+                    <p className="text-xs font-bold text-gray-500 text-center">
+                      ℹ️ No discount applied - selling price equals original price
                     </p>
                   </div>
                 )}
@@ -887,7 +893,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
               </div>
 
-              {/* Professional Pricing Section */}
+              {/* PROFESSIONAL PRICING SECTION - Set original price first, then selling price */}
               <div className="space-y-4">
                 <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">Professional Pricing</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -908,7 +914,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                       />
                     </div>
                     <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                      Price before any discount
+                      Price before any discount (set this first)
                     </p>
                   </div>
                   <div>
@@ -941,14 +947,14 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs font-bold text-gray-600">
-                    💡 <span className="text-orange-600">Professional Tip:</span> Enter the original price and selling price. 
+                    💡 <span className="text-orange-600">Professional Tip:</span> Enter the original price first, then the selling price. 
                     The discount percentage is calculated automatically: 
                     <span className="font-black"> ((Original - Selling) / Original) × 100</span>
                   </p>
                 </div>
               </div>
 
-              {/* Category - REQUIRED - UPDATED to use categoryId */}
+              {/* Category - REQUIRED */}
               <div>
                 <label className={labelClass}>Category *</label>
                 <select
