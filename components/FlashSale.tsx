@@ -1,4 +1,4 @@
-What about in Frashsale.tsx
+
 
 import React, { useState, useEffect } from 'react';
 import { COLORS } from '../constants';
