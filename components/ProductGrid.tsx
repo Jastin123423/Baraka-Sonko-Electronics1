@@ -1,17 +1,11 @@
+What about ProductGrid.tsx
 import React, { useEffect, useRef, useMemo } from 'react';
 import { COLORS, ICONS } from '../constants';
 import { Product } from '../types';
 
 const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ product, onClick }) => {
-  // Calculate selling price from original price and discount
-  const calculateSellingPrice = (originalPrice: number, discountPercent: number = 0) => {
-    return Math.round(originalPrice * (1 - discountPercent / 100));
-  };
-
-  // Get the selling price (either discounted or original)
-  const sellingPrice = product.discount 
-    ? calculateSellingPrice(product.originalPrice, product.discount)
-    : product.originalPrice;
+  // Calculate original price if not provided
+  const originalPrice = product.originalPrice || (product.discount ? Math.round(product.price * (1 + product.discount / 100)) : null);
 
   return (
     <div 
@@ -26,8 +20,8 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
           className="w-full h-auto object-cover block" 
         />
         
-        {/* Discount Badge - Top Left */}
-        {product.discount && product.discount > 0 && (
+        {/* Kikuu Style Discount Badge - Top Left */}
+        {product.discount && (
           <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[9px] px-1.5 py-0.5 font-bold rounded-sm z-10 shadow-sm">
             -{product.discount}%
           </div>
@@ -50,18 +44,17 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
           <div className="flex flex-col pt-1">
             <div className="flex items-baseline">
               <span className="text-[14px] font-black text-black">
-                TSh {sellingPrice.toLocaleString()}
+                TSh {product.price.toLocaleString()}
               </span>
             </div>
-            {/* Show original price with strikethrough if discounted */}
-            {product.discount && product.discount > 0 && (
+            {originalPrice && (
               <span className="text-[10px] text-gray-400 line-through">
-                TSh {product.originalPrice.toLocaleString()}
+                TSh {originalPrice.toLocaleString()}
               </span>
             )}
           </div>
           
-          {/* Rating only */}
+          {/* Rating only - Removed order count */}
           <div className="flex items-center mt-2">
             <div className="flex items-center space-x-0.5">
               <span className="text-[10px] text-orange-400">⭐</span>
