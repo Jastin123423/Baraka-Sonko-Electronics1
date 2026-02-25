@@ -373,7 +373,7 @@ const AllProductsView: React.FC<AllProductsViewProps> = ({
               <div className="text-[28px] font-black text-white mb-2 leading-none">OFF</div>
             </div>
             <div className="mt-2 text-[12px] font-black text-white/80">
-              Bei kali • Ubora wa Baraka Sonko Electronics
+              Bei Poa👍• Ndani Ya Baraka Sonko Electronics App
             </div>
           </div>
 
