@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Product, Comment } from '../types';
+import { Product } from '../types';
 import { COLORS } from '../constants';
 
 interface ProductDetailViewProps {
@@ -17,15 +17,85 @@ interface ProductDetailViewProps {
   onRecordView?: () => void;
 }
 
-// Large Watermarked Image Component specifically for Product Detail View
+/** -----------------------------
+ * ✅ UTIL: Safe string url
+ * ------------------------------*/
+const toUrl = (v: any) => String(v || '').trim();
+
+/** -----------------------------
+ * ✅ UTIL: Warm image cache
+ * ------------------------------*/
+const preloadImages = (urls: string[]) => {
+  const unique = Array.from(new Set(urls.map(toUrl).filter(Boolean)));
+  unique.forEach((src) => {
+    const img = new Image();
+    // Helps browsers prioritize decode
+    (img as any).decoding = 'async';
+    img.src = src;
+  });
+};
+
+/** -----------------------------
+ * ✅ UTIL: Warm video preload (best-effort)
+ * ------------------------------*/
+const usePreloadVideo = (videoUrl: string) => {
+  useEffect(() => {
+    const src = toUrl(videoUrl);
+    if (!src) return;
+
+    // Best-effort: ask browser to preload the video resource
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'video';
+    link.href = src;
+    // Some CDNs require crossOrigin; safe to omit unless you need it
+    document.head.appendChild(link);
+
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, [videoUrl]);
+};
+
+/** -----------------------------
+ * ✅ Large Watermarked Image (instant cache check + priority)
+ * ------------------------------*/
 const LargeWatermarkedImage: React.FC<{
   src: string;
   alt?: string;
   containerClass?: string;
   productId?: string;
-}> = ({ src, alt = '', containerClass = '', productId = '' }) => {
+  // performance hints:
+  priority?: boolean; // if true: eager + high priority
+}> = ({ src, alt = '', containerClass = '', productId = '', priority = false }) => {
   const logoUrl = 'https://media.barakasonko.store/download__82_-removebg-preview.png';
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // ✅ If image is already cached, show instantly (no skeleton flash)
+  useEffect(() => {
+    const s = toUrl(src);
+    if (!s) return;
+
+    let cancelled = false;
+    const test = new Image();
+    test.src = s;
+
+    if (test.complete) {
+      setIsLoaded(true);
+      return;
+    }
+
+    test.onload = () => {
+      if (!cancelled) setIsLoaded(true);
+    };
+    test.onerror = () => {
+      if (!cancelled) setIsLoaded(true); // avoid stuck skeleton
+    };
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
 
   return (
     <div
@@ -36,22 +106,28 @@ const LargeWatermarkedImage: React.FC<{
         pointerEvents: 'none',
       }}
       onContextMenu={(e) => e.preventDefault()}
+      data-product-id={productId}
     >
       {/* Main Product Image */}
       <img
-        src={src}
+        src={toUrl(src)}
         alt={alt}
-        className="w-full h-full object-contain transition-opacity duration-300 bg-gray-50"
+        className="w-full h-full object-contain transition-opacity duration-200 bg-gray-50"
         draggable="false"
-        loading="eager"
+        loading={priority ? 'eager' : 'lazy'}
+        // @ts-ignore (supported in modern browsers)
+        fetchPriority={priority ? 'high' : 'auto'}
+        decoding="async"
         style={{
           pointerEvents: 'auto',
-          opacity: isLoaded ? 1 : 0.8,
+          opacity: isLoaded ? 1 : 0.92,
+          transform: 'translateZ(0)', // helps paint smooth on mobile
         }}
         onLoad={() => setIsLoaded(true)}
         onError={(e) => {
           console.error('Failed to load image:', src);
           (e.target as HTMLImageElement).style.opacity = '1';
+          setIsLoaded(true);
         }}
       />
 
@@ -63,13 +139,16 @@ const LargeWatermarkedImage: React.FC<{
       {/* SINGLE LARGE HIGH-CONTRAST WATERMARK */}
       {isLoaded && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          {/* Large Center Watermark with HIGH CONTRAST */}
           <div className="relative w-40 h-40 opacity-80">
             <img
               src={logoUrl}
               alt="Watermark"
               className="w-full h-full object-contain"
               draggable="false"
+              loading="eager"
+              // @ts-ignore
+              fetchPriority="low"
+              decoding="async"
               style={{
                 filter: `
                   drop-shadow(0 0 15px rgba(0,0,0,0.8)) 
@@ -87,7 +166,6 @@ const LargeWatermarkedImage: React.FC<{
             />
           </div>
 
-          {/* Copyright Text with higher contrast */}
           <div
             className="absolute bottom-6 left-6 px-4 py-2 rounded-lg"
             style={{
@@ -108,7 +186,86 @@ const LargeWatermarkedImage: React.FC<{
   );
 };
 
-// Share Panel Component - REDESIGNED to be more compact and professional
+/** -----------------------------
+ * ✅ Video (instant poster + preloading)
+ * ------------------------------*/
+const ProductVideo: React.FC<{
+  src: string;
+  poster?: string;
+}> = ({ src, poster }) => {
+  const [ready, setReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Try to kickstart loading fast
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    // If it’s already buffered enough, mark ready
+    const onCanPlay = () => setReady(true);
+    const onLoadedData = () => setReady(true);
+
+    v.addEventListener('canplay', onCanPlay);
+    v.addEventListener('loadeddata', onLoadedData);
+
+    // Best effort: start fetching immediately
+    try {
+      v.load();
+    } catch {}
+
+    return () => {
+      v.removeEventListener('canplay', onCanPlay);
+      v.removeEventListener('loadeddata', onLoadedData);
+    };
+  }, [src]);
+
+  const url = toUrl(src);
+  if (!url) return null;
+
+  return (
+    <div className="rounded-2xl overflow-hidden bg-black aspect-video shadow-2xl relative">
+      {/* Poster is visible instantly even if network is slow */}
+      {!ready && poster ? (
+        <img
+          src={toUrl(poster)}
+          alt="Video poster"
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="eager"
+          // @ts-ignore
+          fetchPriority="high"
+          decoding="async"
+        />
+      ) : null}
+
+      {/* Soft loader overlay (only if slow) */}
+      {!ready && (
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-bold">
+            Loading video…
+          </div>
+        </div>
+      )}
+
+      <video
+        ref={videoRef}
+        src={url}
+        className="w-full h-full relative z-[1]"
+        controls
+        playsInline
+        preload="auto"
+        controlsList="nodownload"
+        poster={toUrl(poster)}
+        onCanPlay={() => setReady(true)}
+        onLoadedData={() => setReady(true)}
+        onError={() => setReady(true)} // avoid stuck overlay
+      >
+        Your browser does not support the video tag.
+      </video>
+    </div>
+  );
+};
+
+// Share Panel (unchanged from your file)
 const SharePanel: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -117,11 +274,8 @@ const SharePanel: React.FC<{
   shareImageUrl: string;
 }> = ({ isOpen, onClose, productTitle, productLink, shareImageUrl }) => {
   const [copied, setCopied] = useState(false);
-  const [isMobile] = useState(() => {
-    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  });
+  const [isMobile] = useState(() => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
 
-  // Generate share text
   const shareText = `Check out "${productTitle}" on BARAKA SONKO ELECTRONICS APP! 🛒\n${productLink}\n\n#barakasonko #electronics #tanzania`;
 
   const handleShare = (platform: 'whatsapp' | 'facebook' | 'instagram' | 'tiktok') => {
@@ -139,9 +293,6 @@ const SharePanel: React.FC<{
         );
         break;
       case 'instagram':
-        navigator.clipboard.writeText(productLink);
-        setCopied(true);
-        break;
       case 'tiktok':
         navigator.clipboard.writeText(productLink);
         setCopied(true);
@@ -162,15 +313,11 @@ const SharePanel: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
         className="bg-white w-full max-w-sm rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp max-h-[70vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Panel Header - COMPACT */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: COLORS.primary }}>
@@ -183,11 +330,7 @@ const SharePanel: React.FC<{
               <p className="text-xs text-gray-500">Share bidhaa hii na marafiki zako</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Close"
-          >
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Close">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -195,10 +338,8 @@ const SharePanel: React.FC<{
           </button>
         </div>
 
-        {/* Share Options - COMPACT */}
         <div className="p-4">
           <div className="grid grid-cols-4 gap-3 mb-4">
-            {/* WhatsApp */}
             <button
               onClick={() => handleShare('whatsapp')}
               className="flex flex-col items-center justify-center p-3 rounded-lg bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-all duration-200 active:scale-95"
@@ -212,7 +353,6 @@ const SharePanel: React.FC<{
               <span className="text-[10px] text-gray-500 mt-0.5">Share</span>
             </button>
 
-            {/* Facebook */}
             <button
               onClick={() => handleShare('facebook')}
               className="flex flex-col items-center justify-center p-3 rounded-lg bg-[#1877F2]/10 hover:bg-[#1877F2]/20 transition-all duration-200 active:scale-95"
@@ -226,7 +366,6 @@ const SharePanel: React.FC<{
               <span className="text-[10px] text-gray-500 mt-0.5">Share</span>
             </button>
 
-            {/* Instagram */}
             <button
               onClick={() => handleShare('instagram')}
               className="flex flex-col items-center justify-center p-3 rounded-lg bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10 hover:from-purple-500/20 hover:via-pink-500/20 hover:to-orange-500/20 transition-all duration-200 active:scale-95"
@@ -240,7 +379,6 @@ const SharePanel: React.FC<{
               <span className="text-[10px] text-gray-500 mt-0.5">Post</span>
             </button>
 
-            {/* TikTok */}
             <button
               onClick={() => handleShare('tiktok')}
               className="flex flex-col items-center justify-center p-3 rounded-lg bg-gray-900/10 hover:bg-gray-900/20 transition-all duration-200 active:scale-95"
@@ -255,7 +393,6 @@ const SharePanel: React.FC<{
             </button>
           </div>
 
-          {/* Link Copy Section */}
           <div className="mb-4">
             <p className="text-xs font-medium text-gray-700 mb-2">Copy link hapa:</p>
             <div className="flex items-center space-x-2">
@@ -279,7 +416,6 @@ const SharePanel: React.FC<{
           </p>
         </div>
 
-        {/* Close Button */}
         <div className="p-3 border-t border-gray-100">
           <button
             onClick={onClose}
@@ -301,34 +437,34 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   WatermarkedImage,
   onWhatsAppClick,
   onCallClick,
-  // Views
   viewCount = 0,
   onRecordView,
 }) => {
   const [activeImage, setActiveImage] = useState(0);
   const [showSharePanel, setShowSharePanel] = useState(false);
 
-  // Track if view has been recorded for current product
   const hasRecordedViewRef = useRef<string | null>(null);
 
-  const gallery = product.images && product.images.length > 0 ? product.images : [product.image];
-  const descImages =
-    (product as any).descriptionImages && (product as any).descriptionImages.length > 0
-      ? (product as any).descriptionImages
-      : [];
+  const gallery = useMemo(() => {
+    const imgs = Array.isArray((product as any).images) ? (product as any).images : [];
+    const main = toUrl((product as any).image);
+    const merged = [...imgs.map(toUrl).filter(Boolean)];
+    if (main && !merged.includes(main)) merged.unshift(main);
+    return merged.length ? merged : (main ? [main] : []);
+  }, [product]);
+
+  const descImages = useMemo(() => {
+    const di = Array.isArray((product as any).descriptionImages) ? (product as any).descriptionImages : [];
+    return di.map(toUrl).filter(Boolean);
+  }, [product]);
 
   const PHONE_NUMBER = '+255656738253';
 
-  // Best image to share (first available)
   const shareImageUrl = useMemo(() => {
-    const first =
-      (Array.isArray((product as any).images) && (product as any).images.find((x: any) => !!x)) ||
-      (product as any)?.image ||
-      '';
-    return String(first || '').trim();
-  }, [product]);
+    const first = gallery.find((x) => !!toUrl(x)) || toUrl((product as any)?.image);
+    return toUrl(first);
+  }, [gallery, product]);
 
-  // Build a shareable product link
   const productLink = useMemo(() => {
     try {
       const origin = window.location.origin;
@@ -339,7 +475,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   }, [(product as any).id]);
 
   const WHATSAPP_TEXT = useMemo(() => {
-    const title = String((product as any).title || 'Bidhaa').trim();
+    const title = toUrl((product as any).title) || 'Bidhaa';
     const price = Number((product as any).price || 0);
     const priceStr = Number.isFinite(price) ? price.toLocaleString() : '0';
 
@@ -351,27 +487,47 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     ].filter(Boolean);
 
     return lines.join('\n');
-  }, [(product as any).title, (product as any).price, shareImageUrl, productLink]);
+  }, [product, shareImageUrl, productLink]);
 
   const WHATSAPP_URL = useMemo(() => {
     const digits = PHONE_NUMBER.replace('+', '');
     return `https://wa.me/${digits}?text=${encodeURIComponent(WHATSAPP_TEXT)}`;
-  }, [PHONE_NUMBER, WHATSAPP_TEXT]);
+  }, [WHATSAPP_TEXT]);
 
-  // Record view only once per product page open
+  // ✅ Record view only once per product
   useEffect(() => {
     const pid = String((product as any).id);
     if (hasRecordedViewRef.current === pid) return;
     hasRecordedViewRef.current = pid;
     onRecordView?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [(product as any).id]); // IMPORTANT: do NOT depend on onRecordView
+  }, [(product as any).id]);
 
+  // ✅ Reset scroll when product changes
   useEffect(() => {
-    // Reset scroll when product changes
     const contentArea = document.getElementById('product-detail-scroll-area');
     if (contentArea) contentArea.scrollTo(0, 0);
   }, [(product as any).id]);
+
+  // ✅ PRELOAD ALL images as soon as product opens (fast perceived load)
+  useEffect(() => {
+    // Prioritize first images: gallery + first 2 desc + first 6 related thumbs
+    const priority = gallery.slice(0, 3);
+    const later = gallery.slice(3);
+    const descTop = descImages.slice(0, 2);
+
+    preloadImages([...priority, ...descTop]);
+
+    // Preload the rest shortly after (avoid blocking initial render)
+    const t = window.setTimeout(() => {
+      preloadImages([...later, ...descImages.slice(2)]);
+    }, 150);
+
+    return () => window.clearTimeout(t);
+  }, [gallery, descImages]);
+
+  // ✅ Preload video best-effort
+  usePreloadVideo(toUrl((product as any).videoUrl));
 
   const handleWhatsApp = () => {
     onWhatsAppClick?.();
@@ -383,18 +539,14 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     window.location.href = `tel:${PHONE_NUMBER}`;
   };
 
-  const handleShare = () => {
-    setShowSharePanel(true);
-  };
+  const handleShare = () => setShowSharePanel(true);
 
-  // Calculate original price if not provided
   const originalPriceValue =
     (product as any).originalPrice ||
     ((product as any).discount
       ? Math.round(Number((product as any).price || 0) * (1 + Number((product as any).discount) / 100))
       : null);
 
-  // Related products logic: products in same category, excluding current
   const relatedProducts = useMemo(() => {
     return (allProducts || [])
       .filter(
@@ -403,7 +555,15 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       .slice(0, 6);
   }, [allProducts, (product as any).id, (product as any).category]);
 
-  // Safe numbers for prices (prevents blank screens)
+  // Warm related thumbs too
+  useEffect(() => {
+    const thumbs = relatedProducts.map((p) => toUrl((p as any).image)).filter(Boolean);
+    if (thumbs.length) {
+      const t = window.setTimeout(() => preloadImages(thumbs), 250);
+      return () => window.clearTimeout(t);
+    }
+  }, [relatedProducts]);
+
   const safeSellingPrice = Number((product as any).price || 0);
   const sellingPriceStr = Number.isFinite(safeSellingPrice) ? safeSellingPrice.toLocaleString() : '0';
   const safeOriginal = Number(originalPriceValue || 0);
@@ -411,7 +571,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   return (
     <div className="fixed inset-0 bg-white z-[100] flex flex-col animate-fadeIn overflow-hidden">
-      {/* Top Header - Fixed at Top */}
+      {/* Top Header */}
       <div className="flex-shrink-0 bg-white/95 backdrop-blur-md flex items-center justify-between px-4 py-3 border-b border-gray-100 shadow-sm">
         <button onClick={onBack} className="p-2 -ml-2 text-gray-800 active:scale-90 transition-transform">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -420,11 +580,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </button>
         <div className="text-sm font-black text-gray-800 truncate px-4">BARAKA SONKO</div>
         <div className="flex items-center space-x-2">
-          <button
-            onClick={handleShare}
-            className="p-2 text-gray-800 hover:text-blue-600 transition-colors"
-            aria-label="Share"
-          >
+          <button onClick={handleShare} className="p-2 text-gray-800 hover:text-blue-600 transition-colors" aria-label="Share">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="18" cy="5" r="3" />
               <circle cx="6" cy="12" r="3" />
@@ -441,9 +597,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </div>
       </div>
 
-      {/* Scrollable Content Area */}
+      {/* Scrollable Content */}
       <div id="product-detail-scroll-area" className="flex-grow overflow-y-auto no-scrollbar bg-white">
-        {/* Hero Image Slider with HIGH-CONTRAST Watermark */}
+        {/* Hero Image Slider */}
         <div className="relative w-full aspect-square bg-[#f9f9f9] border-b border-gray-50">
           <div
             className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full"
@@ -460,37 +616,30 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   alt={`Product image ${idx + 1}`}
                   containerClass="w-full h-full"
                   productId={String((product as any).id)}
+                  priority={idx === 0 || idx === activeImage}
                 />
               </div>
             ))}
           </div>
+
           <div className="absolute bottom-4 right-4 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded-full font-bold backdrop-blur-sm">
-            {activeImage + 1} / {gallery.length}
+            {activeImage + 1} / {Math.max(gallery.length, 1)}
           </div>
         </div>
 
-        {/* Main Info */}
         <div className="p-4">
-          {/* ✅ PRICE ONE-LINE (no shifting) + Views */}
+          {/* Price + Views */}
           <div className="mb-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-baseline gap-2 min-w-0 flex-nowrap">
-                {/* Original (slashed) */}
                 {originalPriceValue ? (
-                  <span className="text-[12px] text-gray-400 line-through whitespace-nowrap">
-                    TSh {originalPriceStr}
-                  </span>
+                  <span className="text-[12px] text-gray-400 line-through whitespace-nowrap">TSh {originalPriceStr}</span>
                 ) : null}
 
-                {/* Selling (smaller so it fits) */}
-                <span
-                  className="text-xl md:text-2xl font-black whitespace-nowrap"
-                  style={{ color: COLORS.primary }}
-                >
+                <span className="text-xl md:text-2xl font-black whitespace-nowrap" style={{ color: COLORS.primary }}>
                   TSh {sellingPriceStr}
                 </span>
 
-                {/* Discount badge */}
                 {(product as any).discount ? (
                   <span className="bg-red-50 text-red-600 text-[10px] px-2 py-1 rounded-lg font-black uppercase tracking-tighter whitespace-nowrap">
                     -{Number((product as any).discount)}% OFF
@@ -498,7 +647,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 ) : null}
               </div>
 
-              {/* View Counter */}
               <div className="flex items-center space-x-1.5 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100 flex-shrink-0">
                 <div className="animate-blink text-sm">👁️</div>
                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-tight whitespace-nowrap">
@@ -510,15 +658,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
           <h1 className="text-lg font-bold text-gray-800 leading-tight mb-2">{(product as any).title}</h1>
 
-          {/* Social Interaction Row */}
+          {/* Share Row */}
           <div className="flex items-center justify-between py-4 mb-6 border-y border-gray-100">
             <button
               onClick={handleShare}
               className="flex items-center space-x-2 px-5 py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 active:scale-95 shadow-lg"
-              style={{
-                backgroundColor: COLORS.primary,
-                boxShadow: `0 6px 16px ${COLORS.primary}40`,
-              }}
+              style={{ backgroundColor: COLORS.primary, boxShadow: `0 6px 16px ${COLORS.primary}40` }}
               aria-label="Share on social media"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
@@ -529,23 +674,10 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           </div>
 
           {/* Video */}
-          {(product as any).videoUrl ? (
+          {toUrl((product as any).videoUrl) ? (
             <div className="mb-8 py-6 border-y border-gray-50">
-              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
-                Product Experience
-              </h3>
-              <div className="rounded-2xl overflow-hidden bg-black aspect-video shadow-2xl relative">
-                <video
-                  src={String((product as any).videoUrl)}
-                  className="w-full h-full"
-                  controls
-                  playsInline
-                  preload="metadata"
-                  controlsList="nodownload"
-                >
-                  Your browser does not support the video tag.
-                </video>
-              </div>
+              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Product Experience</h3>
+              <ProductVideo src={toUrl((product as any).videoUrl)} poster={shareImageUrl} />
             </div>
           ) : null}
 
@@ -554,13 +686,13 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">About This Product</h3>
             <div className="text-sm text-gray-600 leading-relaxed font-medium">
               <p>
-                Welcome to BARAKA SONKO. Our {(product as any).title} is selected for its superior quality and
-                durability. Perfect for professional or home use.
+                Welcome to BARAKA SONKO. Our {(product as any).title} is selected for its superior quality and durability.
+                Perfect for professional or home use.
               </p>
             </div>
           </div>
 
-          {/* Gallery Details Images */}
+          {/* Details images */}
           {descImages.length > 0 ? (
             <div className="mt-8 space-y-3">
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Gallery Details</h3>
@@ -571,6 +703,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     alt={`Product detail ${idx + 1}`}
                     containerClass="w-full h-auto"
                     productId={`${(product as any).id}-desc-${idx}`}
+                    priority={idx < 2}
                   />
                 </div>
               ))}
@@ -622,30 +755,19 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </div>
       </div>
 
-      {/* FIXED BOTTOM ACTION BAR */}
+      {/* Bottom Bar */}
       <div className="flex-shrink-0 bg-white border-t border-gray-100 p-3 pb-6 flex items-center justify-between space-x-3 shadow-[0_-4px_16px_rgba(0,0,0,0.05)]">
-        {/* Call Button */}
         <button
           onClick={handleCall}
           className="flex-1 flex flex-col items-center justify-center py-2 rounded-xl border-2 active:scale-95 transition-all"
           style={{ borderColor: COLORS.primary, color: COLORS.primary }}
         >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
           </svg>
           <span className="text-[10px] font-black uppercase tracking-widest mt-0.5">Call</span>
         </button>
 
-        {/* WhatsApp Order */}
         <button
           onClick={handleWhatsApp}
           className="flex-[2] flex items-center justify-center space-x-2 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all shadow-lg"
@@ -658,7 +780,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </button>
       </div>
 
-      {/* Share Panel */}
       <SharePanel
         isOpen={showSharePanel}
         onClose={() => setShowSharePanel(false)}
