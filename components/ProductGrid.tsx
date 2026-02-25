@@ -7,18 +7,17 @@ import { Product } from '../types';
 ================================= */
 
 const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ product, onClick }) => {
-  
   // Ensure numbers are always safe
-  const price = Number(product.price ?? 0);
-  const discount = Number(product.discount ?? 0);
+  const price = Number((product as any).price ?? 0);
+  const discount = Number((product as any).discount ?? 0);
 
   const safePrice = Number.isFinite(price) ? price : 0;
   const safeDiscount = Number.isFinite(discount) ? discount : 0;
 
   // Calculate original price if not provided
   const originalPrice =
-    product.originalPrice && Number.isFinite(Number(product.originalPrice))
-      ? Number(product.originalPrice)
+    (product as any).originalPrice && Number.isFinite(Number((product as any).originalPrice))
+      ? Number((product as any).originalPrice)
       : safeDiscount > 0
         ? Math.round(safePrice * (1 + safeDiscount / 100))
         : null;
@@ -35,8 +34,8 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
     >
       <div className="relative w-full">
         <img
-          src={product.image || ''}
-          alt={product.title || 'Product'}
+          src={(product as any).image || ''}
+          alt={(product as any).title || 'Product'}
           className="w-full h-auto object-cover block"
         />
 
@@ -55,28 +54,24 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
 
       <div className="p-2.5 flex-grow flex flex-col justify-between">
         <div className="space-y-1">
-          
           {/* Title */}
           <h3 className="text-[11px] text-gray-800 line-clamp-2 leading-tight font-medium h-8">
-            {product.title || 'Untitled'}
+            {(product as any).title || 'Untitled'}
           </h3>
 
-          {/* Pricing Section */}
-          <div className="flex flex-col pt-1">
-            
+          {/* Pricing Section (SAME LINE) */}
+          <div className="flex items-center gap-1 pt-1">
             {/* ORIGINAL PRICE FIRST (with slash) */}
             {showDiscount && originalPrice && (
-              <span className="text-[10px] text-gray-400 line-through leading-none">
+              <span className="text-[10px] text-gray-400 line-through">
                 TSh {originalPrice.toLocaleString()}
               </span>
             )}
 
             {/* SELLING PRICE */}
-            <div className="flex items-baseline">
-              <span className="text-[14px] font-black text-black">
-                TSh {safePrice.toLocaleString()}
-              </span>
-            </div>
+            <span className="text-[14px] font-black text-black">
+              TSh {safePrice.toLocaleString()}
+            </span>
           </div>
 
           {/* Rating */}
@@ -84,8 +79,8 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
             <div className="flex items-center space-x-0.5">
               <span className="text-[10px] text-orange-400">⭐</span>
               <span className="text-[10px] text-gray-500 font-bold">
-                {typeof product.rating === 'number'
-                  ? product.rating.toFixed(1)
+                {typeof (product as any).rating === 'number'
+                  ? (product as any).rating.toFixed(1)
                   : '5.0'}
               </span>
             </div>
@@ -169,7 +164,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
         <div className="flex-1 flex flex-col">
           {colLeft.map((p, idx) => (
             <ProductCard
-              key={`${p.id}-left-${idx}`}
+              key={`${(p as any).id}-left-${idx}`}
               product={p}
               onClick={() => onProductClick(p)}
             />
@@ -179,7 +174,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
         <div className="flex-1 flex flex-col">
           {colRight.map((p, idx) => (
             <ProductCard
-              key={`${p.id}-right-${idx}`}
+              key={`${(p as any).id}-right-${idx}`}
               product={p}
               onClick={() => onProductClick(p)}
             />
