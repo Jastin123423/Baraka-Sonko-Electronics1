@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ProductGrid from './ProductGrid';
 import { Product } from '../types';
+import { COLORS } from '../constants';
 
 interface AllProductsViewProps {
   products: Product[];
@@ -28,10 +29,22 @@ const productImage = (p: any) =>
 
 /**
  * ==========================================================
+ * ✅ Helper: safe price
+ * ==========================================================
+ */
+const productPrice = (p: any) => {
+  const v = p?.price ?? p?.amount ?? p?.sale_price ?? p?.salePrice ?? p?.cost ?? 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * ==========================================================
  * ✅ Rotating (non-scrollable) row
  * - NOT user scrollable
  * - Very slow auto-rotation
  * - Clickable cards
+ * - Full width (no side gaps)
  * ==========================================================
  */
 const RotatingRow: React.FC<{
@@ -39,13 +52,16 @@ const RotatingRow: React.FC<{
   items: Product[];
   onClick: (p: Product) => void;
   intervalMs?: number; // very slow rotation
-}> = ({ title, items, onClick, intervalMs = 12000 }) => {
+}> = ({ title, items, onClick, intervalMs = 14000 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerW, setContainerW] = useState(0);
   const [index, setIndex] = useState(0);
   const [animate, setAnimate] = useState(true);
 
-  // Measure container width (responsive)
+  // Layout constants
+  const GAP = 10;
+  const CARD_W = 132;
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -57,76 +73,71 @@ const RotatingRow: React.FC<{
     return () => ro.disconnect();
   }, []);
 
-  // Layout constants
-  const GAP = 10;
-  const CARD_W = 128;
-
   const perView = useMemo(() => {
     if (!containerW) return 3;
     const n = Math.floor((containerW + GAP) / (CARD_W + GAP));
     return Math.max(1, Math.min(4, n));
   }, [containerW]);
 
-  // Build a loopable list so it feels continuous
-  const loopItems = useMemo(() => {
-    const clean = (items || []).filter(Boolean);
-    if (clean.length === 0) return [];
-    // duplicate to allow sliding without empty space
-    return [...clean, ...clean, ...clean];
-  }, [items]);
+  const cleanItems = useMemo(() => (items || []).filter(Boolean), [items]);
 
-  // Auto rotate very slowly
+  const loopItems = useMemo(() => {
+    if (cleanItems.length === 0) return [];
+    return [...cleanItems, ...cleanItems, ...cleanItems];
+  }, [cleanItems]);
+
+  const canRotate = cleanItems.length > perView;
+
+  // Start in the middle copy
   useEffect(() => {
-    if (!items || items.length <= perView) return;
+    if (!canRotate) {
+      setIndex(0);
+      return;
+    }
+    setIndex(cleanItems.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canRotate, cleanItems.length]);
+
+  // Auto rotate slowly
+  useEffect(() => {
+    if (!canRotate) return;
 
     const t = setInterval(() => {
       setIndex((prev) => prev + 1);
     }, intervalMs);
 
     return () => clearInterval(t);
-  }, [items, perView, intervalMs]);
+  }, [canRotate, intervalMs]);
 
-  // Reset index cleanly after passing one full set
-  useEffect(() => {
-    if (!items || items.length === 0) return;
-    const baseLen = items.length;
-
-    // when index passes baseLen*2, snap back near baseLen (middle copy) without animation
-    if (index >= baseLen * 2) {
-      setAnimate(false);
-      setIndex(baseLen); // snap to middle copy
-      // re-enable animation next tick
-      requestAnimationFrame(() => requestAnimationFrame(() => setAnimate(true)));
-    }
-  }, [index, items]);
-
-  const canRotate = items && items.length > perView;
-  const startIndex = items.length; // start from middle copy for smoothness
-
+  // Snap back (seamless loop)
   useEffect(() => {
     if (!canRotate) return;
-    // initialize at middle copy once
-    setIndex(startIndex);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canRotate]);
+    const baseLen = cleanItems.length;
+
+    if (index >= baseLen * 2) {
+      setAnimate(false);
+      setIndex(baseLen);
+      requestAnimationFrame(() => requestAnimationFrame(() => setAnimate(true)));
+    }
+  }, [index, canRotate, cleanItems.length]);
 
   const translateX = -(index * (CARD_W + GAP));
 
   return (
-    <div className="rounded-2xl overflow-hidden">
+    <div className="w-full overflow-hidden">
+      {/* Row header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-center gap-2">
           <span className="text-[15px] font-black text-white">{title}</span>
           {canRotate && (
-            <span className="text-[11px] font-black text-white/80">
-              • Inajizungusha polepole
-            </span>
+            <span className="text-[11px] font-black text-white/80">• Inajizungusha polepole</span>
           )}
         </div>
         <div className="text-[11px] font-black text-white/80">Upcoming</div>
       </div>
 
-      <div ref={containerRef} className="px-3 pb-3">
+      {/* Cards (NOT scrollable) */}
+      <div ref={containerRef} className="w-full px-4 pb-4">
         <div className="overflow-hidden rounded-2xl">
           <div
             className="flex"
@@ -135,31 +146,27 @@ const RotatingRow: React.FC<{
               transform: `translateX(${translateX}px)`,
               transition: animate ? 'transform 900ms ease-in-out' : 'none',
               willChange: 'transform',
-              padding: '8px',
-              // not scrollable by user
-              touchAction: 'pan-y',
+              padding: '10px',
+              touchAction: 'pan-y', // prevents horizontal swipe scroll
             }}
           >
-            {loopItems.map((p, i) => {
+            {loopItems.map((p: any, i) => {
               const img = productImage(p);
-              const price =
-                (p as any)?.price ??
-                (p as any)?.amount ??
-                (p as any)?.sale_price ??
-                (p as any)?.salePrice;
+              const price = productPrice(p);
+              const priceStr = price ? price.toLocaleString() : '—';
 
               return (
                 <button
-                  key={`${(p as any)?.id ?? 'p'}-${i}`}
+                  key={`${String(p?.id ?? 'p')}-${i}`}
                   onClick={() => onClick(p)}
-                  className="flex-shrink-0 bg-white rounded-2xl overflow-hidden text-left active:scale-[0.99] transition-transform"
+                  className="flex-shrink-0 bg-white rounded-2xl overflow-hidden text-left active:scale-[0.99] transition-transform border border-white/40"
                   style={{ width: CARD_W }}
                 >
-                  <div className="relative w-full h-[90px] bg-gray-100">
+                  <div className="relative w-full h-[92px] bg-gray-100">
                     {img ? (
                       <img
                         src={img}
-                        alt={(p as any)?.name ?? 'Product'}
+                        alt={String(p?.title ?? p?.name ?? 'Product')}
                         className="w-full h-full object-cover"
                         loading="lazy"
                       />
@@ -169,21 +176,23 @@ const RotatingRow: React.FC<{
                       </div>
                     )}
 
-                    {/* Badge like "Low stocks" */}
-                    <div className="absolute top-2 left-2 px-2 py-1 rounded-full text-[10px] font-black bg-[#7C3AED] text-white shadow">
+                    {/* Badge */}
+                    <div
+                      className="absolute top-2 left-2 px-2 py-1 rounded-full text-[10px] font-black text-white shadow"
+                      style={{ backgroundColor: COLORS.primary }}
+                    >
                       Low stocks
                     </div>
                   </div>
 
                   <div className="px-2.5 py-2">
                     <div className="text-[11px] font-black text-gray-900 line-clamp-2 leading-tight">
-                      {(p as any)?.name ?? (p as any)?.title ?? 'Bidhaa'}
+                      {String(p?.title ?? p?.name ?? 'Bidhaa')}
                     </div>
 
-                    <div className="mt-1 text-[12px] font-black text-gray-900">
-                      {typeof price === 'number' || typeof price === 'string'
-                        ? `TZS ${String(price)}`
-                        : 'TZS —'}
+                    {/* ✅ PRICE uses Baraka primary color */}
+                    <div className="mt-1 text-[12px] font-black" style={{ color: COLORS.primary }}>
+                      TSh {priceStr}
                     </div>
                   </div>
                 </button>
@@ -192,14 +201,10 @@ const RotatingRow: React.FC<{
           </div>
         </div>
 
-        {/* subtle hint dots */}
         {canRotate && (
           <div className="mt-2 flex items-center justify-center gap-1.5 opacity-90">
-            {Array.from({ length: Math.min(6, items.length) }).map((_, d) => (
-              <div
-                key={d}
-                className="h-1.5 w-1.5 rounded-full bg-white/70"
-              />
+            {Array.from({ length: Math.min(6, cleanItems.length) }).map((_, d) => (
+              <div key={d} className="h-1.5 w-1.5 rounded-full bg-white/70" />
             ))}
           </div>
         )}
@@ -214,100 +219,83 @@ const AllProductsView: React.FC<AllProductsViewProps> = ({
   onLoadMore,
   isLoading,
 }) => {
-  // Use existing All Products items for the top “deals” sections
-  const flashProducts = useMemo(() => products.slice(0, 10), [products]);
-  const brandProducts = useMemo(() => products.slice(10, 20), [products]);
+  // Use All Products items for the top rotating rows
+  const flashProducts = useMemo(() => (products || []).slice(0, 12), [products]);
+  const brandProducts = useMemo(() => (products || []).slice(12, 24), [products]);
 
   return (
     <div className="animate-fadeIn min-h-screen pb-20 bg-[#F0F2F5]">
       {/* =========================
-          ✅ TOP HERO + DEALS AREA
+          ✅ FULL-WIDTH BARAKA SONKO HERO + DEALS (NO SIDE GAPS)
           ========================= */}
-      <div className="bg-white border-b border-gray-100">
-        {/* Sticky-like top strip */}
-        <div className="px-5 pt-6 pb-3">
-          <div className="text-[12px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="bg-white border-b border-gray-100 w-full">
+        {/* Header */}
+        <div className="pt-6 pb-3 px-4">
+          <div className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
             Baraka Sonko Electronics
           </div>
-          <div className="mt-1 flex items-end gap-2">
-            <div className="text-2xl font-black text-gray-900 tracking-tight">
-              Bidhaa Zote
+          <div className="mt-1 text-2xl font-black text-gray-900 tracking-tight">Bidhaa Zote</div>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1.5">
+            Infinite Collection • Randomized for You
+          </p>
+        </div>
+
+        {/* HERO (edge-to-edge) */}
+        <div
+          className="relative overflow-hidden w-full px-4 py-6"
+          style={{
+            background: `linear-gradient(135deg, ${COLORS.primary} 0%, #0A58CA 55%, #063A8F 100%)`,
+          }}
+        >
+          <div className="relative z-10">
+            <div className="text-[22px] font-black text-white leading-none">Ofa Mpaka</div>
+            <div className="mt-1 flex items-end gap-2">
+              <div className="text-[64px] font-black text-white leading-none">80%</div>
+              <div className="text-[28px] font-black text-white mb-2 leading-none">OFF</div>
+            </div>
+            <div className="mt-2 text-[12px] font-black text-white/80">
+              Bei kali • Ubora wa Baraka Sonko Electronics
             </div>
           </div>
+
+          {/* Decorative circles */}
+          <div className="absolute -top-16 -right-16 w-56 h-56 bg-white/10 rounded-full" />
+          <div className="absolute bottom-[-60px] left-[-60px] w-56 h-56 bg-white/10 rounded-full" />
         </div>
 
-        {/* Hero Banner */}
-        <div className="px-4 pb-4">
-          <div className="relative overflow-hidden rounded-3xl p-5"
-               style={{
-                 background:
-                   'linear-gradient(135deg, rgba(231,212,255,1) 0%, rgba(178,124,255,1) 55%, rgba(117,70,255,1) 100%)',
-               }}
-          >
-            <div className="relative z-10">
-              <div className="text-[22px] sm:text-[24px] font-black text-white tracking-tight leading-none">
-                Ofa Mpaka
-              </div>
-              <div className="mt-1 flex items-baseline gap-2">
-                <div className="text-[54px] font-black text-white leading-none">
-                  80%
-                </div>
-                <div className="text-[28px] font-black text-white leading-none">
-                  OFF
-                </div>
-              </div>
-
-              <div className="mt-2 text-[12px] font-black text-white/85">
-                Chagua bidhaa — bei kali, ubora wa Baraka Sonko.
-              </div>
-            </div>
-
-            {/* Decorative bubbles */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/15 blur-[1px]" />
-            <div className="absolute top-10 -right-6 w-24 h-24 rounded-full bg-white/10" />
-            <div className="absolute -bottom-12 -left-12 w-44 h-44 rounded-full bg-white/10" />
-          </div>
+        {/* FLASH DEALS (full width, slow rotation) */}
+        <div
+          className="w-full"
+          style={{
+            background: `linear-gradient(135deg, ${COLORS.primary} 0%, #0A58CA 100%)`,
+          }}
+        >
+          <RotatingRow
+            title="Flash Deals"
+            items={flashProducts}
+            onClick={onProductClick}
+            intervalMs={15000} // very slow
+          />
         </div>
 
-        {/* Flash Deals (slow rotation, not scrollable) */}
-        <div className="px-4 pb-3">
-          <div
-            className="rounded-3xl overflow-hidden"
-            style={{
-              background:
-                'linear-gradient(135deg, rgba(231,212,255,1) 0%, rgba(178,124,255,1) 100%)',
-            }}
-          >
-            <RotatingRow
-              title="Flash Deals"
-              items={flashProducts}
-              onClick={onProductClick}
-              intervalMs={14000} // very slow
-            />
-          </div>
-        </div>
-
-        {/* Brand Deals (slow rotation, not scrollable) */}
-        <div className="px-4 pb-5">
-          <div
-            className="rounded-3xl overflow-hidden"
-            style={{
-              background:
-                'linear-gradient(135deg, rgba(95,35,160,1) 0%, rgba(60,20,120,1) 100%)',
-            }}
-          >
-            <RotatingRow
-              title="Brand Deals"
-              items={brandProducts}
-              onClick={onProductClick}
-              intervalMs={16000} // even slower
-            />
-          </div>
+        {/* BRAND DEALS (full width, even slower rotation) */}
+        <div
+          className="w-full"
+          style={{
+            background: `linear-gradient(135deg, #0A58CA 0%, #063A8F 100%)`,
+          }}
+        >
+          <RotatingRow
+            title="Brand Deals"
+            items={brandProducts}
+            onClick={onProductClick}
+            intervalMs={17000} // very slow
+          />
         </div>
       </div>
 
       {/* =========================
-          ✅ EXISTING GRID
+          ✅ GRID (kept as-is)
           ========================= */}
       <ProductGrid
         products={products}
