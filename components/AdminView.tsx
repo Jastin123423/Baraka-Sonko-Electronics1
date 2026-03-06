@@ -14,10 +14,17 @@ interface AdminViewProps {
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'withdraw';
 type UploadType = 'image' | 'video' | 'desc_image';
 
-const AdminView: React.FC<AdminViewProps> = ({ 
-  products, 
-  categories, 
-  onAddProduct, 
+type ProductImageItem = {
+  url: string;
+  price: string;
+  label?: string;
+  isMain?: boolean;
+};
+
+const AdminView: React.FC<AdminViewProps> = ({
+  products,
+  categories,
+  onAddProduct,
   onDeleteProduct,
   WatermarkedImage,
   VideoPlayer,
@@ -31,55 +38,50 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
 
-  // Updated formData with originalPrice and sellingPrice
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    originalPrice: '',     // Original/actual price (set this first)
-    sellingPrice: '',      // Discounted selling price (set this second)
-    categoryId: '', 
+    originalPrice: '',
+    sellingPrice: '',
+    categoryId: '',
     videoUrl: '',
-    images: [] as string[],
+    images: [] as ProductImageItem[],
     descriptionImages: [] as string[],
   });
 
-  // Calculate discount percentage based on original price and selling price
   const calculateDiscountPercentage = () => {
     const originalPrice = parseFloat(formData.originalPrice);
     const sellingPrice = parseFloat(formData.sellingPrice);
-    
+
     if (!originalPrice || originalPrice <= 0 || !sellingPrice || sellingPrice <= 0) {
       return 0;
     }
-    
+
     if (sellingPrice >= originalPrice) {
-      return 0; // No discount if selling price is higher or equal
+      return 0;
     }
-    
+
     const discount = ((originalPrice - sellingPrice) / originalPrice) * 100;
     return Math.round(discount);
   };
 
-  // Calculate discount amount in TSh
   const calculateDiscountAmount = () => {
     const originalPrice = parseFloat(formData.originalPrice);
     const sellingPrice = parseFloat(formData.sellingPrice);
-    
+
     if (!originalPrice || originalPrice <= 0 || !sellingPrice || sellingPrice <= 0) {
       return 0;
     }
-    
+
     if (sellingPrice >= originalPrice) {
       return 0;
     }
-    
+
     return originalPrice - sellingPrice;
   };
 
-  // Track actual upload status
   const isActuallyUploading = uploadingCount > 0;
 
-  // Add debug logging helper
   const addDebugLog = (message: string) => {
     console.log(`🔍 ${message}`);
     setDebugLogs(prev => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${message}`]);
@@ -100,27 +102,21 @@ const AdminView: React.FC<AdminViewProps> = ({
     fetchStats();
   }, []);
 
-  /**
-   * Upload single file using RAW binary mode with comprehensive debugging
-   */
   const uploadSingleFile = async (file: File): Promise<string> => {
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(7);
     const safeFilename = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-');
     const uniqueFilename = `${timestamp}-${randomStr}-${safeFilename}`;
-    
-    // Create upload progress tracker
     const progressKey = `${uniqueFilename}-${timestamp}`;
-    
+
     addDebugLog(`Starting upload: ${file.name} (type: "${file.type}", size: ${file.size} bytes)`);
     addDebugLog(`Generated filename: ${uniqueFilename}`);
-    
+
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      
-      // Increment upload counter
+
       setUploadingCount(c => c + 1);
-      
+
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable) {
           const percentComplete = Math.round((event.loaded / event.total) * 100);
@@ -132,23 +128,20 @@ const AdminView: React.FC<AdminViewProps> = ({
       });
 
       const cleanup = () => {
-        // Clean up progress tracking
         setUploadProgress(prev => {
           const newProgress = { ...prev };
           delete newProgress[progressKey];
           return newProgress;
         });
-        // Decrement upload counter
         setUploadingCount(c => Math.max(0, c - 1));
       };
 
       xhr.addEventListener('load', () => {
         cleanup();
-        
+
         addDebugLog(`Upload response for ${file.name}: HTTP ${xhr.status}`);
         addDebugLog(`Response preview: ${xhr.responseText?.slice(0, 200)}`);
-        
-        // Parse response with robust error handling
+
         let response: any = null;
         try {
           response = JSON.parse(xhr.responseText);
@@ -160,9 +153,8 @@ const AdminView: React.FC<AdminViewProps> = ({
           );
         }
 
-        // Extract URL from response
-        const url = Array.isArray(response?.data) 
-          ? response.data[0] 
+        const url = Array.isArray(response?.data)
+          ? response.data[0]
           : response?.data || response?.url;
 
         if (xhr.status >= 200 && xhr.status < 300 && response?.success !== false && url) {
@@ -187,47 +179,38 @@ const AdminView: React.FC<AdminViewProps> = ({
         reject(new Error('Upload cancelled'));
       });
 
-      // Use absolute URL to avoid path issues
       const endpoint = new URL('/api/upload', window.location.origin);
       endpoint.searchParams.set('filename', uniqueFilename);
-      
+
       addDebugLog(`Making request to: ${endpoint.toString()}`);
-      
+
       xhr.open('POST', endpoint.toString());
       xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
       xhr.send(file);
     });
   };
 
-  /**
-   * Handle file upload with comprehensive debugging
-   */
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     type: UploadType
   ) => {
-    // Clear previous errors
     setUploadError('');
-    
-    // Step 1: Debug - Check if handler is firing
-    console.log("🎯 handleFileUpload FIRED with type:", type);
+
+    console.log('🎯 handleFileUpload FIRED with type:', type);
     addDebugLog(`handleFileUpload triggered for ${type}`);
-    
-    // ✅ CRITICAL FIX: copy files first (FileList can be cleared when input value is reset)
+
     const files = e.currentTarget.files;
     const fileList: File[] = files ? Array.from(files) : [];
-    
-    console.log("📁 files selected:", fileList.length);
-    console.log("📁 file details:", fileList.map(f => `${f.name} (type: "${f.type}") ${f.size} bytes`));
-    
+
+    console.log('📁 files selected:', fileList.length);
+    console.log('📁 file details:', fileList.map(f => `${f.name} (type: "${f.type}") ${f.size} bytes`));
+
     if (fileList.length === 0) {
       addDebugLog('❌ No files selected or picker cancelled');
       return;
     }
-    
-    // ✅ Now safe to reset input
+
     e.currentTarget.value = '';
-    
     setUploadProgress({});
 
     try {
@@ -235,14 +218,13 @@ const AdminView: React.FC<AdminViewProps> = ({
 
       addDebugLog(`Processing ${fileList.length} file(s) for ${type}`);
 
-      // Validate file sizes and types
       for (const file of fileList) {
         const fileName = file.name.toLowerCase();
-        
+
         if (type === 'image' || type === 'desc_image') {
-          // Android-safe validation: check both MIME type and file extension
-          const looksLikeImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(fileName);
-          
+          const looksLikeImage =
+            file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(fileName);
+
           if (!looksLikeImage) {
             throw new Error(`Invalid file type: ${file.name}. Please upload images only.`);
           }
@@ -250,9 +232,9 @@ const AdminView: React.FC<AdminViewProps> = ({
             throw new Error(`Image too large: ${file.name}. Maximum size is 10MB.`);
           }
         } else if (type === 'video') {
-          // Android-safe validation for videos
-          const looksLikeVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|avi|mkv|flv|wmv)$/i.test(fileName);
-          
+          const looksLikeVideo =
+            file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|avi|mkv|flv|wmv)$/i.test(fileName);
+
           if (!looksLikeVideo) {
             throw new Error(`Invalid file type: ${file.name}. Please upload videos only.`);
           }
@@ -262,7 +244,6 @@ const AdminView: React.FC<AdminViewProps> = ({
         }
       }
 
-      // Upload files sequentially
       for (const file of fileList) {
         try {
           addDebugLog(`Starting upload of: ${file.name}`);
@@ -275,24 +256,38 @@ const AdminView: React.FC<AdminViewProps> = ({
         }
       }
 
-      // Update form data with uploaded URLs
-      console.log("📊 upload complete. URLs received:", uploadedUrls);
-      
+      console.log('📊 upload complete. URLs received:', uploadedUrls);
+
       if (type === 'image') {
         setFormData(prev => {
-          const newImages = [...prev.images, ...uploadedUrls].slice(0, 10);
-          console.log("🔄 Setting new images array:", newImages);
-          addDebugLog(`Setting ${newImages.length} images (${uploadedUrls.length} new)`);
+          const existing = prev.images.length;
+          const newImages: ProductImageItem[] = [
+            ...prev.images,
+            ...uploadedUrls.map((url, index) => ({
+              url,
+              price: prev.sellingPrice || '',
+              label: '',
+              isMain: existing === 0 && index === 0,
+            })),
+          ].slice(0, 10);
+
+          const hasMain = newImages.some(img => img.isMain);
+          const normalized = hasMain
+            ? newImages
+            : newImages.map((img, i) => ({ ...img, isMain: i === 0 }));
+
+          console.log('🔄 Setting new images array:', normalized);
+          addDebugLog(`Setting ${normalized.length} images (${uploadedUrls.length} new)`);
+
           return {
             ...prev,
-            images: newImages,
+            images: normalized,
           };
         });
-        
       } else if (type === 'desc_image') {
         setFormData(prev => {
           const newDescImages = [...prev.descriptionImages, ...uploadedUrls].slice(0, 20);
-          console.log("🔄 Setting new descriptionImages:", newDescImages);
+          console.log('🔄 Setting new descriptionImages:', newDescImages);
           return {
             ...prev,
             descriptionImages: newDescImages,
@@ -301,32 +296,38 @@ const AdminView: React.FC<AdminViewProps> = ({
       } else if (type === 'video') {
         if (uploadedUrls.length > 0) {
           setFormData(prev => {
-            console.log("🔄 Setting videoUrl:", uploadedUrls[0]);
+            console.log('🔄 Setting videoUrl:', uploadedUrls[0]);
             return { ...prev, videoUrl: uploadedUrls[0] };
           });
         }
       }
 
       addDebugLog(`✅ Successfully updated form state for ${type}`);
-
     } catch (err: any) {
-      // Show error to user
       const errorMessage = err?.message || 'Upload failed. Please check your connection and try again.';
-      console.error("🔥 handleFileUpload error:", err);
+      console.error('🔥 handleFileUpload error:', err);
       addDebugLog(`❌ Error: ${errorMessage}`);
       setUploadError(errorMessage);
     } finally {
       setUploadProgress({});
-      console.log("🏁 handleFileUpload completed");
+      console.log('🏁 handleFileUpload completed');
     }
   };
 
   const removeImage = (index: number, type: 'gallery' | 'desc') => {
     if (type === 'gallery') {
-      setFormData(prev => ({ 
-        ...prev, 
-        images: prev.images.filter((_, i) => i !== index) 
-      }));
+      setFormData(prev => {
+        const nextImages = prev.images.filter((_, i) => i !== index);
+        const normalized = nextImages.map((img, i) => ({
+          ...img,
+          isMain: i === 0 ? true : false,
+        }));
+
+        return {
+          ...prev,
+          images: normalized,
+        };
+      });
       addDebugLog(`Removed gallery image at index ${index}`);
     } else {
       setFormData(prev => ({
@@ -337,32 +338,73 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
+  const updateImagePrice = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.map((img, i) =>
+        i === index ? { ...img, price: value } : img
+      ),
+    }));
+  };
+
+  const updateImageLabel = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.map((img, i) =>
+        i === index ? { ...img, label: value } : img
+      ),
+    }));
+  };
+
+  const setMainImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.map((img, i) => ({
+        ...img,
+        isMain: i === index,
+      })),
+    }));
+  };
+
+  const syncEmptyImagePricesWithSellingPrice = (newSellingPrice: string) => {
+    setFormData(prev => ({
+      ...prev,
+      sellingPrice: newSellingPrice,
+      images: prev.images.map(img => ({
+        ...img,
+        price: img.price || newSellingPrice,
+      })),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // CRITICAL FIX: Prevent submit during upload
     if (isActuallyUploading) {
       alert('⏳ Please wait for all uploads to finish before publishing');
       return;
     }
 
-    // DEBUG: Log everything before validation
-    console.log("🚀 SUBMIT CALLED!");
-    console.log("📋 SUBMIT images:", formData.images);
-    console.log("📋 SUBMIT images.length:", formData.images.length);
-    console.log("📋 SUBMIT uploadingCount:", uploadingCount);
-    console.log("📋 SUBMIT isActuallyUploading:", isActuallyUploading);
-    console.log("📋 SUBMIT uploadProgress keys:", Object.keys(uploadProgress));
-    console.log("📋 FULL formData:", formData);
+    console.log('🚀 SUBMIT CALLED!');
+    console.log('📋 SUBMIT images:', formData.images);
+    console.log('📋 SUBMIT images.length:', formData.images.length);
+    console.log('📋 SUBMIT uploadingCount:', uploadingCount);
+    console.log('📋 SUBMIT isActuallyUploading:', isActuallyUploading);
+    console.log('📋 SUBMIT uploadProgress keys:', Object.keys(uploadProgress));
+    console.log('📋 FULL formData:', formData);
 
-    // 🔥 REQUIRED CHANGE 1: Add main image guarantee
-    const mainImage = formData.images[0] || formData.images.at(-1) || '';
+    const mainImageObj =
+      formData.images.find(img => img.isMain) ||
+      formData.images[0] ||
+      formData.images.at(-1);
+
+    const mainImage = mainImageObj?.url || '';
+
     if (!mainImage) {
       alert('❌ At least one main image is required');
       return;
     }
 
-    // Validation
     if (!formData.title.trim()) {
       alert('❌ Product title is required');
       return;
@@ -370,7 +412,7 @@ const AdminView: React.FC<AdminViewProps> = ({
 
     const originalPrice = parseFloat(formData.originalPrice);
     const sellingPrice = parseFloat(formData.sellingPrice);
-    
+
     if (!formData.originalPrice || isNaN(originalPrice) || originalPrice <= 0) {
       alert('❌ Please enter a valid original price');
       return;
@@ -391,67 +433,63 @@ const AdminView: React.FC<AdminViewProps> = ({
       return;
     }
 
-    // 🔥 REQUIRED CHANGE 2: Category validation using categoryId
     if (!formData.categoryId) {
       alert('❌ Please select a category');
       return;
     }
 
-    // Find the selected category
     const selectedCat = categories.find(c => String(c.id) === String(formData.categoryId));
     if (!selectedCat) {
       alert('❌ Please select a valid category');
       return;
     }
 
-    // Calculate discount
     const discountPercentage = calculateDiscountPercentage();
     const discountAmount = calculateDiscountAmount();
 
     try {
-      // Build payload with all required fields including view count starting at 0
+      const imageVariants = formData.images.map((img, index) => ({
+        url: img.url,
+        price: Number(img.price || formData.sellingPrice || 0),
+        label: img.label || '',
+        isMain: !!img.isMain,
+        position: index,
+      }));
+
       const payload = {
-        // Core fields
         title: formData.title.trim(),
         description: formData.description.trim(),
-        
-        // 🔥 REQUIRED CHANGE 3: Add main image fields
+
         image: mainImage,
         image_url: mainImage,
-        images: formData.images,
-        image_urls: formData.images,
-        
-        // Description images
+        images: formData.images.map(img => img.url),
+        image_urls: formData.images.map(img => img.url),
+
+        imageVariants,
+        image_variants: imageVariants,
+
         descriptionImages: formData.descriptionImages,
         description_images: formData.descriptionImages,
-        
-        // Video
+
         videoUrl: formData.videoUrl || '',
         video_url: formData.videoUrl || '',
-        
-        // PROFESSIONAL PRICING: Original price first, then selling price
-        originalPrice: originalPrice,           // Original price before discount (set this first)
-        sellingPrice: sellingPrice,              // Selling price after discount (set this second)
-        price: sellingPrice,                      // For backward compatibility - this is the final price customers pay
-        
-        // Discount information - automatically calculated from original and selling price
-        discountAmount: discountAmount,           // Discount amount in TSh
-        discount: discountPercentage,             // Discount percentage (0 if no discount)
-        
-        // 🔥 REQUIRED CHANGE 4: Category - send BOTH ID and NAME
+
+        originalPrice,
+        sellingPrice,
+        price: sellingPrice,
+
+        discountAmount,
+        discount: discountPercentage,
+
         category_id: String(selectedCat.id),
         categoryId: String(selectedCat.id),
         category_name: selectedCat.name,
         categoryName: selectedCat.name,
-        
-        // Keep these for compatibility with existing code
         category: selectedCat.name,
-        
-        // View count - starts at 0 when product is posted
+
         views: 0,
         viewCount: 0,
-        
-        // Metadata
+
         rating: 5.0,
         status: 'online',
         createdAt: new Date().toISOString(),
@@ -463,20 +501,18 @@ const AdminView: React.FC<AdminViewProps> = ({
       const success = await onAddProduct(payload as any);
 
       if (success) {
-        // Reset form on success
         setIsAdding(false);
         setFormData({
           title: '',
           description: '',
           originalPrice: '',
           sellingPrice: '',
-          categoryId: '', // Reset to empty
+          categoryId: '',
           videoUrl: '',
           images: [],
           descriptionImages: [],
         });
-        
-        // Show success message
+
         alert('✅ Product published successfully!');
       } else {
         alert('❌ Failed to save product. Please try again.');
@@ -493,21 +529,22 @@ const AdminView: React.FC<AdminViewProps> = ({
     return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
   };
 
-  const inputClass = 'w-full bg-white border border-gray-300 rounded-xl px-4 py-4 text-base font-bold outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200';
-  const labelClass = 'block text-xs font-black text-gray-500 uppercase mb-2 ml-1 tracking-wide';
+  const inputClass =
+    'w-full bg-white border border-gray-300 rounded-xl px-4 py-4 text-base font-bold outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200';
+  const labelClass =
+    'block text-xs font-black text-gray-500 uppercase mb-2 ml-1 tracking-wide';
 
-  // Safe check for dev mode to avoid import.meta issues
-  const isDev = typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV;
+  const isDev =
+    typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV;
 
   return (
     <div className="bg-[#fcfcfc] min-h-screen">
-      {/* Debug Panel - Can be toggled in development */}
       {isDev && debugLogs.length > 0 && (
         <div className="fixed top-20 right-4 w-80 max-h-96 bg-black/90 text-white text-xs p-3 rounded-lg overflow-y-auto z-50">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-bold">Upload Debug Logs</h3>
-            <button 
-              onClick={() => setDebugLogs([])} 
+            <button
+              onClick={() => setDebugLogs([])}
               className="text-xs bg-red-600 px-2 py-1 rounded"
             >
               Clear
@@ -521,7 +558,6 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      {/* Top Navigation Tabs */}
       <div className="bg-white sticky top-0 z-10 border-b border-gray-100 px-2 shadow-sm">
         <div className="flex space-x-6 py-4 px-2 overflow-x-auto no-scrollbar">
           {(['dashboard', 'products', 'orders', 'withdraw'] as AdminTab[]).map(tab => (
@@ -529,8 +565,8 @@ const AdminView: React.FC<AdminViewProps> = ({
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`text-[11px] font-black uppercase tracking-wider transition-all relative pb-2 whitespace-nowrap ${
-                activeTab === tab 
-                  ? 'text-orange-600' 
+                activeTab === tab
+                  ? 'text-orange-600'
                   : 'text-gray-400 hover:text-gray-600'
               }`}
             >
@@ -544,7 +580,6 @@ const AdminView: React.FC<AdminViewProps> = ({
       </div>
 
       <div className="p-4 pb-12 max-w-4xl mx-auto">
-        {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
           <div className="space-y-4">
             <h1 className="text-xl font-black text-gray-800 mb-4">Dashboard Overview</h1>
@@ -572,7 +607,6 @@ const AdminView: React.FC<AdminViewProps> = ({
           </div>
         )}
 
-        {/* Products Tab */}
         {activeTab === 'products' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -597,24 +631,21 @@ const AdminView: React.FC<AdminViewProps> = ({
               ) : (
                 <div className="divide-y divide-gray-100">
                   {products.map(product => {
-                    // PROFESSIONAL PRICING DISPLAY: Show both original and selling price if discounted
                     const originalPriceNumber = Number((product as any).originalPrice ?? 0);
                     const sellingPriceNumber = Number((product as any).sellingPrice ?? (product as any).price ?? 0);
                     const displaySellingPrice = Number.isFinite(sellingPriceNumber) ? sellingPriceNumber.toLocaleString() : '0';
                     const displayOriginalPrice = Number.isFinite(originalPriceNumber) ? originalPriceNumber.toLocaleString() : '0';
-                    
-                    // Calculate discount if available
-                    const discount = product.discount || 
-                      (originalPriceNumber > sellingPriceNumber 
-                        ? Math.round(((originalPriceNumber - sellingPriceNumber) / originalPriceNumber) * 100) 
+
+                    const discount = product.discount ||
+                      (originalPriceNumber > sellingPriceNumber
+                        ? Math.round(((originalPriceNumber - sellingPriceNumber) / originalPriceNumber) * 100)
                         : 0);
-                    
+
                     return (
                       <div
                         key={product.id}
                         className="p-4 flex items-center space-x-4 hover:bg-gray-50 transition-colors"
                       >
-                        {/* Use WatermarkedImage for product preview */}
                         <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-200">
                           <WatermarkedImage
                             src={product.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+'}
@@ -627,7 +658,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                         <div className="flex-grow min-w-0">
                           <p className="text-sm font-bold truncate">{product.title}</p>
                           <div className="flex items-center space-x-3 mt-1">
-                            {/* PROFESSIONAL PRICING DISPLAY: Show selling price with original price if discounted */}
                             {discount > 0 ? (
                               <div className="flex items-center space-x-2">
                                 <p className="text-xs font-black text-orange-600">
@@ -642,14 +672,13 @@ const AdminView: React.FC<AdminViewProps> = ({
                                 TSh {displaySellingPrice}
                               </p>
                             )}
-                            
+
                             {discount > 0 && (
                               <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full">
                                 -{discount}%
                               </span>
                             )}
-                            
-                            {/* View Count with Eye Icon */}
+
                             <div className="flex items-center space-x-1 text-gray-500">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -659,10 +688,10 @@ const AdminView: React.FC<AdminViewProps> = ({
                                 {product.views?.toLocaleString() || product.viewCount?.toLocaleString() || '0'}
                               </span>
                             </div>
-                            
+
                             <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                              product.status === 'online' 
-                                ? 'bg-green-100 text-green-700' 
+                              product.status === 'online'
+                                ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-100 text-gray-700'
                             }`}>
                               {product.status}
@@ -672,7 +701,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                             Category: {(product as any).category_name || product.categoryName || product.category || 'Uncategorized'}
                           </p>
                         </div>
-                        <button 
+                        <button
                           onClick={() => onDeleteProduct(product.id)}
                           className="text-gray-300 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"
                           title="Delete product"
@@ -690,7 +719,6 @@ const AdminView: React.FC<AdminViewProps> = ({
           </div>
         )}
 
-        {/* Orders Tab */}
         {activeTab === 'orders' && (
           <div className="text-center py-12 text-gray-400">
             <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -701,7 +729,6 @@ const AdminView: React.FC<AdminViewProps> = ({
           </div>
         )}
 
-        {/* Withdraw Tab */}
         {activeTab === 'withdraw' && (
           <div className="text-center py-12 text-gray-400">
             <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -713,13 +740,12 @@ const AdminView: React.FC<AdminViewProps> = ({
         )}
       </div>
 
-      {/* Add Product Modal */}
       {isAdding && (
         <div className="fixed inset-0 bg-black/75 z-[110] flex flex-col">
           <div className="bg-white w-full h-full p-4 md:p-6 overflow-y-auto">
             <div className="flex justify-between items-center mb-6 pb-4 border-b">
               <h2 className="text-xl md:text-2xl font-black text-gray-800">Add New Product</h2>
-              <button 
+              <button
                 onClick={() => setIsAdding(false)}
                 className="text-3xl font-light text-gray-400 hover:text-gray-700 transition-colors"
                 disabled={isActuallyUploading}
@@ -728,7 +754,6 @@ const AdminView: React.FC<AdminViewProps> = ({
               </button>
             </div>
 
-            {/* Upload Error Display */}
             {uploadError && (
               <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
                 <div className="flex items-start">
@@ -745,7 +770,6 @@ const AdminView: React.FC<AdminViewProps> = ({
               </div>
             )}
 
-            {/* Upload Progress Indicator */}
             {isActuallyUploading && Object.keys(uploadProgress).length > 0 && (
               <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
                 <div className="flex items-center justify-between mb-2">
@@ -757,7 +781,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                   </span>
                 </div>
                 <div className="w-full bg-blue-100 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${getTotalUploadProgress()}%` }}
                   ></div>
@@ -768,7 +792,6 @@ const AdminView: React.FC<AdminViewProps> = ({
               </div>
             )}
 
-            {/* Upload Summary Section */}
             {(formData.images.length > 0 || formData.videoUrl || formData.descriptionImages.length > 0) && (
               <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
                 <h4 className="text-sm font-black text-blue-800 uppercase tracking-wide mb-3">
@@ -811,7 +834,6 @@ const AdminView: React.FC<AdminViewProps> = ({
               </div>
             )}
 
-            {/* PROFESSIONAL PRICE PREVIEW SECTION - Shows both prices and automatic discount */}
             {(formData.originalPrice || formData.sellingPrice) && (
               <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-100">
                 <h4 className="text-sm font-black text-green-800 uppercase tracking-wide mb-3">
@@ -860,10 +882,9 @@ const AdminView: React.FC<AdminViewProps> = ({
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6 pb-20">
-              {/* Basic Information */}
               <div className="space-y-4">
                 <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">Basic Information</h3>
-                
+
                 <div>
                   <label className={labelClass}>Product Title *</label>
                   <input
@@ -893,7 +914,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
               </div>
 
-              {/* PROFESSIONAL PRICING SECTION - Set original price first, then selling price */}
               <div className="space-y-4">
                 <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">Professional Pricing</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -925,7 +945,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                         type="number"
                         className={`${inputClass} pl-12`}
                         value={formData.sellingPrice}
-                        onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })}
+                        onChange={e => syncEmptyImagePricesWithSellingPrice(e.target.value)}
                         placeholder="8000"
                         min="0"
                         step="100"
@@ -947,14 +967,13 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs font-bold text-gray-600">
-                    💡 <span className="text-orange-600">Professional Tip:</span> Enter the original price first, then the selling price. 
-                    The discount percentage is calculated automatically: 
+                    💡 <span className="text-orange-600">Professional Tip:</span> Enter the original price first, then the selling price.
+                    The discount percentage is calculated automatically:
                     <span className="font-black"> ((Original - Selling) / Original) × 100</span>
                   </p>
                 </div>
               </div>
 
-              {/* Category - REQUIRED */}
               <div>
                 <label className={labelClass}>Category *</label>
                 <select
@@ -981,7 +1000,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </p>
               </div>
 
-              {/* Gallery Images */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <label className={labelClass}>
@@ -1004,41 +1022,87 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </button>
                   )}
                 </div>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {formData.images.map((url, index) => (
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {formData.images.map((imageItem, index) => (
                     <div
                       key={index}
-                      className="relative aspect-square border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-orange-400 hover:shadow-lg"
+                      className="relative border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-orange-400 hover:shadow-lg"
                     >
-                      <div className="relative w-full h-full overflow-hidden">
-                        {/* Use WatermarkedImage for preview in admin too */}
+                      <div className="relative aspect-square w-full overflow-hidden">
                         <WatermarkedImage
-                          src={url}
+                          src={imageItem.url}
                           alt={`Gallery ${index + 1}`}
                           containerClass="w-full h-full"
                           productId={`temp-${index}`}
                           isProduct={true}
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index, 'gallery')}
+                          className="absolute top-1 right-1 bg-black/80 text-white w-7 h-7 flex items-center justify-center rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                          disabled={isActuallyUploading}
+                          title="Remove image"
+                        >
+                          &times;
+                        </button>
+
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                          <p className="text-[10px] text-white font-bold text-center">
+                            {imageItem.isMain ? 'Main Image' : `Image #${index + 1}`}
+                          </p>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index, 'gallery')}
-                        className="absolute top-1 right-1 bg-black/80 text-white w-7 h-7 flex items-center justify-center rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                        disabled={isActuallyUploading}
-                        title="Remove image"
-                      >
-                        &times;
-                      </button>
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                        <p className="text-[10px] text-white font-bold text-center">
-                          {index === 0 ? 'Main Image' : `Image #${index + 1}`}
-                        </p>
+
+                      <div className="p-3 space-y-3 bg-white border-t">
+                        <div>
+                          <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">
+                            Thumbnail Price
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="100"
+                            value={imageItem.price}
+                            onChange={(e) => updateImagePrice(index, e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-orange-500"
+                            placeholder="Enter price"
+                            disabled={isActuallyUploading}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">
+                            Label (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={imageItem.label || ''}
+                            onChange={(e) => updateImageLabel(index, e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-orange-500"
+                            placeholder="e.g. Red, XL, 128GB"
+                            disabled={isActuallyUploading}
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setMainImage(index)}
+                          className={`w-full text-[11px] font-black py-2 rounded-lg transition ${
+                            imageItem.isMain
+                              ? 'bg-orange-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          disabled={isActuallyUploading}
+                        >
+                          {imageItem.isMain ? 'MAIN IMAGE' : 'SET AS MAIN'}
+                        </button>
                       </div>
                     </div>
                   ))}
-                  
+
                   {formData.images.length < 10 && (
                     <label className={`aspect-square border-2 border-dashed ${
                       isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
@@ -1049,11 +1113,11 @@ const AdminView: React.FC<AdminViewProps> = ({
                         </svg>
                       </div>
                       <span className="text-xs font-bold text-gray-400 text-center px-2">
-                        {isActuallyUploading ? 'Uploading...' : 
-                          formData.images.length === 0 
-                            ? 'Click to upload images' 
-                            : `Add more (${10 - formData.images.length} left)`
-                        }
+                        {isActuallyUploading
+                          ? 'Uploading...'
+                          : formData.images.length === 0
+                          ? 'Click to upload images'
+                          : `Add more (${10 - formData.images.length} left)`}
                       </span>
                       <input
                         type="file"
@@ -1067,12 +1131,19 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </label>
                   )}
                 </div>
+
+                {formData.images.length > 0 && (
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-3">
+                    <p className="text-xs font-bold text-orange-700">
+                      Each image can now have its own price and label. This is useful for different colors, sizes, storage options, or variants shown in the same product gallery.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Product Video */}
               <div className="space-y-4">
                 <label className={labelClass}>Product Video (Optional)</label>
-                
+
                 {formData.videoUrl ? (
                   <div className="relative group">
                     <div className="aspect-video rounded-xl overflow-hidden bg-black border-2 border-gray-200">
@@ -1122,7 +1193,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                 )}
               </div>
 
-              {/* Description Images */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <label className={labelClass}>
@@ -1145,7 +1215,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </button>
                   )}
                 </div>
-                
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {formData.descriptionImages.map((url, index) => (
                     <div
@@ -1153,7 +1223,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                       className="relative aspect-square border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-purple-400 hover:shadow-lg"
                     >
                       <div className="relative w-full h-full overflow-hidden">
-                        {/* Use WatermarkedImage for description images too */}
                         <WatermarkedImage
                           src={url}
                           alt={`Description ${index + 1}`}
@@ -1179,7 +1248,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                       </div>
                     </div>
                   ))}
-                  
+
                   {formData.descriptionImages.length < 20 && (
                     <label className={`aspect-square border-2 border-dashed ${
                       isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-purple-500 cursor-pointer'
@@ -1190,11 +1259,11 @@ const AdminView: React.FC<AdminViewProps> = ({
                         </svg>
                       </div>
                       <span className="text-xs font-bold text-gray-400 text-center px-2">
-                        {isActuallyUploading ? 'Uploading...' : 
-                          formData.descriptionImages.length === 0 
-                            ? 'Click to add description images' 
-                            : `Add more (${20 - formData.descriptionImages.length} left)`
-                        }
+                        {isActuallyUploading
+                          ? 'Uploading...'
+                          : formData.descriptionImages.length === 0
+                          ? 'Click to add description images'
+                          : `Add more (${20 - formData.descriptionImages.length} left)`}
                       </span>
                       <input
                         type="file"
@@ -1207,13 +1276,12 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </label>
                   )}
                 </div>
-                
+
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
                   These images appear at the bottom of the product description section.
                 </p>
               </div>
 
-              {/* Professional Features Summary */}
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                 <h4 className="text-sm font-black text-blue-800 uppercase tracking-wide mb-3">
                   🚀 Professional Features Summary
@@ -1259,14 +1327,13 @@ const AdminView: React.FC<AdminViewProps> = ({
                       </svg>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-gray-700">Professional Pricing</p>
-                      <p className="text-[10px] text-gray-500">Original price + Selling price = Automatic discount</p>
+                      <p className="text-xs font-bold text-gray-700">Per-Image Pricing</p>
+                      <p className="text-[10px] text-gray-500">Every gallery image can have its own price and label</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Submit Buttons */}
               <div className="sticky bottom-0 bg-white pt-6 pb-4 border-t border-gray-100">
                 <div className="flex space-x-3">
                   <button
