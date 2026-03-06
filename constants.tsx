@@ -33,21 +33,45 @@ export const BANNERS: Banner[] = [
   { id: '3', image: 'https://picsum.photos/seed/sonko3/800/400', link: '#' },
 ];
 
-export const CATEGORIES: Category[] = [
+// Optional: Create separate arrays for different category types
+export const ELECTRONICS_CATEGORIES: Category[] = [
   { id: '1', name: 'Mobiles', icon: '📱' },
   { id: '2', name: 'Spika', icon: '🔊' },
   { id: '3', name: 'Mic', icon: '🎤' },
   { id: '4', name: 'Subwoofer', icon: '📻' },
   { id: '5', name: 'Fridge', icon: '🧊' },
   { id: '6', name: 'TV', icon: '📺' },
-  { id: '7', name: 'Mobile accessories', icon: '🎧' },
-  { id: '8', name: 'TV accessories', icon: '🔌' },
+  { id: '17', name: 'AC', icon: '❄️' },
+];
+
+export const AUDIO_CATEGORIES: Category[] = [
   { id: '9', name: 'Guitars', icon: '🎸' },
   { id: '10', name: 'Keyboards', icon: '🎹' },
   { id: '11', name: 'Drums', icon: '🥁' },
   { id: '12', name: 'Mixers', icon: '🎚️' },
+  { id: '21', name: 'Hon Speaker', icon: '📢' },
+  { id: '22', name: 'Column Speaker', icon: '🗼' },
+  { id: '27', name: 'Manyanga/Dufu', icon: '🥁' },
+  { id: '28', name: 'Studio Accessories', icon: '🎙️' },
+];
+
+export const ACCESSORIES_SPARES: Category[] = [
+  { id: '7', name: 'Mobile accessories', icon: '🎧' },
+  { id: '8', name: 'TV accessories', icon: '🔌' },
   { id: '13', name: 'Spares', icon: '⚙️' },
-  { id: '14', name: 'Bidhaa Zote', icon: '📦' },
+  { id: '15', name: 'Tv Stendi/Stand', icon: '🪑' },
+  { id: '16', name: 'Mic Stendi/Stand', icon: '🎤' },
+  { id: '18', name: 'Capacitor', icon: '⚡' },
+  { id: '19', name: 'Resistor', icon: '〰️' },
+  { id: '20', name: 'AC Spare', icon: '🔧' },
+  { id: '23', name: 'Brenda Spare', icon: '🔩' },
+];
+
+export const HOME_UTILITY: Category[] = [
+  { id: '24', name: 'Taa/Lights', icon: '💡' },
+  { id: '25', name: 'Wire/Waya', icon: '🔌' },
+  { id: '26', name: 'Scales/Mizani', icon: '⚖️' },
+  { id: '29', name: 'Solar Panels', icon: '☀️' },
 ];
 
 export const MOCK_PRODUCTS: Product[] = [
