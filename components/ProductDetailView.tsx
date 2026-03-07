@@ -12,15 +12,36 @@ interface ProductDetailViewProps {
   Banner?: React.ComponentType<any>;
   onWhatsAppClick?: () => void;
   onCallClick?: () => void;
-  // Views
   viewCount?: number;
   onRecordView?: () => void;
 }
+
+type ImageVariant = {
+  url: string;
+  price?: number;
+  label?: string;
+  isMain?: boolean;
+  position?: number;
+};
 
 /** -----------------------------
  * ✅ UTIL: Safe string url
  * ------------------------------*/
 const toUrl = (v: any) => String(v || '').trim();
+
+/** -----------------------------
+ * ✅ UTIL: Safe JSON parse
+ * ------------------------------*/
+const safeJsonParse = <T,>(value: any, fallback: T): T => {
+  try {
+    if (Array.isArray(value)) return value as T;
+    if (typeof value === 'string' && value.trim()) return JSON.parse(value) as T;
+    if (value && typeof value === 'object') return value as T;
+    return fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 /** -----------------------------
  * ✅ UTIL: Warm image cache
@@ -29,26 +50,23 @@ const preloadImages = (urls: string[]) => {
   const unique = Array.from(new Set(urls.map(toUrl).filter(Boolean)));
   unique.forEach((src) => {
     const img = new Image();
-    // Helps browsers prioritize decode
     (img as any).decoding = 'async';
     img.src = src;
   });
 };
 
 /** -----------------------------
- * ✅ UTIL: Warm video preload (best-effort)
+ * ✅ UTIL: Warm video preload
  * ------------------------------*/
 const usePreloadVideo = (videoUrl: string) => {
   useEffect(() => {
     const src = toUrl(videoUrl);
     if (!src) return;
 
-    // Best-effort: ask browser to preload the video resource
     const link = document.createElement('link');
     link.rel = 'preload';
     link.as = 'video';
     link.href = src;
-    // Some CDNs require crossOrigin; safe to omit unless you need it
     document.head.appendChild(link);
 
     return () => {
@@ -58,20 +76,18 @@ const usePreloadVideo = (videoUrl: string) => {
 };
 
 /** -----------------------------
- * ✅ Large Watermarked Image (instant cache check + priority)
+ * ✅ Large Watermarked Image
  * ------------------------------*/
 const LargeWatermarkedImage: React.FC<{
   src: string;
   alt?: string;
   containerClass?: string;
   productId?: string;
-  // performance hints:
-  priority?: boolean; // if true: eager + high priority
+  priority?: boolean;
 }> = ({ src, alt = '', containerClass = '', productId = '', priority = false }) => {
   const logoUrl = 'https://media.barakasonko.store/download__82_-removebg-preview.png';
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // ✅ If image is already cached, show instantly (no skeleton flash)
   useEffect(() => {
     const s = toUrl(src);
     if (!s) return;
@@ -89,7 +105,7 @@ const LargeWatermarkedImage: React.FC<{
       if (!cancelled) setIsLoaded(true);
     };
     test.onerror = () => {
-      if (!cancelled) setIsLoaded(true); // avoid stuck skeleton
+      if (!cancelled) setIsLoaded(true);
     };
 
     return () => {
@@ -108,20 +124,19 @@ const LargeWatermarkedImage: React.FC<{
       onContextMenu={(e) => e.preventDefault()}
       data-product-id={productId}
     >
-      {/* Main Product Image */}
       <img
         src={toUrl(src)}
         alt={alt}
         className="w-full h-full object-contain transition-opacity duration-200 bg-gray-50"
         draggable="false"
         loading={priority ? 'eager' : 'lazy'}
-        // @ts-ignore (supported in modern browsers)
+        // @ts-ignore
         fetchPriority={priority ? 'high' : 'auto'}
         decoding="async"
         style={{
           pointerEvents: 'auto',
           opacity: isLoaded ? 1 : 0.92,
-          transform: 'translateZ(0)', // helps paint smooth on mobile
+          transform: 'translateZ(0)',
         }}
         onLoad={() => setIsLoaded(true)}
         onError={(e) => {
@@ -131,12 +146,10 @@ const LargeWatermarkedImage: React.FC<{
         }}
       />
 
-      {/* Loading skeleton */}
       {!isLoaded && (
         <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
       )}
 
-      {/* SINGLE LARGE HIGH-CONTRAST WATERMARK */}
       {isLoaded && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           <div className="relative w-40 h-40 opacity-80">
@@ -187,7 +200,7 @@ const LargeWatermarkedImage: React.FC<{
 };
 
 /** -----------------------------
- * ✅ Video (instant poster + preloading)
+ * ✅ Video
  * ------------------------------*/
 const ProductVideo: React.FC<{
   src: string;
@@ -196,19 +209,16 @@ const ProductVideo: React.FC<{
   const [ready, setReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Try to kickstart loading fast
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
 
-    // If it’s already buffered enough, mark ready
     const onCanPlay = () => setReady(true);
     const onLoadedData = () => setReady(true);
 
     v.addEventListener('canplay', onCanPlay);
     v.addEventListener('loadeddata', onLoadedData);
 
-    // Best effort: start fetching immediately
     try {
       v.load();
     } catch {}
@@ -224,7 +234,6 @@ const ProductVideo: React.FC<{
 
   return (
     <div className="rounded-2xl overflow-hidden bg-black aspect-video shadow-2xl relative">
-      {/* Poster is visible instantly even if network is slow */}
       {!ready && poster ? (
         <img
           src={toUrl(poster)}
@@ -237,7 +246,6 @@ const ProductVideo: React.FC<{
         />
       ) : null}
 
-      {/* Soft loader overlay (only if slow) */}
       {!ready && (
         <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center">
           <div className="px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-bold">
@@ -257,7 +265,7 @@ const ProductVideo: React.FC<{
         poster={toUrl(poster)}
         onCanPlay={() => setReady(true)}
         onLoadedData={() => setReady(true)}
-        onError={() => setReady(true)} // avoid stuck overlay
+        onError={() => setReady(true)}
       >
         Your browser does not support the video tag.
       </video>
@@ -265,7 +273,6 @@ const ProductVideo: React.FC<{
   );
 };
 
-// Share Panel (unchanged from your file)
 const SharePanel: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -274,7 +281,6 @@ const SharePanel: React.FC<{
   shareImageUrl: string;
 }> = ({ isOpen, onClose, productTitle, productLink, shareImageUrl }) => {
   const [copied, setCopied] = useState(false);
-  const [isMobile] = useState(() => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
 
   const shareText = `Check out "${productTitle}" on BARAKA SONKO ELECTRONICS APP! 🛒\n${productLink}\n\n#barakasonko #electronics #tanzania`;
 
@@ -444,19 +450,91 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const [showSharePanel, setShowSharePanel] = useState(false);
 
   const hasRecordedViewRef = useRef<string | null>(null);
+  const heroScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const imageVariants = useMemo(() => {
+    const raw = (product as any).image_variants ?? (product as any).imageVariants ?? [];
+    const parsed = safeJsonParse<ImageVariant[]>(raw, []);
+    return Array.isArray(parsed) ? parsed : [];
+  }, [product]);
 
   const gallery = useMemo(() => {
-    const imgs = Array.isArray((product as any).images) ? (product as any).images : [];
-    const main = toUrl((product as any).image);
-    const merged = [...imgs.map(toUrl).filter(Boolean)];
-    if (main && !merged.includes(main)) merged.unshift(main);
-    return merged.length ? merged : (main ? [main] : []);
-  }, [product]);
+    const variantUrls = imageVariants.map(v => toUrl(v.url)).filter(Boolean);
+
+    const imgs = Array.isArray((product as any).images)
+      ? (product as any).images.map(toUrl).filter(Boolean)
+      : [];
+
+    const main = toUrl((product as any).image || (product as any).image_url);
+
+    const merged = [...variantUrls, ...imgs];
+    if (main) merged.unshift(main);
+
+    return Array.from(new Set(merged.filter(Boolean)));
+  }, [product, imageVariants]);
 
   const descImages = useMemo(() => {
-    const di = Array.isArray((product as any).descriptionImages) ? (product as any).descriptionImages : [];
+    const di = Array.isArray((product as any).descriptionImages)
+      ? (product as any).descriptionImages
+      : Array.isArray((product as any).description_images)
+      ? (product as any).description_images
+      : [];
     return di.map(toUrl).filter(Boolean);
   }, [product]);
+
+  const selectedImageUrl = gallery[activeImage] || '';
+
+  const selectedVariant = useMemo(() => {
+    if (!selectedImageUrl) return imageVariants[activeImage] || null;
+    return (
+      imageVariants.find(v => toUrl(v.url) === toUrl(selectedImageUrl)) ||
+      imageVariants[activeImage] ||
+      null
+    );
+  }, [imageVariants, selectedImageUrl, activeImage]);
+
+  const allImagesHaveOwnPrices = useMemo(() => {
+    if (!gallery.length || !imageVariants.length) return false;
+
+    return gallery.every((imgUrl) =>
+      imageVariants.some(v => toUrl(v.url) === toUrl(imgUrl) && Number(v.price) > 0)
+    );
+  }, [gallery, imageVariants]);
+
+  const fallbackSellingPrice = Number(
+    (product as any).sellingPrice ?? (product as any).price ?? 0
+  );
+
+  const displayedPrice = Number(selectedVariant?.price) > 0
+    ? Number(selectedVariant?.price)
+    : fallbackSellingPrice;
+
+  const displayedPriceStr = Number.isFinite(displayedPrice)
+    ? displayedPrice.toLocaleString()
+    : '0';
+
+  const originalPriceValue = Number(
+    (product as any).originalPrice ||
+    (allImagesHaveOwnPrices ? 0 : (
+      (product as any).discount
+        ? Math.round(Number((product as any).price || 0) * (1 + Number((product as any).discount) / 100))
+        : 0
+    ))
+  );
+
+  const originalPriceStr = Number.isFinite(originalPriceValue)
+    ? originalPriceValue.toLocaleString()
+    : '0';
+
+  const minVariantPrice = useMemo(() => {
+    const nums = imageVariants.map(v => Number(v.price || 0)).filter(n => n > 0);
+    return nums.length ? Math.min(...nums) : 0;
+  }, [imageVariants]);
+
+  const maxVariantPrice = useMemo(() => {
+    const nums = imageVariants.map(v => Number(v.price || 0)).filter(n => n > 0);
+    return nums.length ? Math.max(...nums) : 0;
+  }, [imageVariants]);
 
   const PHONE_NUMBER = '+255656738253';
 
@@ -476,49 +554,45 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const WHATSAPP_TEXT = useMemo(() => {
     const title = toUrl((product as any).title) || 'Bidhaa';
-    const price = Number((product as any).price || 0);
-    const priceStr = Number.isFinite(price) ? price.toLocaleString() : '0';
+    const priceStr = Number.isFinite(displayedPrice) ? displayedPrice.toLocaleString() : '0';
 
     const lines = [
       `Hi habari, ningependa kuagiza au kujua zaidi hii: ${title}`,
       `Bei: TSh ${priceStr}`,
+      selectedVariant?.label ? `Variant: ${selectedVariant.label}` : '',
       shareImageUrl ? `Picha: ${shareImageUrl}` : '',
       `Link: ${productLink}`,
     ].filter(Boolean);
 
     return lines.join('\n');
-  }, [product, shareImageUrl, productLink]);
+  }, [product, displayedPrice, selectedVariant, shareImageUrl, productLink]);
 
   const WHATSAPP_URL = useMemo(() => {
     const digits = PHONE_NUMBER.replace('+', '');
     return `https://wa.me/${digits}?text=${encodeURIComponent(WHATSAPP_TEXT)}`;
   }, [WHATSAPP_TEXT]);
 
-  // ✅ Record view only once per product
   useEffect(() => {
     const pid = String((product as any).id);
     if (hasRecordedViewRef.current === pid) return;
     hasRecordedViewRef.current = pid;
     onRecordView?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [(product as any).id]);
+  }, [(product as any).id, onRecordView]);
 
-  // ✅ Reset scroll when product changes
   useEffect(() => {
+    setActiveImage(0);
     const contentArea = document.getElementById('product-detail-scroll-area');
     if (contentArea) contentArea.scrollTo(0, 0);
+    if (heroScrollRef.current) heroScrollRef.current.scrollTo({ left: 0, behavior: 'auto' });
   }, [(product as any).id]);
 
-  // ✅ PRELOAD ALL images as soon as product opens (fast perceived load)
   useEffect(() => {
-    // Prioritize first images: gallery + first 2 desc + first 6 related thumbs
     const priority = gallery.slice(0, 3);
     const later = gallery.slice(3);
     const descTop = descImages.slice(0, 2);
 
     preloadImages([...priority, ...descTop]);
 
-    // Preload the rest shortly after (avoid blocking initial render)
     const t = window.setTimeout(() => {
       preloadImages([...later, ...descImages.slice(2)]);
     }, 150);
@@ -526,8 +600,26 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     return () => window.clearTimeout(t);
   }, [gallery, descImages]);
 
-  // ✅ Preload video best-effort
-  usePreloadVideo(toUrl((product as any).videoUrl));
+  usePreloadVideo(toUrl((product as any).videoUrl || (product as any).video_url));
+
+  const relatedProducts = useMemo(() => {
+    return (allProducts || [])
+      .filter(
+        (p) =>
+          String((p as any).id) !== String((product as any).id) &&
+          ((p as any).category === (product as any).category ||
+            (p as any).category_name === (product as any).category_name)
+      )
+      .slice(0, 6);
+  }, [allProducts, (product as any).id, (product as any).category, (product as any).category_name]);
+
+  useEffect(() => {
+    const thumbs = relatedProducts.map((p) => toUrl((p as any).image)).filter(Boolean);
+    if (thumbs.length) {
+      const t = window.setTimeout(() => preloadImages(thumbs), 250);
+      return () => window.clearTimeout(t);
+    }
+  }, [relatedProducts]);
 
   const handleWhatsApp = () => {
     onWhatsAppClick?.();
@@ -541,37 +633,19 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const handleShare = () => setShowSharePanel(true);
 
-  const originalPriceValue =
-    (product as any).originalPrice ||
-    ((product as any).discount
-      ? Math.round(Number((product as any).price || 0) * (1 + Number((product as any).discount) / 100))
-      : null);
-
-  const relatedProducts = useMemo(() => {
-    return (allProducts || [])
-      .filter(
-        (p) => String((p as any).id) !== String((product as any).id) && (p as any).category === (product as any).category
-      )
-      .slice(0, 6);
-  }, [allProducts, (product as any).id, (product as any).category]);
-
-  // Warm related thumbs too
-  useEffect(() => {
-    const thumbs = relatedProducts.map((p) => toUrl((p as any).image)).filter(Boolean);
-    if (thumbs.length) {
-      const t = window.setTimeout(() => preloadImages(thumbs), 250);
-      return () => window.clearTimeout(t);
-    }
-  }, [relatedProducts]);
-
-  const safeSellingPrice = Number((product as any).price || 0);
-  const sellingPriceStr = Number.isFinite(safeSellingPrice) ? safeSellingPrice.toLocaleString() : '0';
-  const safeOriginal = Number(originalPriceValue || 0);
-  const originalPriceStr = Number.isFinite(safeOriginal) ? safeOriginal.toLocaleString() : '0';
+  const goToImage = (index: number) => {
+    setActiveImage(index);
+    const container = heroScrollRef.current;
+    if (!container) return;
+    const width = container.offsetWidth;
+    container.scrollTo({
+      left: width * index,
+      behavior: 'smooth',
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-white z-[100] flex flex-col animate-fadeIn overflow-hidden">
-      {/* Top Header */}
       <div className="flex-shrink-0 bg-white/95 backdrop-blur-md flex items-center justify-between px-4 py-3 border-b border-gray-100 shadow-sm">
         <button onClick={onBack} className="p-2 -ml-2 text-gray-800 active:scale-90 transition-transform">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -597,14 +671,13 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </div>
       </div>
 
-      {/* Scrollable Content */}
       <div id="product-detail-scroll-area" className="flex-grow overflow-y-auto no-scrollbar bg-white">
-        {/* Hero Image Slider */}
         <div className="relative w-full aspect-square bg-[#f9f9f9] border-b border-gray-50">
           <div
+            ref={heroScrollRef}
             className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full"
             onScroll={(e) => {
-              const width = e.currentTarget.offsetWidth;
+              const width = e.currentTarget.offsetWidth || 1;
               const index = Math.round(e.currentTarget.scrollLeft / width);
               setActiveImage(index);
             }}
@@ -623,27 +696,97 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           </div>
 
           <div className="absolute bottom-4 right-4 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded-full font-bold backdrop-blur-sm">
-            {activeImage + 1} / {Math.max(gallery.length, 1)}
+            {gallery.length ? activeImage + 1 : 1} / {Math.max(gallery.length, 1)}
           </div>
         </div>
 
+        {gallery.length > 1 && (
+          <div className="px-4 pt-4">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              {gallery.map((img, idx) => {
+                const variant =
+                  imageVariants.find(v => toUrl(v.url) === toUrl(img)) ||
+                  imageVariants[idx] ||
+                  null;
+
+                const thumbPrice = Number(variant?.price || 0);
+
+                return (
+                  <button
+                    key={`${img}-${idx}`}
+                    type="button"
+                    onClick={() => goToImage(idx)}
+                    className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                      activeImage === idx
+                        ? 'border-orange-500 shadow-md'
+                        : 'border-gray-200'
+                    }`}
+                  >
+                    <WatermarkedImage
+                      src={img}
+                      alt={`Thumbnail ${idx + 1}`}
+                      containerClass="w-full h-full"
+                      productId={(product as any).id}
+                      isProduct={true}
+                    />
+
+                    {thumbPrice > 0 && (
+                      <div className="absolute bottom-1 left-1 right-1 bg-black/75 text-white text-[10px] font-black rounded-md px-1 py-1 truncate">
+                        TSh {thumbPrice.toLocaleString()}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="p-4">
-          {/* Price + Views */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-baseline gap-2 min-w-0 flex-nowrap">
-                {originalPriceValue ? (
-                  <span className="text-[12px] text-gray-400 line-through whitespace-nowrap">TSh {originalPriceStr}</span>
+          <h1 className="text-lg font-bold text-gray-800 leading-tight mb-3">
+            {(product as any).title}
+          </h1>
+
+          <div className="mb-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center flex-wrap gap-2">
+                  {!allImagesHaveOwnPrices && originalPriceValue > displayedPrice ? (
+                    <span className="text-[12px] text-gray-400 line-through whitespace-nowrap">
+                      TSh {originalPriceStr}
+                    </span>
+                  ) : null}
+
+                  <span
+                    className="text-2xl md:text-3xl font-black whitespace-nowrap"
+                    style={{ color: COLORS.primary }}
+                  >
+                    TSh {displayedPriceStr}
+                  </span>
+
+                  {!allImagesHaveOwnPrices && Number((product as any).discount || 0) > 0 ? (
+                    <span className="bg-red-50 text-red-600 text-[10px] px-2 py-1 rounded-lg font-black uppercase tracking-tighter whitespace-nowrap">
+                      -{Number((product as any).discount)}% OFF
+                    </span>
+                  ) : null}
+                </div>
+
+                {selectedVariant?.label ? (
+                  <p className="mt-1 text-sm font-bold text-gray-600">
+                    {selectedVariant.label}
+                  </p>
                 ) : null}
 
-                <span className="text-xl md:text-2xl font-black whitespace-nowrap" style={{ color: COLORS.primary }}>
-                  TSh {sellingPriceStr}
-                </span>
+                {allImagesHaveOwnPrices && minVariantPrice > 0 && maxVariantPrice > 0 && minVariantPrice !== maxVariantPrice ? (
+                  <p className="mt-1 text-xs font-bold text-gray-400 uppercase tracking-wide">
+                    Price range: TSh {minVariantPrice.toLocaleString()} - {maxVariantPrice.toLocaleString()}
+                  </p>
+                ) : null}
 
-                {(product as any).discount ? (
-                  <span className="bg-red-50 text-red-600 text-[10px] px-2 py-1 rounded-lg font-black uppercase tracking-tighter whitespace-nowrap">
-                    -{Number((product as any).discount)}% OFF
-                  </span>
+                {allImagesHaveOwnPrices ? (
+                  <p className="mt-1 text-xs font-bold text-gray-400 uppercase tracking-wide">
+                    Price changes by selected image
+                  </p>
                 ) : null}
               </div>
 
@@ -656,9 +799,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
           </div>
 
-          <h1 className="text-lg font-bold text-gray-800 leading-tight mb-2">{(product as any).title}</h1>
-
-          {/* Share Row */}
           <div className="flex items-center justify-between py-4 mb-6 border-y border-gray-100">
             <button
               onClick={handleShare}
@@ -673,26 +813,26 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </button>
           </div>
 
-          {/* Video */}
-          {toUrl((product as any).videoUrl) ? (
+          {toUrl((product as any).videoUrl || (product as any).video_url) ? (
             <div className="mb-8 py-6 border-y border-gray-50">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Product Experience</h3>
-              <ProductVideo src={toUrl((product as any).videoUrl)} poster={shareImageUrl} />
+              <ProductVideo
+                src={toUrl((product as any).videoUrl || (product as any).video_url)}
+                poster={shareImageUrl}
+              />
             </div>
           ) : null}
 
-          {/* Description */}
           <div className="py-2">
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">About This Product</h3>
             <div className="text-sm text-gray-600 leading-relaxed font-medium">
               <p>
-                Welcome to BARAKA SONKO. Our {(product as any).title} is selected for its superior quality and durability.
-                Perfect for professional or home use.
+                {toUrl((product as any).description) ||
+                  `Welcome to BARAKA SONKO. Our ${(product as any).title} is selected for its superior quality and durability. Perfect for professional or home use.`}
               </p>
             </div>
           </div>
 
-          {/* Details images */}
           {descImages.length > 0 ? (
             <div className="mt-8 space-y-3">
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Gallery Details</h3>
@@ -710,7 +850,6 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
           ) : null}
 
-          {/* Related Products */}
           {relatedProducts.length > 0 ? (
             <div className="mt-12 mb-10">
               <div className="mb-4 flex items-center justify-between px-1">
@@ -719,43 +858,58 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {relatedProducts.map((relatedProduct) => (
-                  <div
-                    key={(relatedProduct as any).id}
-                    className="bg-white rounded-xl border border-gray-100 p-2.5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98] cursor-pointer"
-                    onClick={() => onProductClick(relatedProduct)}
-                  >
-                    <div className="aspect-square rounded-lg overflow-hidden mb-2 bg-gray-50 relative">
-                      <WatermarkedImage
-                        src={(relatedProduct as any).image}
-                        alt={(relatedProduct as any).title}
-                        containerClass="w-full h-full"
-                        productId={(relatedProduct as any).id}
-                        isProduct={true}
-                      />
-                    </div>
+                {relatedProducts.map((relatedProduct) => {
+                  const relatedVariants = safeJsonParse<ImageVariant[]>(
+                    (relatedProduct as any).image_variants ?? (relatedProduct as any).imageVariants ?? [],
+                    []
+                  );
 
-                    <h4 className="text-xs font-bold text-gray-800 mb-1 line-clamp-2">{(relatedProduct as any).title}</h4>
+                  const relatedMinVariantPrice = relatedVariants.length
+                    ? Math.min(...relatedVariants.map(v => Number(v.price || 0)).filter(n => n > 0))
+                    : 0;
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-black text-orange-600 whitespace-nowrap">
-                        TSh {Number((relatedProduct as any).price || 0).toLocaleString()}
-                      </span>
-                      {Number((relatedProduct as any).discount || 0) > 0 ? (
-                        <span className="text-[10px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                          -{Number((relatedProduct as any).discount)}%
+                  const relatedShownPrice =
+                    relatedMinVariantPrice > 0
+                      ? relatedMinVariantPrice
+                      : Number((relatedProduct as any).sellingPrice ?? (relatedProduct as any).price ?? 0);
+
+                  return (
+                    <div
+                      key={(relatedProduct as any).id}
+                      className="bg-white rounded-xl border border-gray-100 p-2.5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98] cursor-pointer"
+                      onClick={() => onProductClick(relatedProduct)}
+                    >
+                      <div className="aspect-square rounded-lg overflow-hidden mb-2 bg-gray-50 relative">
+                        <WatermarkedImage
+                          src={(relatedProduct as any).image}
+                          alt={(relatedProduct as any).title}
+                          containerClass="w-full h-full"
+                          productId={(relatedProduct as any).id}
+                          isProduct={true}
+                        />
+                      </div>
+
+                      <h4 className="text-xs font-bold text-gray-800 mb-1 line-clamp-2">{(relatedProduct as any).title}</h4>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-black text-orange-600 whitespace-nowrap">
+                          TSh {Number(relatedShownPrice || 0).toLocaleString()}
                         </span>
-                      ) : null}
+                        {Number((relatedProduct as any).discount || 0) > 0 ? (
+                          <span className="text-[10px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                            -{Number((relatedProduct as any).discount)}%
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : null}
         </div>
       </div>
 
-      {/* Bottom Bar */}
       <div className="flex-shrink-0 bg-white border-t border-gray-100 p-3 pb-6 flex items-center justify-between space-x-3 shadow-[0_-4px_16px_rgba(0,0,0,0.05)]">
         <button
           onClick={handleCall}
