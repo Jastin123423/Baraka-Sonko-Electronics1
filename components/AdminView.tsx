@@ -6,6 +6,7 @@ interface AdminViewProps {
   categories: Category[];
   onAddProduct: (product: Product) => Promise<boolean>;
   onDeleteProduct: (id: string) => Promise<void> | void;
+  onEditProduct?: (product: Product) => void; // Add this prop
   WatermarkedImage: React.ComponentType<any>;
   VideoPlayer: React.ComponentType<any>;
   Banner: React.ComponentType<any>;
@@ -26,6 +27,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   categories,
   onAddProduct,
   onDeleteProduct,
+  onEditProduct,
   WatermarkedImage,
   VideoPlayer,
   Banner
@@ -37,6 +39,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -100,6 +103,15 @@ const AdminView: React.FC<AdminViewProps> = ({
     };
 
     fetchStats();
+  }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setActiveMenuId(null);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
   const uploadSingleFile = async (file: File): Promise<string> => {
@@ -523,6 +535,27 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
+  const handleMenuClick = (e: React.MouseEvent, productId: string) => {
+    e.stopPropagation();
+    setActiveMenuId(activeMenuId === productId ? null : productId);
+  };
+
+  const handleDelete = (e: React.MouseEvent, productId: string) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      onDeleteProduct(productId);
+    }
+    setActiveMenuId(null);
+  };
+
+  const handleEdit = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    if (onEditProduct) {
+      onEditProduct(product);
+    }
+    setActiveMenuId(null);
+  };
+
   const getTotalUploadProgress = () => {
     const values = Object.values(uploadProgress);
     if (values.length === 0) return 0;
@@ -644,7 +677,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                     return (
                       <div
                         key={product.id}
-                        className="p-4 flex items-center space-x-4 hover:bg-gray-50 transition-colors"
+                        className="p-4 flex items-center space-x-4 hover:bg-gray-50 transition-colors relative"
                       >
                         <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-200">
                           <WatermarkedImage
@@ -701,15 +734,43 @@ const AdminView: React.FC<AdminViewProps> = ({
                             Category: {(product as any).category_name || product.categoryName || product.category || 'Uncategorized'}
                           </p>
                         </div>
-                        <button
-                          onClick={() => onDeleteProduct(product.id)}
-                          className="text-gray-300 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                          title="Delete product"
-                        >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                          </svg>
-                        </button>
+                        
+                        {/* Three dots menu */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => handleMenuClick(e, product.id)}
+                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="1" fill="currentColor" />
+                              <circle cx="12" cy="5" r="1" fill="currentColor" />
+                              <circle cx="12" cy="19" r="1" fill="currentColor" />
+                            </svg>
+                          </button>
+                          
+                          {activeMenuId === product.id && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                              <button
+                                onClick={(e) => handleEdit(e, product)}
+                                className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center space-x-3"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                </svg>
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={(e) => handleDelete(e, product.id)}
+                                className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center space-x-3"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                </svg>
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
