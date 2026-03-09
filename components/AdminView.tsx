@@ -1,3 +1,4 @@
+// AdminView.tsx (updated with edit functionality)
 import React, { useState, useEffect } from 'react';
 import { Product, Category, AdminStats } from '../types';
 
@@ -14,6 +15,7 @@ interface AdminViewProps {
 
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'withdraw';
 type UploadType = 'image' | 'video' | 'desc_image';
+type EditMode = 'create' | 'edit';
 
 type ProductImageItem = {
   url: string;
@@ -34,6 +36,8 @@ const AdminView: React.FC<AdminViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [isAdding, setIsAdding] = useState(false);
+  const [editMode, setEditMode] = useState<EditMode>('create');
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadError, setUploadError] = useState<string>('');
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
@@ -112,6 +116,83 @@ const AdminView: React.FC<AdminViewProps> = ({
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  // Reset form when closing
+  const closeForm = () => {
+    setIsAdding(false);
+    setEditMode('create');
+    setEditingProductId(null);
+    setFormData({
+      title: '',
+      description: '',
+      originalPrice: '',
+      sellingPrice: '',
+      categoryId: '',
+      videoUrl: '',
+      images: [],
+      descriptionImages: [],
+    });
+    setUploadError('');
+  };
+
+  // Load product data for editing
+  const loadProductForEdit = (product: Product) => {
+    // Convert product data to form format
+    const images: ProductImageItem[] = [];
+    
+    // Handle image variants if they exist
+    if ((product as any).imageVariants && Array.isArray((product as any).imageVariants)) {
+      (product as any).imageVariants.forEach((variant: any, index: number) => {
+        images.push({
+          url: variant.url || '',
+          price: String(variant.price || product.sellingPrice || product.price || ''),
+          label: variant.label || '',
+          isMain: variant.isMain || index === 0,
+        });
+      });
+    } 
+    // Fallback to regular images
+    else {
+      const productImages = (product as any).images || (product as any).image_urls || [];
+      if (Array.isArray(productImages) && productImages.length > 0) {
+        productImages.forEach((url: string, index: number) => {
+          images.push({
+            url: String(url),
+            price: String(product.sellingPrice || product.price || ''),
+            label: '',
+            isMain: index === 0,
+          });
+        });
+      } else if (product.image) {
+        images.push({
+          url: product.image,
+          price: String(product.sellingPrice || product.price || ''),
+          label: '',
+          isMain: true,
+        });
+      }
+    }
+
+    // Get description images
+    const descImages = (product as any).descriptionImages || 
+                       (product as any).description_images || 
+                       [];
+
+    setFormData({
+      title: product.title || '',
+      description: product.description || '',
+      originalPrice: String((product as any).originalPrice || (product as any).original_price || product.price || ''),
+      sellingPrice: String(product.sellingPrice || product.price || ''),
+      categoryId: String((product as any).categoryId || (product as any).category_id || ''),
+      videoUrl: (product as any).videoUrl || (product as any).video_url || '',
+      images: images,
+      descriptionImages: Array.isArray(descImages) ? descImages.map(String) : [],
+    });
+
+    setEditMode('edit');
+    setEditingProductId(product.id);
+    setIsAdding(true);
+  };
 
   const uploadSingleFile = async (file: File): Promise<string> => {
     const timestamp = Date.now();
@@ -403,6 +484,8 @@ const AdminView: React.FC<AdminViewProps> = ({
     console.log('📋 SUBMIT isActuallyUploading:', isActuallyUploading);
     console.log('📋 SUBMIT uploadProgress keys:', Object.keys(uploadProgress));
     console.log('📋 FULL formData:', formData);
+    console.log('📋 Edit mode:', editMode);
+    console.log('📋 Editing product ID:', editingProductId);
 
     const mainImageObj =
       formData.images.find(img => img.isMain) ||
@@ -468,6 +551,7 @@ const AdminView: React.FC<AdminViewProps> = ({
       }));
 
       const payload = {
+        ...(editMode === 'edit' && editingProductId ? { id: editingProductId } : {}),
         title: formData.title.trim(),
         description: formData.description,
 
@@ -503,30 +587,39 @@ const AdminView: React.FC<AdminViewProps> = ({
 
         rating: 5.0,
         status: 'online',
-        createdAt: new Date().toISOString(),
-        created_at: new Date().toISOString(),
       };
 
       console.log('📤 Sending payload to backend:', payload);
+      console.log('📤 Method:', editMode === 'edit' ? 'PUT' : 'POST');
+      console.log('📤 URL:', editMode === 'edit' ? `/api/products?id=${editingProductId}` : '/api/products');
 
-      const success = await onAddProduct(payload as any);
+      let success = false;
 
-      if (success) {
-        setIsAdding(false);
-        setFormData({
-          title: '',
-          description: '',
-          originalPrice: '',
-          sellingPrice: '',
-          categoryId: '',
-          videoUrl: '',
-          images: [],
-          descriptionImages: [],
+      if (editMode === 'edit' && editingProductId) {
+        // Use PUT for full update
+        const response = await fetch(`/api/products?id=${editingProductId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
         });
 
-        alert('✅ Product published successfully!');
+        const result = await response.json().catch(() => null);
+        console.log('📥 PUT response:', result);
+        success = result?.success === true;
+
+        if (success && onEditProduct && result.data) {
+          onEditProduct(result.data);
+        }
       } else {
-        alert('❌ Failed to save product. Please try again.');
+        // Use POST for new product
+        success = await onAddProduct(payload as any);
+      }
+
+      if (success) {
+        closeForm();
+        alert(editMode === 'edit' ? '✅ Product updated successfully!' : '✅ Product published successfully!');
+      } else {
+        alert(`❌ Failed to ${editMode === 'edit' ? 'update' : 'save'} product. Please try again.`);
       }
     } catch (error) {
       console.error('Error saving product:', error);
@@ -539,19 +632,17 @@ const AdminView: React.FC<AdminViewProps> = ({
     setActiveMenuId(activeMenuId === productId ? null : productId);
   };
 
-  const handleDelete = (e: React.MouseEvent, productId: string) => {
+  const handleDelete = async (e: React.MouseEvent, productId: string) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this product?')) {
-      onDeleteProduct(productId);
+      await onDeleteProduct(productId);
     }
     setActiveMenuId(null);
   };
 
   const handleEdit = (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
-    if (onEditProduct) {
-      onEditProduct(product);
-    }
+    loadProductForEdit(product);
     setActiveMenuId(null);
   };
 
@@ -648,7 +739,11 @@ const AdminView: React.FC<AdminViewProps> = ({
             <div className="flex justify-between items-center">
               <h1 className="text-xl font-black text-gray-800">Products Management</h1>
               <button
-                onClick={() => setIsAdding(true)}
+                onClick={() => {
+                  setEditMode('create');
+                  setEditingProductId(null);
+                  setIsAdding(true);
+                }}
                 className="bg-gradient-to-r from-orange-600 to-orange-500 text-white font-black py-3 px-6 rounded-xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all"
               >
                 + ADD NEW PRODUCT
@@ -807,15 +902,25 @@ const AdminView: React.FC<AdminViewProps> = ({
         <div className="fixed inset-0 bg-black/75 z-[110] flex flex-col">
           <div className="bg-white w-full h-full p-4 md:p-6 overflow-y-auto">
             <div className="flex justify-between items-center mb-6 pb-4 border-b">
-              <h2 className="text-xl md:text-2xl font-black text-gray-800">Add New Product</h2>
+              <h2 className="text-xl md:text-2xl font-black text-gray-800">
+                {editMode === 'edit' ? 'Edit Product' : 'Add New Product'}
+              </h2>
               <button
-                onClick={() => setIsAdding(false)}
+                onClick={closeForm}
                 className="text-3xl font-light text-gray-400 hover:text-gray-700 transition-colors"
                 disabled={isActuallyUploading}
               >
                 &times;
               </button>
             </div>
+
+            {editMode === 'edit' && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <p className="text-sm font-black text-blue-800">
+                  ✏️ Editing Product: {formData.title}
+                </p>
+              </div>
+            )}
 
             {uploadError && (
               <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
@@ -1413,7 +1518,7 @@ Package includes:
                 <div className="flex space-x-3">
                   <button
                     type="button"
-                    onClick={() => setIsAdding(false)}
+                    onClick={closeForm}
                     className="flex-1 bg-gray-100 text-gray-700 font-black py-4 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
                     disabled={isActuallyUploading}
                   >
@@ -1435,7 +1540,9 @@ Package includes:
                           <path d="M8 17l4 4 4-4m-4-5v9"></path>
                           <path d="M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"></path>
                         </svg>
-                        <span>PUBLISH PRODUCT WITH PROFESSIONAL PRICING</span>
+                        <span>
+                          {editMode === 'edit' ? 'UPDATE PRODUCT' : 'PUBLISH PRODUCT WITH PROFESSIONAL PRICING'}
+                        </span>
                       </>
                     )}
                   </button>
