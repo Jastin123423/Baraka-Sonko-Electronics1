@@ -87,8 +87,7 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
    HELPERS
 ================================= */
 
-const FIRST_BATCH = 10;
-const PAGE_SIZE = 10;
+const API_LIMIT = 20;
 const API_URL = '/api/products';
 
 const safeProductId = (p: any, idx: number) =>
@@ -159,7 +158,8 @@ const extractProductsFromPayload = (payload: any): Product[] => {
 };
 
 /* ===============================
-   CACHE
+   SIMPLE IN-MEMORY CACHE
+   Prevents blinking / refetching on revisit
 ================================= */
 
 let cachedProducts: Product[] = [];
@@ -175,7 +175,7 @@ interface ProductGridProps {
   title?: string;
   products: Product[];
   onProductClick: (product: Product) => void;
-  onLoadMore?: () => void;
+  onLoadMore?: () => void; // kept for compatibility, but API fetch is handled here
   hasMore?: boolean;
   isLoading?: boolean;
 }
@@ -194,10 +194,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   const [hasMoreInternal, setHasMoreInternal] = useState<boolean>(() => cachedHasMore);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // first professional view: only 10 visible
-  const [visibleCount, setVisibleCount] = useState(FIRST_BATCH);
-
-  // one order per visit
+  // one shuffle per mount / refresh so order changes when user comes back
   const [sessionSeed] = useState(() => Date.now() + Math.floor(Math.random() * 100000));
 
   useEffect(() => {
@@ -212,28 +209,21 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   }, [products]);
 
   const mergedProducts = useMemo(() => {
-    return dedupeProducts([...propProducts, ...apiProducts]);
-  }, [propProducts, apiProducts]);
-
-  const orderedProducts = useMemo(() => {
-    return shuffleWithSeed(mergedProducts, sessionSeed);
-  }, [mergedProducts, sessionSeed]);
-
-  const visibleProducts = useMemo(() => {
-    return orderedProducts.slice(0, visibleCount);
-  }, [orderedProducts, visibleCount]);
+    const merged = dedupeProducts([...propProducts, ...apiProducts]);
+    return shuffleWithSeed(merged, sessionSeed);
+  }, [propProducts, apiProducts, sessionSeed]);
 
   const [colLeft, colRight] = useMemo(() => {
     const left: Product[] = [];
     const right: Product[] = [];
 
-    visibleProducts.forEach((p, idx) => {
+    mergedProducts.forEach((p, idx) => {
       if (idx % 2 === 0) left.push(p);
       else right.push(p);
     });
 
     return [left, right];
-  }, [visibleProducts]);
+  }, [mergedProducts]);
 
   const loadMoreFromApi = useCallback(async () => {
     if (fetchLockRef.current) return;
@@ -247,11 +237,11 @@ const ProductGrid: React.FC<ProductGridProps> = ({
         const nextPage = page;
 
         activeFetchPromise = (async () => {
-          const res = await fetch(`${API_URL}?page=${nextPage}&limit=${PAGE_SIZE}`, {
+          const res = await fetch(`${API_URL}?page=${nextPage}&limit=${API_LIMIT}`, {
             method: 'GET',
             credentials: 'same-origin',
             headers: {
-              Accept: 'application/json',
+              'Accept': 'application/json',
             },
           });
 
@@ -267,7 +257,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
           const inferredHasMore =
             typeof payload?.hasMore === 'boolean'
               ? payload.hasMore
-              : incoming.length >= PAGE_SIZE;
+              : incoming.length >= API_LIMIT;
 
           cachedProducts = merged;
           cachedPage = nextPage + 1;
@@ -291,54 +281,38 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     }
   }, [page, hasMoreInternal]);
 
-  const handleRevealMore = useCallback(async () => {
-    const currentTotal = orderedProducts.length;
-    const nextVisible = visibleCount + PAGE_SIZE;
-
-    // reveal already loaded products first
-    if (nextVisible <= currentTotal) {
-      setVisibleCount(nextVisible);
-      return;
-    }
-
-    // try fetching more from API without clearing current items
-    if (hasMoreInternal && !loadingMore) {
-      await loadMoreFromApi();
-      setVisibleCount((prev) => prev + PAGE_SIZE);
-    }
-  }, [orderedProducts.length, visibleCount, hasMoreInternal, loadingMore, loadMoreFromApi]);
-
-  // initial load only if not enough products to show first 10
+  // Initial silent fetch only if parent did not already provide enough items
   useEffect(() => {
-    if (orderedProducts.length >= FIRST_BATCH) return;
-    if (!hasMoreInternal) return;
+    const totalNow = dedupeProducts([...propProducts, ...cachedProducts]).length;
+
+    if (totalNow >= API_LIMIT) return;
+    if (!cachedHasMore) return;
+
     loadMoreFromApi();
-  }, [orderedProducts.length, hasMoreInternal, loadMoreFromApi]);
+  }, [propProducts, loadMoreFromApi]);
 
   useEffect(() => {
     const current = observerTarget.current;
     if (!current) return;
+    if (!hasMoreInternal) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         const first = entries[0];
         if (!first?.isIntersecting) return;
         if (loadingMore) return;
-
-        handleRevealMore();
+        loadMoreFromApi();
       },
       {
         threshold: 0.01,
-        rootMargin: '400px 0px',
+        rootMargin: '500px 0px',
       }
     );
 
     observer.observe(current);
 
     return () => observer.disconnect();
-  }, [handleRevealMore, loadingMore]);
-
-  const shouldShowLoader = loadingMore || hasMoreInternal || visibleCount < orderedProducts.length;
+  }, [loadMoreFromApi, loadingMore, hasMoreInternal]);
 
   return (
     <div className="px-2 mb-4">
@@ -376,21 +350,21 @@ const ProductGrid: React.FC<ProductGridProps> = ({
 
       <div
         ref={observerTarget}
-        className="h-20 flex items-center justify-center w-full"
+        className="h-24 flex items-center justify-center w-full"
       >
-        {shouldShowLoader && (
+        {(loadingMore || hasMoreInternal) && (
           <div className="flex items-center space-x-2">
             <div
-              className="w-2 h-2 bg-orange-500 rounded-full animate-bounce"
+              className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce"
               style={{ animationDelay: '0ms' }}
             />
             <div
-              className="w-2 h-2 bg-orange-500 rounded-full animate-bounce"
-              style={{ animationDelay: '120ms' }}
+              className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce"
+              style={{ animationDelay: '150ms' }}
             />
             <div
-              className="w-2 h-2 bg-orange-500 rounded-full animate-bounce"
-              style={{ animationDelay: '240ms' }}
+              className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce"
+              style={{ animationDelay: '300ms' }}
             />
           </div>
         )}
