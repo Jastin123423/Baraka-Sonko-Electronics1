@@ -6,7 +6,7 @@ interface AdminViewProps {
   categories: Category[];
   onAddProduct: (product: Product) => Promise<boolean>;
   onDeleteProduct: (id: string) => Promise<void> | void;
-  onEditProduct?: (product: Product) => void; // Add this prop
+  onEditProduct?: (product: Product) => void;
   WatermarkedImage: React.ComponentType<any>;
   VideoPlayer: React.ComponentType<any>;
   Banner: React.ComponentType<any>;
@@ -105,7 +105,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     fetchStats();
   }, []);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setActiveMenuId(null);
@@ -158,7 +157,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         try {
           response = JSON.parse(xhr.responseText);
           addDebugLog(`Parsed JSON response for ${file.name}: ${JSON.stringify(response).slice(0, 100)}`);
-        } catch (parseError) {
+        } catch {
           addDebugLog(`❌ JSON parse error for ${file.name}: ${xhr.responseText?.slice(0, 100)}`);
           return reject(
             new Error(`Upload failed: server returned non-JSON (HTTP ${xhr.status}). Check /api/upload endpoint.`)
@@ -470,7 +469,7 @@ const AdminView: React.FC<AdminViewProps> = ({
 
       const payload = {
         title: formData.title.trim(),
-        description: formData.description.trim(),
+        description: formData.description,
 
         image: mainImage,
         image_url: mainImage,
@@ -564,6 +563,10 @@ const AdminView: React.FC<AdminViewProps> = ({
 
   const inputClass =
     'w-full bg-white border border-gray-300 rounded-xl px-4 py-4 text-base font-bold outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200';
+
+  const descriptionTextareaClass =
+    'w-full bg-white border border-gray-300 rounded-xl px-4 py-4 text-base text-gray-800 font-normal leading-7 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200 resize-y';
+
   const labelClass =
     'block text-xs font-black text-gray-500 uppercase mb-2 ml-1 tracking-wide';
 
@@ -734,8 +737,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                             Category: {(product as any).category_name || product.categoryName || product.category || 'Uncategorized'}
                           </p>
                         </div>
-                        
-                        {/* Three dots menu */}
+
                         <div className="relative">
                           <button
                             onClick={(e) => handleMenuClick(e, product.id)}
@@ -747,7 +749,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                               <circle cx="12" cy="19" r="1" fill="currentColor" />
                             </svg>
                           </button>
-                          
+
                           {activeMenuId === product.id && (
                             <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
                               <button
@@ -962,15 +964,27 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <div>
                   <label className={labelClass}>Product Description</label>
                   <textarea
-                    className={`${inputClass} min-h-[130px] resize-none`}
+                    className={`${descriptionTextareaClass} min-h-[180px]`}
                     value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe your product in detail..."
+                    placeholder={`Describe your product in detail...
+
+Example:
+1. Strong leather material
+2. Available in black and brown
+3. Durable zip and inner pockets
+
+This bag is suitable for office work, travel, and daily use.
+
+Package includes:
+- 1 bag
+- 1 shoulder strap`}
                     disabled={isActuallyUploading}
-                    rows={4}
+                    rows={8}
+                    spellCheck={true}
                   />
                   <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                    This description appears on the product page.
+                    Line breaks and paragraphs will be kept as written.
                   </p>
                 </div>
               </div>
