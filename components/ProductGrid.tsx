@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { COLORS, ICONS } from '../constants';
+import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { ICONS } from '../constants';
 import { Product } from '../types';
 
 /* ===============================
@@ -32,7 +32,7 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
     >
       <div className="relative w-full">
         <img
-          src={(product as any).image || ''}
+          src={(product as any).image || (product as any).image_url || ''}
           alt={(product as any).title || 'Product'}
           className="w-full h-auto object-cover block"
           loading="lazy"
@@ -87,9 +87,32 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
    HELPERS
 ================================= */
 
-const safeProductId = (p: any, idx: number) => {
-  const id = p?.id ?? p?.product_id ?? p?.slug ?? idx;
-  return String(id);
+const API_LIMIT = 20;
+const API_URL = '/api/products';
+
+const safeProductId = (p: any, idx: number) =>
+  String(p?.id ?? p?.product_id ?? p?.slug ?? `idx-${idx}`);
+
+const normalizeProduct = (p: any): Product => {
+  const image =
+    String(
+      p?.image ??
+      p?.image_url ??
+      p?.imageUrl ??
+      p?.cover_url ??
+      p?.coverUrl ??
+      p?.thumbnail ??
+      p?.thumbnail_url ??
+      ''
+    ).trim();
+
+  return {
+    ...p,
+    image,
+    title: String(p?.title ?? p?.name ?? 'Untitled').trim(),
+    price: Number.isFinite(Number(p?.price)) ? Number(p?.price) : 0,
+    discount: Number.isFinite(Number(p?.discount)) ? Number(p?.discount) : 0,
+  } as Product;
 };
 
 const dedupeProducts = (items: Product[]): Product[] => {
@@ -123,6 +146,27 @@ const shuffleWithSeed = <T,>(array: T[], seed: number): T[] => {
   return result;
 };
 
+const extractProductsFromPayload = (payload: any): Product[] => {
+  const raw =
+    Array.isArray(payload) ? payload :
+    Array.isArray(payload?.products) ? payload.products :
+    Array.isArray(payload?.items) ? payload.items :
+    Array.isArray(payload?.data) ? payload.data :
+    [];
+
+  return raw.map(normalizeProduct);
+};
+
+/* ===============================
+   SIMPLE IN-MEMORY CACHE
+   Prevents blinking / refetching on revisit
+================================= */
+
+let cachedProducts: Product[] = [];
+let cachedPage = 1;
+let cachedHasMore = true;
+let activeFetchPromise: Promise<void> | null = null;
+
 /* ===============================
    PRODUCT GRID
 ================================= */
@@ -131,75 +175,133 @@ interface ProductGridProps {
   title?: string;
   products: Product[];
   onProductClick: (product: Product) => void;
-  onLoadMore?: () => void;
+  onLoadMore?: () => void; // kept for compatibility, but API fetch is handled here
   hasMore?: boolean;
   isLoading?: boolean;
-
-  /**
-   * true = reorder products on every page refresh / revisit
-   * false = keep incoming order from parent
-   */
-  randomizeOnRefresh?: boolean;
 }
 
 const ProductGrid: React.FC<ProductGridProps> = ({
   title,
   products,
   onProductClick,
-  onLoadMore,
-  hasMore = false,
-  isLoading = false,
-  randomizeOnRefresh = true,
 }) => {
   const observerTarget = useRef<HTMLDivElement | null>(null);
-  const loadingLockRef = useRef(false);
+  const fetchLockRef = useRef(false);
+  const mountedRef = useRef(true);
 
-  // New seed every mount => different order on refresh / revisit
+  const [apiProducts, setApiProducts] = useState<Product[]>(() => cachedProducts);
+  const [page, setPage] = useState<number>(() => cachedPage);
+  const [hasMoreInternal, setHasMoreInternal] = useState<boolean>(() => cachedHasMore);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // one shuffle per mount / refresh so order changes when user comes back
   const [sessionSeed] = useState(() => Date.now() + Math.floor(Math.random() * 100000));
 
-  // Remove accidental duplicates first
-  const normalizedProducts = useMemo(() => {
-    return dedupeProducts(Array.isArray(products) ? products : []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const propProducts = useMemo(() => {
+    return dedupeProducts((products || []).filter(Boolean).map(normalizeProduct));
   }, [products]);
 
-  // Randomize order per refresh if enabled
-  const displayProducts = useMemo(() => {
-    if (!randomizeOnRefresh) return normalizedProducts;
-    return shuffleWithSeed(normalizedProducts, sessionSeed);
-  }, [normalizedProducts, randomizeOnRefresh, sessionSeed]);
+  const mergedProducts = useMemo(() => {
+    const merged = dedupeProducts([...propProducts, ...apiProducts]);
+    return shuffleWithSeed(merged, sessionSeed);
+  }, [propProducts, apiProducts, sessionSeed]);
 
-  // Split into two masonry columns after shuffling
   const [colLeft, colRight] = useMemo(() => {
     const left: Product[] = [];
     const right: Product[] = [];
 
-    displayProducts.forEach((p, idx) => {
+    mergedProducts.forEach((p, idx) => {
       if (idx % 2 === 0) left.push(p);
       else right.push(p);
     });
 
     return [left, right];
-  }, [displayProducts]);
+  }, [mergedProducts]);
+
+  const loadMoreFromApi = useCallback(async () => {
+    if (fetchLockRef.current) return;
+    if (!hasMoreInternal) return;
+
+    fetchLockRef.current = true;
+    setLoadingMore(true);
+
+    try {
+      if (!activeFetchPromise) {
+        const nextPage = page;
+
+        activeFetchPromise = (async () => {
+          const res = await fetch(`${API_URL}?page=${nextPage}&limit=${API_LIMIT}`, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+              'Accept': 'application/json',
+            },
+          });
+
+          if (!res.ok) {
+            throw new Error(`Failed to load products: ${res.status}`);
+          }
+
+          const payload = await res.json();
+          const incoming = extractProductsFromPayload(payload);
+
+          const merged = dedupeProducts([...cachedProducts, ...incoming]);
+
+          const inferredHasMore =
+            typeof payload?.hasMore === 'boolean'
+              ? payload.hasMore
+              : incoming.length >= API_LIMIT;
+
+          cachedProducts = merged;
+          cachedPage = nextPage + 1;
+          cachedHasMore = inferredHasMore;
+
+          if (!mountedRef.current) return;
+
+          setApiProducts(merged);
+          setPage(nextPage + 1);
+          setHasMoreInternal(inferredHasMore);
+        })();
+      }
+
+      await activeFetchPromise;
+    } catch (err) {
+      console.error('ProductGrid loadMoreFromApi error:', err);
+    } finally {
+      activeFetchPromise = null;
+      fetchLockRef.current = false;
+      if (mountedRef.current) setLoadingMore(false);
+    }
+  }, [page, hasMoreInternal]);
+
+  // Initial silent fetch only if parent did not already provide enough items
+  useEffect(() => {
+    const totalNow = dedupeProducts([...propProducts, ...cachedProducts]).length;
+
+    if (totalNow >= API_LIMIT) return;
+    if (!cachedHasMore) return;
+
+    loadMoreFromApi();
+  }, [propProducts, loadMoreFromApi]);
 
   useEffect(() => {
-    loadingLockRef.current = false;
-  }, [isLoading]);
-
-  useEffect(() => {
-    if (!onLoadMore || !hasMore) return;
-
     const current = observerTarget.current;
     if (!current) return;
+    if (!hasMoreInternal) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         const first = entries[0];
         if (!first?.isIntersecting) return;
-        if (isLoading) return;
-        if (loadingLockRef.current) return;
-
-        loadingLockRef.current = true;
-        onLoadMore();
+        if (loadingMore) return;
+        loadMoreFromApi();
       },
       {
         threshold: 0.01,
@@ -209,10 +311,8 @@ const ProductGrid: React.FC<ProductGridProps> = ({
 
     observer.observe(current);
 
-    return () => {
-      observer.disconnect();
-    };
-  }, [onLoadMore, hasMore, isLoading]);
+    return () => observer.disconnect();
+  }, [loadMoreFromApi, loadingMore, hasMoreInternal]);
 
   return (
     <div className="px-2 mb-4">
@@ -252,7 +352,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
         ref={observerTarget}
         className="h-24 flex items-center justify-center w-full"
       >
-        {(isLoading || hasMore) && (
+        {(loadingMore || hasMoreInternal) && (
           <div className="flex items-center space-x-2">
             <div
               className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce"
