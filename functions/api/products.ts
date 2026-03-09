@@ -5,7 +5,7 @@ type Env = { DB: D1Database };
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -138,6 +138,156 @@ const buildProductResponse = (row: any) => {
   };
 };
 
+const getProductById = async (env: Env, id: string) => {
+  return await env.DB.prepare(
+    `
+    SELECT
+      id, title, image, images, description_images, video_url,
+      price, original_price, discount, sold_count, order_count, rating,
+      category_id, category_name, status, created_at, updated_at,
+      description, image_variants
+    FROM products
+    WHERE id = ?
+    `
+  )
+    .bind(id)
+    .first<any>();
+};
+
+const normalizeIncomingProduct = (body: any, existing?: any) => {
+  const title =
+    body.title !== undefined
+      ? String(body.title || '').trim()
+      : String(existing?.title || '').trim();
+
+  const description =
+    body.description !== undefined
+      ? String(body.description || '').trim()
+      : String(existing?.description || '').trim();
+
+  const rawPrice =
+    body.price !== undefined
+      ? body.price
+      : body.sellingPrice !== undefined
+        ? body.sellingPrice
+        : existing?.price;
+
+  const price = Number(rawPrice ?? 0);
+
+  const rawDiscount =
+    body.discount !== undefined ? body.discount : existing?.discount ?? 0;
+  const discount = Number(rawDiscount ?? 0);
+
+  const originalPriceValue =
+    body.originalPrice !== undefined
+      ? body.originalPrice
+      : body.original_price !== undefined
+        ? body.original_price
+        : existing?.original_price ?? null;
+
+  const originalPrice =
+    originalPriceValue == null || originalPriceValue === ''
+      ? null
+      : Number(originalPriceValue);
+
+  const imagesArr =
+    body.images !== undefined || body.image_urls !== undefined
+      ? safeJsonParseArray(body.images ?? body.image_urls ?? [])
+      : safeJsonParseArray(existing?.images);
+
+  const descArr =
+    body.descriptionImages !== undefined || body.description_images !== undefined
+      ? safeJsonParseArray(body.descriptionImages ?? body.description_images ?? [])
+      : safeJsonParseArray(existing?.description_images);
+
+  const rawImageVariants =
+    body.imageVariants !== undefined || body.image_variants !== undefined
+      ? (Array.isArray(body.imageVariants)
+          ? body.imageVariants
+          : Array.isArray(body.image_variants)
+            ? body.image_variants
+            : typeof body.imageVariants === 'string'
+              ? body.imageVariants
+              : typeof body.image_variants === 'string'
+                ? body.image_variants
+                : [])
+      : existing?.image_variants;
+
+  const imageVariants = safeJsonParseImageVariants(rawImageVariants);
+
+  const videoUrl =
+    body.videoUrl !== undefined || body.video_url !== undefined
+      ? String(body.videoUrl ?? body.video_url ?? '').trim() || DEFAULT_VIDEO_URL
+      : String(existing?.video_url || '').trim() || DEFAULT_VIDEO_URL;
+
+  const mainImageFromVariants =
+    imageVariants.find(v => v.isMain)?.url ||
+    imageVariants[0]?.url ||
+    '';
+
+  const mainImage =
+    body.image !== undefined || body.image_url !== undefined
+      ? String(body.image ?? body.image_url ?? '').trim() ||
+        mainImageFromVariants ||
+        pickFirstUrl(imagesArr)
+      : String(existing?.image || '').trim() ||
+        mainImageFromVariants ||
+        pickFirstUrl(imagesArr);
+
+  const categoryId =
+    body.category_id !== undefined || body.categoryId !== undefined
+      ? String(body.category_id || body.categoryId || '').trim() || null
+      : existing?.category_id == null
+        ? null
+        : String(existing.category_id);
+
+  const categoryName =
+    body.category_name !== undefined || body.categoryName !== undefined || body.category !== undefined
+      ? String(body.category_name || body.categoryName || body.category || '').trim()
+      : String(existing?.category_name || '');
+
+  const soldCount =
+    body.sold_count !== undefined || body.soldCount !== undefined
+      ? String(body.sold_count || body.soldCount || '0 sold')
+      : String(existing?.sold_count || '0 sold');
+
+  const orderCount =
+    body.order_count !== undefined || body.orderCount !== undefined
+      ? String(body.order_count || body.orderCount || '0 orders')
+      : String(existing?.order_count || '0 orders');
+
+  const rating =
+    body.rating !== undefined
+      ? Number(body.rating)
+      : existing?.rating == null
+        ? 5.0
+        : Number(existing.rating);
+
+  const status =
+    body.status !== undefined
+      ? String(body.status || 'online')
+      : String(existing?.status || 'online');
+
+  return {
+    title,
+    description,
+    price,
+    discount: Number.isFinite(discount) ? discount : 0,
+    originalPrice: Number.isFinite(Number(originalPrice)) ? Number(originalPrice) : null,
+    imagesArr,
+    descArr,
+    imageVariants,
+    videoUrl,
+    mainImage,
+    categoryId,
+    categoryName,
+    soldCount,
+    orderCount,
+    rating: Number.isFinite(Number(rating)) ? Number(rating) : 5.0,
+    status,
+  };
+};
+
 export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   try {
     if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
@@ -147,24 +297,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 200), 1), 500);
 
     if (id) {
-      const row = await env.DB.prepare(
-        `
-        SELECT
-          id, title, image, images, description_images, video_url,
-          price, original_price, discount, sold_count, order_count, rating,
-          category_id, category_name, status, created_at, updated_at,
-          description, image_variants
-        FROM products
-        WHERE id = ?
-        `
-      )
-        .bind(id)
-        .first<any>();
-
+      const row = await getProductById(env, id);
       if (!row) return json({ success: false, error: 'Not found' }, 404);
 
-      const product = buildProductResponse(row);
-      return json({ success: true, data: product });
+      return json({ success: true, data: buildProductResponse(row) });
     }
 
     const { results } = await env.DB.prepare(
@@ -183,7 +319,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
       .all<any>();
 
     const list = (results || []).map((row: any) => buildProductResponse(row));
-
     return json({ success: true, data: list });
   } catch (e: any) {
     console.error('GET /api/products error', e);
@@ -196,54 +331,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
 
     const body = await request.json().catch(() => ({} as any));
+    const normalized = normalizeIncomingProduct(body);
 
-    const title = String(body.title || '').trim();
-    const description = String(body.description || '').trim();
-
-    const price = Number(body.price ?? body.sellingPrice);
-    const discount = body.discount == null ? 0 : Number(body.discount);
-    const originalPrice = body.originalPrice ?? body.original_price ?? null;
-
-    const imagesArr = safeJsonParseArray(body.images ?? body.image_urls ?? []);
-    const descArr = safeJsonParseArray(body.descriptionImages ?? body.description_images ?? []);
-
-    const rawImageVariants =
-      Array.isArray(body.imageVariants) ? body.imageVariants :
-      Array.isArray(body.image_variants) ? body.image_variants :
-      [];
-
-    const imageVariants = safeJsonParseImageVariants(rawImageVariants);
-
-    const videoUrl =
-      String(body.videoUrl ?? body.video_url ?? '').trim() || DEFAULT_VIDEO_URL;
-
-    const mainImageFromVariants =
-      imageVariants.find(v => v.isMain)?.url ||
-      imageVariants[0]?.url ||
-      '';
-
-    const mainImage =
-      String(body.image || body.image_url || '').trim() ||
-      mainImageFromVariants ||
-      pickFirstUrl(imagesArr);
-
-    if (!title) return json({ success: false, error: 'Title is required' }, 400);
-    if (!Number.isFinite(price) || price <= 0) {
+    if (!normalized.title) return json({ success: false, error: 'Title is required' }, 400);
+    if (!Number.isFinite(normalized.price) || normalized.price <= 0) {
       return json({ success: false, error: 'Valid price is required' }, 400);
     }
-    if (!mainImage) {
+    if (!normalized.mainImage) {
       return json({ success: false, error: 'At least one image is required' }, 400);
     }
 
-    const categoryId = String(body.category_id || body.categoryId || '').trim() || null;
-    const categoryName = String(body.category_name || body.categoryName || body.category || '').trim();
-
     const id = String(body.id || genId());
     const now = new Date().toISOString();
-
-    const imagesJson = JSON.stringify(imagesArr);
-    const descJson = JSON.stringify(descArr);
-    const imageVariantsJson = JSON.stringify(imageVariants);
 
     await env.DB.prepare(
       `
@@ -266,79 +365,191 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
     )
       .bind(
         id,
-        title,
-        mainImage,
-        imagesJson,
-        descJson,
-        videoUrl,
-        price,
-        originalPrice == null ? null : Number(originalPrice),
-        Number.isFinite(discount) ? discount : 0,
-        String(body.sold_count || body.soldCount || '0 sold'),
-        String(body.order_count || body.orderCount || '0 orders'),
-        body.rating == null ? 5.0 : Number(body.rating),
-        categoryId,
-        categoryName,
-        String(body.status || 'online'),
+        normalized.title,
+        normalized.mainImage,
+        JSON.stringify(normalized.imagesArr),
+        JSON.stringify(normalized.descArr),
+        normalized.videoUrl,
+        normalized.price,
+        normalized.originalPrice,
+        normalized.discount,
+        normalized.soldCount,
+        normalized.orderCount,
+        normalized.rating,
+        normalized.categoryId,
+        normalized.categoryName,
+        normalized.status,
         String(body.created_at || body.createdAt || now),
         now,
-        description,
-        imageVariantsJson
+        normalized.description,
+        JSON.stringify(normalized.imageVariants)
       )
       .run();
 
-    const saved = {
-      id,
-      title,
-      description,
-
-      image: mainImage,
-      image_url: mainImage,
-
-      images: imagesArr,
-      image_urls: imagesArr,
-
-      description_images: descArr,
-      descriptionImages: descArr,
-
-      video_url: videoUrl,
-      videoUrl: videoUrl,
-
-      price,
-      sellingPrice: price,
-
-      original_price: originalPrice == null ? null : Number(originalPrice),
-      originalPrice: originalPrice == null ? null : Number(originalPrice),
-
-      discount: Number.isFinite(discount) ? discount : 0,
-
-      sold_count: String(body.sold_count || body.soldCount || '0 sold'),
-      soldCount: String(body.sold_count || body.soldCount || '0 sold'),
-
-      order_count: String(body.order_count || body.orderCount || '0 orders'),
-      orderCount: String(body.order_count || body.orderCount || '0 orders'),
-
-      rating: body.rating == null ? 5.0 : Number(body.rating),
-
-      category_id: categoryId,
-      categoryId: categoryId,
-
-      category_name: categoryName,
-      categoryName: categoryName,
-
-      image_variants: imageVariants,
-      imageVariants: imageVariants,
-
-      status: String(body.status || 'online'),
-      created_at: String(body.created_at || body.createdAt || now),
-      createdAt: String(body.created_at || body.createdAt || now),
-      updated_at: now,
-      updatedAt: now,
-    };
-
-    return json({ success: true, data: saved }, 201);
+    const saved = await getProductById(env, id);
+    return json({ success: true, data: buildProductResponse(saved) }, 201);
   } catch (e: any) {
     console.error('POST /api/products error', e);
+    return json({ success: false, error: e?.message || 'Server error' }, 500);
+  }
+};
+
+export const onRequestPut: PagesFunction<Env> = async ({ env, request }) => {
+  try {
+    if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
+
+    const url = new URL(request.url);
+    const queryId = url.searchParams.get('id');
+    const body = await request.json().catch(() => ({} as any));
+    const id = String(queryId || body.id || '').trim();
+
+    if (!id) return json({ success: false, error: 'Missing id' }, 400);
+
+    const existing = await getProductById(env, id);
+    if (!existing) return json({ success: false, error: 'Not found' }, 404);
+
+    const normalized = normalizeIncomingProduct(body, existing);
+
+    if (!normalized.title) return json({ success: false, error: 'Title is required' }, 400);
+    if (!Number.isFinite(normalized.price) || normalized.price <= 0) {
+      return json({ success: false, error: 'Valid price is required' }, 400);
+    }
+    if (!normalized.mainImage) {
+      return json({ success: false, error: 'At least one image is required' }, 400);
+    }
+
+    const now = new Date().toISOString();
+
+    await env.DB.prepare(
+      `
+      UPDATE products
+      SET
+        title = ?,
+        image = ?,
+        images = ?,
+        description_images = ?,
+        video_url = ?,
+        price = ?,
+        original_price = ?,
+        discount = ?,
+        sold_count = ?,
+        order_count = ?,
+        rating = ?,
+        category_id = ?,
+        category_name = ?,
+        status = ?,
+        updated_at = ?,
+        description = ?,
+        image_variants = ?
+      WHERE id = ?
+      `
+    )
+      .bind(
+        normalized.title,
+        normalized.mainImage,
+        JSON.stringify(normalized.imagesArr),
+        JSON.stringify(normalized.descArr),
+        normalized.videoUrl,
+        normalized.price,
+        normalized.originalPrice,
+        normalized.discount,
+        normalized.soldCount,
+        normalized.orderCount,
+        normalized.rating,
+        normalized.categoryId,
+        normalized.categoryName,
+        normalized.status,
+        now,
+        normalized.description,
+        JSON.stringify(normalized.imageVariants),
+        id
+      )
+      .run();
+
+    const updated = await getProductById(env, id);
+    return json({ success: true, data: buildProductResponse(updated) });
+  } catch (e: any) {
+    console.error('PUT /api/products error', e);
+    return json({ success: false, error: e?.message || 'Server error' }, 500);
+  }
+};
+
+export const onRequestPatch: PagesFunction<Env> = async ({ env, request }) => {
+  try {
+    if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
+
+    const url = new URL(request.url);
+    const queryId = url.searchParams.get('id');
+    const body = await request.json().catch(() => ({} as any));
+    const id = String(queryId || body.id || '').trim();
+
+    if (!id) return json({ success: false, error: 'Missing id' }, 400);
+
+    const existing = await getProductById(env, id);
+    if (!existing) return json({ success: false, error: 'Not found' }, 404);
+
+    const normalized = normalizeIncomingProduct(body, existing);
+
+    if (!normalized.title) return json({ success: false, error: 'Title is required' }, 400);
+    if (!Number.isFinite(normalized.price) || normalized.price <= 0) {
+      return json({ success: false, error: 'Valid price is required' }, 400);
+    }
+    if (!normalized.mainImage) {
+      return json({ success: false, error: 'At least one image is required' }, 400);
+    }
+
+    const now = new Date().toISOString();
+
+    await env.DB.prepare(
+      `
+      UPDATE products
+      SET
+        title = ?,
+        image = ?,
+        images = ?,
+        description_images = ?,
+        video_url = ?,
+        price = ?,
+        original_price = ?,
+        discount = ?,
+        sold_count = ?,
+        order_count = ?,
+        rating = ?,
+        category_id = ?,
+        category_name = ?,
+        status = ?,
+        updated_at = ?,
+        description = ?,
+        image_variants = ?
+      WHERE id = ?
+      `
+    )
+      .bind(
+        normalized.title,
+        normalized.mainImage,
+        JSON.stringify(normalized.imagesArr),
+        JSON.stringify(normalized.descArr),
+        normalized.videoUrl,
+        normalized.price,
+        normalized.originalPrice,
+        normalized.discount,
+        normalized.soldCount,
+        normalized.orderCount,
+        normalized.rating,
+        normalized.categoryId,
+        normalized.categoryName,
+        normalized.status,
+        now,
+        normalized.description,
+        JSON.stringify(normalized.imageVariants),
+        id
+      )
+      .run();
+
+    const updated = await getProductById(env, id);
+    return json({ success: true, data: buildProductResponse(updated) });
+  } catch (e: any) {
+    console.error('PATCH /api/products error', e);
     return json({ success: false, error: e?.message || 'Server error' }, 500);
   }
 };
