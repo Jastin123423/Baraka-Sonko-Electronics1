@@ -644,6 +644,10 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     });
   };
 
+  const productDescription =
+    toUrl((product as any).description) ||
+    `Welcome to BARAKA SONKO. Our ${(product as any).title} is selected for its superior quality and durability. Perfect for professional or home use.`;
+
   return (
     <div className="fixed inset-0 bg-white z-[100] flex flex-col animate-fadeIn overflow-hidden">
       <div className="flex-shrink-0 bg-white/95 backdrop-blur-md flex items-center justify-between px-4 py-3 border-b border-gray-100 shadow-sm">
@@ -825,11 +829,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
           <div className="py-2">
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">About This Product</h3>
-            <div className="text-sm text-gray-600 leading-relaxed font-medium">
-              <p>
-                {toUrl((product as any).description) ||
-                  `Welcome to BARAKA SONKO. Our ${(product as any).title} is selected for its superior quality and durability. Perfect for professional or home use.`}
-              </p>
+            <div className="text-sm text-gray-600 leading-7 font-medium whitespace-pre-line break-words">
+              {productDescription}
             </div>
           </div>
 
