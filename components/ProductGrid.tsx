@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { COLORS, ICONS } from '../constants';
 import { Product } from '../types';
 
@@ -7,14 +7,12 @@ import { Product } from '../types';
 ================================= */
 
 const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ product, onClick }) => {
-  // Ensure numbers are always safe
   const price = Number((product as any).price ?? 0);
   const discount = Number((product as any).discount ?? 0);
 
   const safePrice = Number.isFinite(price) ? price : 0;
   const safeDiscount = Number.isFinite(discount) ? discount : 0;
 
-  // Calculate original price if not provided
   const originalPrice =
     (product as any).originalPrice && Number.isFinite(Number((product as any).originalPrice))
       ? Number((product as any).originalPrice)
@@ -37,16 +35,15 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
           src={(product as any).image || ''}
           alt={(product as any).title || 'Product'}
           className="w-full h-auto object-cover block"
+          loading="lazy"
         />
 
-        {/* Discount Badge */}
         {showDiscount && (
           <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[9px] px-1.5 py-0.5 font-bold rounded-sm z-10 shadow-sm">
             -{safeDiscount}%
           </div>
         )}
 
-        {/* Wishlist Icon */}
         <div className="absolute bottom-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-gray-400">
           <ICONS.Heart />
         </div>
@@ -54,27 +51,22 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
 
       <div className="p-2.5 flex-grow flex flex-col justify-between">
         <div className="space-y-1">
-          {/* Title */}
           <h3 className="text-[11px] text-gray-800 line-clamp-2 leading-tight font-medium h-8">
             {(product as any).title || 'Untitled'}
           </h3>
 
-          {/* Pricing Section (SAME LINE) */}
           <div className="flex items-center gap-1 pt-1">
-            {/* ORIGINAL PRICE FIRST (with slash) */}
             {showDiscount && originalPrice && (
               <span className="text-[10px] text-gray-400 line-through">
                 TSh {originalPrice.toLocaleString()}
               </span>
             )}
 
-            {/* SELLING PRICE */}
             <span className="text-[14px] font-black text-black">
               TSh {safePrice.toLocaleString()}
             </span>
           </div>
 
-          {/* Rating */}
           <div className="flex items-center mt-2">
             <div className="flex items-center space-x-0.5">
               <span className="text-[10px] text-orange-400">⭐</span>
@@ -85,11 +77,50 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
               </span>
             </div>
           </div>
-
         </div>
       </div>
     </div>
   );
+};
+
+/* ===============================
+   HELPERS
+================================= */
+
+const safeProductId = (p: any, idx: number) => {
+  const id = p?.id ?? p?.product_id ?? p?.slug ?? idx;
+  return String(id);
+};
+
+const dedupeProducts = (items: Product[]): Product[] => {
+  const seen = new Set<string>();
+  const out: Product[] = [];
+
+  items.forEach((item, idx) => {
+    const key = safeProductId(item, idx);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(item);
+  });
+
+  return out;
+};
+
+const shuffleWithSeed = <T,>(array: T[], seed: number): T[] => {
+  const result = [...array];
+  let s = seed || 1;
+
+  const rand = () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  return result;
 };
 
 /* ===============================
@@ -103,6 +134,12 @@ interface ProductGridProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   isLoading?: boolean;
+
+  /**
+   * true = reorder products on every page refresh / revisit
+   * false = keep incoming order from parent
+   */
+  randomizeOnRefresh?: boolean;
 }
 
 const ProductGrid: React.FC<ProductGridProps> = ({
@@ -111,40 +148,69 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   onProductClick,
   onLoadMore,
   hasMore = false,
-  isLoading = false
+  isLoading = false,
+  randomizeOnRefresh = true,
 }) => {
   const observerTarget = useRef<HTMLDivElement | null>(null);
+  const loadingLockRef = useRef(false);
 
-  // Split into two masonry columns
+  // New seed every mount => different order on refresh / revisit
+  const [sessionSeed] = useState(() => Date.now() + Math.floor(Math.random() * 100000));
+
+  // Remove accidental duplicates first
+  const normalizedProducts = useMemo(() => {
+    return dedupeProducts(Array.isArray(products) ? products : []);
+  }, [products]);
+
+  // Randomize order per refresh if enabled
+  const displayProducts = useMemo(() => {
+    if (!randomizeOnRefresh) return normalizedProducts;
+    return shuffleWithSeed(normalizedProducts, sessionSeed);
+  }, [normalizedProducts, randomizeOnRefresh, sessionSeed]);
+
+  // Split into two masonry columns after shuffling
   const [colLeft, colRight] = useMemo(() => {
     const left: Product[] = [];
     const right: Product[] = [];
 
-    products.forEach((p, idx) => {
+    displayProducts.forEach((p, idx) => {
       if (idx % 2 === 0) left.push(p);
       else right.push(p);
     });
 
     return [left, right];
-  }, [products]);
+  }, [displayProducts]);
 
   useEffect(() => {
-    if (!onLoadMore || !hasMore || isLoading) return;
+    loadingLockRef.current = false;
+  }, [isLoading]);
 
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting) {
-          onLoadMore();
-        }
-      },
-      { threshold: 0.1, rootMargin: '200px' }
-    );
+  useEffect(() => {
+    if (!onLoadMore || !hasMore) return;
 
     const current = observerTarget.current;
-    if (current) observer.observe(current);
+    if (!current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+        if (isLoading) return;
+        if (loadingLockRef.current) return;
+
+        loadingLockRef.current = true;
+        onLoadMore();
+      },
+      {
+        threshold: 0.01,
+        rootMargin: '500px 0px',
+      }
+    );
+
+    observer.observe(current);
 
     return () => {
-      if (current) observer.unobserve(current);
+      observer.disconnect();
     };
   }, [onLoadMore, hasMore, isLoading]);
 
@@ -161,20 +227,20 @@ const ProductGrid: React.FC<ProductGridProps> = ({
       )}
 
       <div className="flex space-x-2 items-start">
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {colLeft.map((p, idx) => (
             <ProductCard
-              key={`${(p as any).id}-left-${idx}`}
+              key={`${safeProductId(p, idx)}-left-${idx}`}
               product={p}
               onClick={() => onProductClick(p)}
             />
           ))}
         </div>
 
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {colRight.map((p, idx) => (
             <ProductCard
-              key={`${(p as any).id}-right-${idx}`}
+              key={`${safeProductId(p, idx)}-right-${idx}`}
               product={p}
               onClick={() => onProductClick(p)}
             />
@@ -188,9 +254,18 @@ const ProductGrid: React.FC<ProductGridProps> = ({
       >
         {(isLoading || hasMore) && (
           <div className="flex items-center space-x-2">
-            <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div
+              className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce"
+              style={{ animationDelay: '0ms' }}
+            />
+            <div
+              className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce"
+              style={{ animationDelay: '150ms' }}
+            />
+            <div
+              className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce"
+              style={{ animationDelay: '300ms' }}
+            />
           </div>
         )}
       </div>
