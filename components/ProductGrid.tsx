@@ -87,7 +87,7 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
    HELPERS
 ================================= */
 
-const API_LIMIT = 20;
+const API_LIMIT = 2000;
 const API_URL = '/api/products';
 
 const safeProductId = (p: any, idx: number) =>
