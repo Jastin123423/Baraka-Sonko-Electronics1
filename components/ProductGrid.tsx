@@ -129,22 +129,7 @@ const dedupeProducts = (items: Product[]): Product[] => {
   return out;
 };
 
-const shuffleWithSeed = <T,>(array: T[], seed: number): T[] => {
-  const result = [...array];
-  let s = seed || 1;
-
-  const rand = () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
-
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-
-  return result;
-};
+// REMOVED shuffleWithSeed function - we don't want to shuffle!
 
 const extractProductsFromPayload = (payload: any): Product[] => {
   const raw =
@@ -178,12 +163,14 @@ interface ProductGridProps {
   onLoadMore?: () => void; // kept for compatibility, but API fetch is handled here
   hasMore?: boolean;
   isLoading?: boolean;
+  emptyMessage?: string; // Added for empty state
 }
 
 const ProductGrid: React.FC<ProductGridProps> = ({
   title,
   products,
   onProductClick,
+  emptyMessage = "No products found"
 }) => {
   const observerTarget = useRef<HTMLDivElement | null>(null);
   const fetchLockRef = useRef(false);
@@ -194,9 +181,6 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   const [hasMoreInternal, setHasMoreInternal] = useState<boolean>(() => cachedHasMore);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // one shuffle per mount / refresh so order changes when user comes back
-  const [sessionSeed] = useState(() => Date.now() + Math.floor(Math.random() * 100000));
-
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -204,26 +188,34 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     };
   }, []);
 
-  const propProducts = useMemo(() => {
+  // Normalize and dedupe the products
+  const normalizedProducts = useMemo(() => {
     return dedupeProducts((products || []).filter(Boolean).map(normalizeProduct));
   }, [products]);
 
-  const mergedProducts = useMemo(() => {
-    const merged = dedupeProducts([...propProducts, ...apiProducts]);
-    return shuffleWithSeed(merged, sessionSeed);
-  }, [propProducts, apiProducts, sessionSeed]);
+  // Use the provided products directly - NO SHUFFLING or merging with API products
+  // This ensures category-specific products stay together
+  const displayProducts = useMemo(() => {
+    // If we have provided products, use them directly
+    if (normalizedProducts.length > 0) {
+      return normalizedProducts;
+    }
+    // Otherwise use cached API products as fallback
+    return apiProducts;
+  }, [normalizedProducts, apiProducts]);
 
+  // Split into two columns for masonry layout - but keep order
   const [colLeft, colRight] = useMemo(() => {
     const left: Product[] = [];
     const right: Product[] = [];
 
-    mergedProducts.forEach((p, idx) => {
+    displayProducts.forEach((p, idx) => {
       if (idx % 2 === 0) left.push(p);
       else right.push(p);
     });
 
     return [left, right];
-  }, [mergedProducts]);
+  }, [displayProducts]);
 
   const loadMoreFromApi = useCallback(async () => {
     if (fetchLockRef.current) return;
@@ -281,15 +273,18 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     }
   }, [page, hasMoreInternal]);
 
-  // Initial silent fetch only if parent did not already provide enough items
+  // Only load more if we have no provided products and need to show fallback
   useEffect(() => {
-    const totalNow = dedupeProducts([...propProducts, ...cachedProducts]).length;
+    // Only load from API if we have no products provided
+    if (normalizedProducts.length > 0) return;
+    
+    const totalNow = apiProducts.length;
 
     if (totalNow >= API_LIMIT) return;
     if (!cachedHasMore) return;
 
     loadMoreFromApi();
-  }, [propProducts, loadMoreFromApi]);
+  }, [normalizedProducts.length, apiProducts.length, loadMoreFromApi]);
 
   useEffect(() => {
     const current = observerTarget.current;
@@ -313,6 +308,27 @@ const ProductGrid: React.FC<ProductGridProps> = ({
 
     return () => observer.disconnect();
   }, [loadMoreFromApi, loadingMore, hasMoreInternal]);
+
+  // Show empty state if no products
+  if (displayProducts.length === 0) {
+    return (
+      <div className="px-2 mb-4">
+        {title && (
+          <div className="flex items-center justify-center py-6">
+            <div className="h-px bg-gray-200 w-12 mr-3" />
+            <span className="text-xs font-black text-gray-500 uppercase tracking-widest">
+              {title}
+            </span>
+            <div className="h-px bg-gray-200 w-12 ml-3" />
+          </div>
+        )}
+        <div className="py-12 text-center bg-gray-50 rounded-2xl">
+          <div className="text-gray-400 text-4xl mb-3">🛒</div>
+          <p className="text-sm font-medium text-gray-600">{emptyMessage}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="px-2 mb-4">
@@ -352,7 +368,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
         ref={observerTarget}
         className="h-24 flex items-center justify-center w-full"
       >
-        {(loadingMore || hasMoreInternal) && (
+        {(loadingMore || hasMoreInternal) && displayProducts.length > 0 && (
           <div className="flex items-center space-x-2">
             <div
               className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce"
