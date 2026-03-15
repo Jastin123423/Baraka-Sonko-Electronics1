@@ -1,76 +1,109 @@
-
+// Home.tsx or App.tsx
 import React, { useState, useEffect } from 'react';
-import { ICONS, COLORS } from '../constants';
+import Header from './Header';
+import SearchResults from './SearchResults';
+import CategoriesView from './CategoriesView';
+import { Product, Category } from '../types';
 
-interface HeaderProps {
-  onMenuClick: () => void;
-  onSearch: (query: string) => void;
-  initialValue?: string;
-}
+const Home: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [showCategories, setShowCategories] = useState(true);
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, onSearch, initialValue = '' }) => {
-  const [query, setQuery] = useState(initialValue);
-
+  // Fetch all products once (for searching)
   useEffect(() => {
-    setQuery(initialValue);
-  }, [initialValue]);
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('https://barakasonko.store/api/products');
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          setAllProducts(data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+      }
+    };
+    
+    fetchProducts();
+  }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setQuery(val);
-    // Real-time search if needed, or just keep state
+  // Real search function
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setShowCategories(false); // Hide categories when searching
+    
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowCategories(true); // Show categories when search is cleared
+      return;
+    }
+
+    setIsSearching(true);
+    
+    // Filter products based on search query
+    const filtered = allProducts.filter(product => {
+      const searchTerm = query.toLowerCase().trim();
+      return (
+        product.name.toLowerCase().includes(searchTerm) ||
+        product.description?.toLowerCase().includes(searchTerm) ||
+        product.category?.toLowerCase().includes(searchTerm) ||
+        product.brand?.toLowerCase().includes(searchTerm)
+      );
+    });
+    
+    setSearchResults(filtered);
+    setIsSearching(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      onSearch(query);
-    }
+  const handleProductClick = (product: Product) => {
+    // Handle product click - navigate to product detail
+    console.log('Product clicked:', product);
+  };
+
+  const handleCategorySelect = (category: Category) => {
+    // Filter products by category
+    const categoryProducts = allProducts.filter(
+      product => product.category?.toLowerCase() === category.name.toLowerCase()
+    );
+    setSearchResults(categoryProducts);
+    setSearchQuery(category.name);
+    setShowCategories(false);
+  };
+
+  const handleMenuClick = () => {
+    // Handle menu/sidebar toggle
+    console.log('Menu clicked');
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white shadow-sm w-full">
-      {/* Search bar section - Ali/Kikuu style */}
-      <div className="px-3 py-3 flex items-center space-x-3">
-        <button onClick={onMenuClick} className="p-1 text-gray-600 active:bg-gray-100 rounded transition-colors">
-          <ICONS.Menu />
-        </button>
-        <div className="relative flex-grow flex items-center bg-gray-100 rounded-full overflow-hidden border border-gray-200 focus-within:border-orange-300 focus-within:ring-2 focus-within:ring-orange-50 transition-all">
-          <div 
-            className="pl-3 text-gray-400 cursor-pointer active:scale-90 transition-transform"
-            onClick={() => onSearch(query)}
-          >
-            <ICONS.Search />
-          </div>
-          <input 
-            type="text" 
-            placeholder="Search phones, speakers..."
-            className="w-full bg-transparent border-none py-2 px-3 text-sm outline-none placeholder-gray-400 font-medium"
-            value={query}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
+    <div className="min-h-screen bg-gray-50">
+      <Header 
+        onMenuClick={handleMenuClick}
+        onSearch={handleSearch}
+        initialValue={searchQuery}
+      />
+      
+      <main className="container mx-auto px-4 py-4">
+        {showCategories ? (
+          <CategoriesView 
+            onCategorySelect={handleCategorySelect}
+            onShowAllProducts={() => handleSearch('')}
+            suggestedProducts={allProducts.slice(0, 10)}
+            onProductClick={handleProductClick}
           />
-          {query && (
-            <button 
-              onClick={() => { setQuery(''); onSearch(''); }}
-              className="pr-3 text-gray-400 text-lg hover:text-gray-600"
-            >
-              &times;
-            </button>
-          )}
-        </div>
-        {/* Replaced cart button with circular country flag */}
-        <div className="flex-shrink-0">
-          <div className="w-7 h-7 rounded-full overflow-hidden border border-gray-200 shadow-sm">
-            <img 
-              src="https://flagcdn.com/w40/tz.png" 
-              alt="TZ" 
-              className="w-full h-full object-cover scale-150"
-            />
-          </div>
-        </div>
-      </div>
-    </header>
+        ) : (
+          <SearchResults 
+            searchQuery={searchQuery}
+            products={searchResults}
+            onProductClick={handleProductClick}
+            isLoading={isSearching}
+          />
+        )}
+      </main>
+    </div>
   );
 };
 
-export default Header;
+export default Home;
