@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { CATEGORIES, COLORS } from '../constants';
+import { COLORS } from '../constants';
 import { Category, Product } from '../types';
 import ProductGrid from './ProductGrid';
 import AdBanner from './AdBanner';
