@@ -647,6 +647,7 @@ const App: React.FC = () => {
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [categoryProducts, setCategoryProducts] = useState<Product[]>([]); // New state for category-specific products
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -850,16 +851,68 @@ const App: React.FC = () => {
     setView('search-results');
   };
 
-  const handleCategorySelect = (category: Category) => {
-    if (category.name === 'Bidhaa Zote' || category.name.toLowerCase().includes('all')) {
+  // UPDATED: Strict category selection with API filtering
+  const handleCategorySelect = async (category: Category) => {
+    setIsSidebarOpen(false);
+    
+    // Handle "Bidhaa Zote" (id: 14) separately - show all products
+    if (category.id === '14' || category.name === 'Bidhaa Zote') {
       setView('all-products');
-      setIsSidebarOpen(false);
+      window.scrollTo(0, 0);
       return;
     }
-    setSelectedCategory(category);
-    setView('category-results');
-    setIsSidebarOpen(false);
-    window.scrollTo(0, 0);
+    
+    try {
+      // Show loading state
+      setIsLoading(true);
+      
+      // Fetch products specifically for this category using category_id
+      // This ensures we only get products that belong to this category
+      const response = await fetch(`https://barakasonko.store/api/products?category_id=${category.id}`);
+      const data = await response.json();
+      
+      if (data.success && Array.isArray(data.data)) {
+        // Store only the products for this category
+        const normalizedCategoryProducts = data.data.map((p: any) => 
+          normalizeProduct(p, categories)
+        );
+        setCategoryProducts(normalizedCategoryProducts);
+      } else {
+        // Fallback to client-side filtering if API fails
+        const filtered = products.filter((p) => {
+          const productCategoryId = String((p as any).category_id || (p as any).categoryId || '');
+          const productCategoryName = String((p as any).category_name || (p as any).category || '').toLowerCase();
+          const selectedCategoryId = String(category.id);
+          const selectedCategoryName = category.name.toLowerCase();
+          
+          return productCategoryId === selectedCategoryId || 
+                 productCategoryName === selectedCategoryName;
+        });
+        setCategoryProducts(filtered);
+      }
+      
+      setSelectedCategory(category);
+      setView('category-results');
+    } catch (error) {
+      console.error('Failed to fetch category products:', error);
+      
+      // Fallback to client-side filtering
+      const filtered = products.filter((p) => {
+        const productCategoryId = String((p as any).category_id || (p as any).categoryId || '');
+        const productCategoryName = String((p as any).category_name || (p as any).category || '').toLowerCase();
+        const selectedCategoryId = String(category.id);
+        const selectedCategoryName = category.name.toLowerCase();
+        
+        return productCategoryId === selectedCategoryId || 
+               productCategoryName === selectedCategoryName;
+      });
+      setCategoryProducts(filtered);
+      setSelectedCategory(category);
+      setView('category-results');
+    } finally {
+      setIsLoading(false);
+      window.scrollTo(0, 0);
+    }
   };
 
   // Helper functions for user management
@@ -1195,7 +1248,7 @@ const App: React.FC = () => {
       ? 'categories'
       : 'home';
 
-  if (isLoading) {
+  if (isLoading && view !== 'category-results') {
     return (
       <div className="fixed inset-0 bg-white flex flex-col items-center justify-center space-y-4">
         <div className="text-3xl font-black italic text-orange-600 animate-pulse">SONKO</div>
@@ -1392,16 +1445,21 @@ const App: React.FC = () => {
             isLoading={false}
             WatermarkedImage={WatermarkedImage}
           />
-        ) : view === 'category-results' ? (
+        ) : view === 'category-results' && selectedCategory ? (
           <div className="animate-fadeIn p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
-                {selectedCategory?.icon && (
-                  <span className="text-xl">{selectedCategory.icon}</span>
+                {selectedCategory.icon && (
+                  <span className="text-2xl">{selectedCategory.icon}</span>
                 )}
-                <h2 className="text-sm font-bold text-gray-500 uppercase">
-                  {selectedCategory ? selectedCategory.name : 'Category'}
-                </h2>
+                <div>
+                  <h2 className="text-sm font-bold text-gray-500 uppercase">
+                    {selectedCategory.name}
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {isLoading ? 'Loading...' : `${categoryProducts.length} products`}
+                  </p>
+                </div>
               </div>
               <button
                 className="text-xs font-black text-orange-600"
@@ -1411,15 +1469,18 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <ProductGrid
-              products={products.filter((p) => {
-                const cat = String((p as any).category ?? (p as any).categoryName ?? '').toLowerCase();
-                const target = String(selectedCategory?.name ?? '').toLowerCase();
-                return target ? cat === target : true;
-              })}
-              onProductClick={handleProductClick}
-              WatermarkedImage={WatermarkedImage}
-            />
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-8 h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <ProductGrid
+                products={categoryProducts}
+                onProductClick={handleProductClick}
+                WatermarkedImage={WatermarkedImage}
+                emptyMessage={`No products found in ${selectedCategory.name} category`}
+              />
+            )}
           </div>
         ) : view === 'search-results' ? (
           <div className="animate-fadeIn p-4">
