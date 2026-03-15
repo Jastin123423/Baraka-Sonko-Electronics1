@@ -65,10 +65,14 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
     fetchCategories();
   }, []); // Empty dependency array ensures this runs only once
 
-  // Filter categories based on search term
+  // Filter categories based on search term - only if search has text
   const filteredCategories = useMemo(() => {
-    if (!searchTerm.trim()) return categories;
+    // If search is empty or just whitespace, show all categories
+    if (!searchTerm.trim()) {
+      return categories;
+    }
     
+    // Otherwise filter based on search term
     const term = searchTerm.toLowerCase().trim();
     return categories.filter(cat => 
       cat.name.toLowerCase().includes(term) ||
@@ -200,8 +204,8 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
           )}
         </div>
 
-        {/* Search Results Count */}
-        {searchTerm && categories.length > 0 && (
+        {/* Search Results Count - Only show when searching */}
+        {searchTerm.trim() && categories.length > 0 && (
           <div className="mt-2 px-1">
             <p className="text-sm font-medium text-gray-500">
               Found {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
@@ -229,34 +233,36 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
           ))}
         </div>
       ) : (
-        // No Results State
-        <div className="px-4 mb-6 py-12 flex flex-col items-center justify-center text-center bg-gray-50 rounded-3xl mx-4">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <svg 
-              className="w-8 h-8 text-gray-400" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
+        // Only show "No results" when there's an active search with no matches
+        searchTerm.trim() ? (
+          <div className="px-4 mb-6 py-12 flex flex-col items-center justify-center text-center bg-gray-50 rounded-3xl mx-4">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <svg 
+                className="w-8 h-8 text-gray-400" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={1.5} 
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">No categories found</h3>
+            <p className="text-sm font-medium text-gray-500 mb-4">
+              We couldn't find any categories matching "{searchTerm}"
+            </p>
+            <button
+              onClick={() => setSearchTerm('')}
+              className="px-6 py-3 bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-sm active:scale-95 transition-all"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={1.5} 
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-              />
-            </svg>
+              Clear Search
+            </button>
           </div>
-          <h3 className="text-lg font-bold text-gray-900 mb-2">No categories found</h3>
-          <p className="text-sm font-medium text-gray-500 mb-4">
-            We couldn't find any categories matching "{searchTerm}"
-          </p>
-          <button
-            onClick={() => setSearchTerm('')}
-            className="px-6 py-3 bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-sm active:scale-95 transition-all"
-          >
-            Clear Search
-          </button>
-        </div>
+        ) : null // Show nothing when there are no categories (shouldn't happen normally)
       )}
 
       {/* Promotional Banner */}
