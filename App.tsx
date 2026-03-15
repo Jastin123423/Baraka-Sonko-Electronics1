@@ -425,7 +425,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Helper functions and banners remain the same...
+// Helper functions
 const getDefaultCategoryIcon = (categoryName: string): string => {
   const name = categoryName.toLowerCase();
   
@@ -599,7 +599,7 @@ class ViewsService {
   }
 }
 
-// Banner data - All GIF banners should work now
+// Banner data
 const banners = [
   {
     id: 1,
@@ -648,6 +648,9 @@ const App: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
+  
+  // NEW: Category-Product mapping for accurate filtering
+  const [categoryProductMap, setCategoryProductMap] = useState<Record<string, Product[]>>({});
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -669,7 +672,6 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Only prevent on product images (those with watermarks)
       if (target.classList.contains('product-image')) {
         e.preventDefault();
       }
@@ -831,6 +833,168 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
+  // NEW: Build category-product map when data loads
+  const buildCategoryProductMap = useCallback(() => {
+    const map: Record<string, Product[]> = {};
+    
+    // Initialize empty arrays for all categories
+    categories.forEach(cat => {
+      map[cat.id] = [];
+    });
+    
+    // Also ensure "Bidhaa Zote" (id: "14") exists
+    if (!map["14"]) {
+      map["14"] = [];
+    }
+    
+    // Map each product to its category
+    products.forEach(product => {
+      const productData = product as any;
+      
+      // Try multiple methods to find the correct category
+      let matchedCategoryId: string | null = null;
+      
+      // Method 1: Check by category_id field
+      if (productData.category_id) {
+        const catId = String(productData.category_id).trim();
+        if (map[catId]) {
+          matchedCategoryId = catId;
+        }
+      }
+      
+      // Method 2: Check by categoryId field
+      if (!matchedCategoryId && productData.categoryId) {
+        const catId = String(productData.categoryId).trim();
+        if (map[catId]) {
+          matchedCategoryId = catId;
+        }
+      }
+      
+      // Method 3: Match by category name
+      if (!matchedCategoryId) {
+        const productCatName = (
+          productData.category_name || 
+          productData.categoryName || 
+          productData.category || 
+          ''
+        ).toLowerCase().trim();
+        
+        const matchingCat = categories.find(cat => 
+          cat.name.toLowerCase().trim() === productCatName
+        );
+        
+        if (matchingCat) {
+          matchedCategoryId = matchingCat.id;
+        }
+      }
+      
+      // Method 4: Manual matching based on title keywords
+      if (!matchedCategoryId) {
+        const title = (productData.title || '').toLowerCase();
+        
+        // Mic category (id: "3")
+        if (title.includes('mic') || title.includes('microphone')) {
+          // Exclude accessories
+          if (!title.includes('cable') && !title.includes('wire') && 
+              !title.includes('stand') && !title.includes('stendi')) {
+            matchedCategoryId = "3";
+          }
+        }
+        
+        // Spika category (id: "2")
+        else if (title.includes('spika') || title.includes('speaker') || title.includes('sound')) {
+          matchedCategoryId = "2";
+        }
+        
+        // TV category (id: "6")
+        else if (title.includes('tv') || title.includes('television')) {
+          matchedCategoryId = "6";
+        }
+        
+        // Mobile accessories (id: "7")
+        else if (title.includes('charger') || title.includes('adapter') || 
+                 title.includes('cable') || title.includes('wire')) {
+          matchedCategoryId = "7";
+        }
+        
+        // TV accessories (id: "8")
+        else if (title.includes('tv stand') || title.includes('tv bracket') || 
+                 title.includes('tv stendi')) {
+          matchedCategoryId = "8";
+        }
+        
+        // Guitars (id: "9")
+        else if (title.includes('gitaa') || title.includes('guitar')) {
+          matchedCategoryId = "9";
+        }
+        
+        // Drums (id: "11")
+        else if (title.includes('tumba') || title.includes('drum') || 
+                 title.includes('manyanga') || title.includes('dufu')) {
+          matchedCategoryId = "11";
+        }
+        
+        // Mixers (id: "12")
+        else if (title.includes('mixer') || title.includes('mixing')) {
+          matchedCategoryId = "12";
+        }
+        
+        // Spares (id: "13")
+        else if (title.includes('battery') || title.includes('betri') || 
+                 title.includes('jack') || title.includes('spare')) {
+          matchedCategoryId = "13";
+        }
+      }
+      
+      // Add product to its category map
+      if (matchedCategoryId && map[matchedCategoryId]) {
+        map[matchedCategoryId].push(product);
+      } else {
+        // If no category found, put in "Bidhaa Zote"
+        if (map["14"]) {
+          map["14"].push(product);
+        }
+      }
+    });
+    
+    // Remove duplicates (in case a product got added multiple times)
+    Object.keys(map).forEach(catId => {
+      map[catId] = map[catId].filter((p, index, self) => 
+        index === self.findIndex(t => t.id === p.id)
+      );
+    });
+    
+    setCategoryProductMap(map);
+    console.log('✅ Category product map built:', 
+      Object.keys(map).map(catId => ({
+        category: categories.find(c => c.id === catId)?.name || catId,
+        count: map[catId].length
+      }))
+    );
+  }, [products, categories]);
+
+  // Build map when products and categories are loaded
+  useEffect(() => {
+    if (products.length > 0 && categories.length > 0) {
+      buildCategoryProductMap();
+    }
+  }, [products, categories, buildCategoryProductMap]);
+
+  // Debug effect to verify mapping
+  useEffect(() => {
+    if (Object.keys(categoryProductMap).length > 0) {
+      console.log('========== CATEGORY MAP VERIFICATION ==========');
+      Object.entries(categoryProductMap).forEach(([catId, prods]) => {
+        const category = categories.find(c => c.id === catId);
+        if (category && prods.length > 0) {
+          console.log(`📁 ${category.name} (${catId}): ${prods.length} products`);
+          console.log('   Sample:', prods.slice(0, 3).map(p => (p as any).title));
+        }
+      });
+      console.log('===============================================');
+    }
+  }, [categoryProductMap, categories]);
+
   // Search Logic
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -851,172 +1015,27 @@ const App: React.FC = () => {
     setView('search-results');
   };
 
-  // UPDATED: Strict category selection with reliable client-side filtering
-  const handleCategorySelect = async (category: Category) => {
+  // UPDATED: Use pre-built category map for instant, accurate filtering
+  const handleCategorySelect = (category: Category) => {
     setIsSidebarOpen(false);
     
-    // Handle "Bidhaa Zote" (id: 14) separately - show all products
-    if (category.id === '14' || category.name === 'Bidhaa Zote' || category.name.toLowerCase().includes('all')) {
+    // Handle "Bidhaa Zote" - show all products
+    if (category.id === '14' || category.name === 'Bidhaa Zote') {
       setView('all-products');
       window.scrollTo(0, 0);
       return;
     }
     
-    try {
-      // Show loading state
-      setIsLoading(true);
-      
-      console.log(`Fetching products for category: ${category.name} (ID: ${category.id})`);
-      
-      // Try to fetch from API first
-      const response = await fetch(`https://barakasonko.store/api/products?category_id=${category.id}`);
-      const data = await response.json();
-      
-      let filteredProducts: Product[] = [];
-      
-      if (data.success && Array.isArray(data.data)) {
-        // Normalize the fetched products
-        const fetchedProducts = data.data.map((p: any) => normalizeProduct(p, categories));
-        
-        // STRICT CLIENT-SIDE FILTERING - Only exact matches
-        filteredProducts = fetchedProducts.filter((p) => {
-          // Get category ID from product (check all possible fields)
-          const productCategoryId = String(
-            (p as any).category_id || 
-            (p as any).categoryId || 
-            (p as any).category?.id || 
-            ''
-          ).trim();
-          
-          // Get category name from product
-          const productCategoryName = String(
-            (p as any).category_name || 
-            (p as any).categoryName || 
-            (p as any).category?.name || 
-            (p as any).category || 
-            ''
-          ).toLowerCase().trim();
-          
-          const selectedCategoryId = String(category.id).trim();
-          const selectedCategoryName = category.name.toLowerCase().trim();
-          
-          // STRICT MATCHING - Only exact matches
-          const matchesById = productCategoryId === selectedCategoryId;
-          const matchesByName = productCategoryName === selectedCategoryName;
-          
-          // Log for debugging (remove in production)
-          if (matchesById || matchesByName) {
-            console.log(`✅ Product matched: ${(p as any).title}`, {
-              productCategoryId,
-              productCategoryName,
-              selectedCategoryId,
-              selectedCategoryName
-            });
-          }
-          
-          return matchesById || matchesByName;
-        });
-        
-        console.log(`Found ${filteredProducts.length} products for category ${category.name}`);
-      } else {
-        // If API fails, filter from all products
-        console.log('API failed, filtering from all products');
-        filteredProducts = products.filter((p) => {
-          const productCategoryId = String(
-            (p as any).category_id || 
-            (p as any).categoryId || 
-            (p as any).category?.id || 
-            ''
-          ).trim();
-          
-          const productCategoryName = String(
-            (p as any).category_name || 
-            (p as any).categoryName || 
-            (p as any).category?.name || 
-            (p as any).category || 
-            ''
-          ).toLowerCase().trim();
-          
-          const selectedCategoryId = String(category.id).trim();
-          const selectedCategoryName = category.name.toLowerCase().trim();
-          
-          return productCategoryId === selectedCategoryId || 
-                 productCategoryName === selectedCategoryName;
-        });
-      }
-      
-      setCategoryProducts(filteredProducts);
-      setSelectedCategory(category);
-      setView('category-results');
-      
-    } catch (error) {
-      console.error('Failed to fetch category products:', error);
-      
-      // Fallback to filtering from all products
-      const filtered = products.filter((p) => {
-        const productCategoryId = String(
-          (p as any).category_id || 
-          (p as any).categoryId || 
-          (p as any).category?.id || 
-          ''
-        ).trim();
-        
-        const productCategoryName = String(
-          (p as any).category_name || 
-          (p as any).categoryName || 
-          (p as any).category?.name || 
-          (p as any).category || 
-          ''
-        ).toLowerCase().trim();
-        
-        const selectedCategoryId = String(category.id).trim();
-        const selectedCategoryName = category.name.toLowerCase().trim();
-        
-        return productCategoryId === selectedCategoryId || 
-               productCategoryName === selectedCategoryName;
-      });
-      
-      setCategoryProducts(filtered);
-      setSelectedCategory(category);
-      setView('category-results');
-    } finally {
-      setIsLoading(false);
-      window.scrollTo(0, 0);
-    }
+    // Get products directly from the pre-built map
+    const productsForCategory = categoryProductMap[category.id] || [];
+    
+    console.log(`📌 Category "${category.name}" has ${productsForCategory.length} products`);
+    
+    setCategoryProducts(productsForCategory);
+    setSelectedCategory(category);
+    setView('category-results');
+    window.scrollTo(0, 0);
   };
-
-  // Debug effect to see what category IDs products have
-  useEffect(() => {
-    if (products.length > 0 && categories.length > 0) {
-      console.log('=== CATEGORY DEBUG INFO ===');
-      
-      // Show all categories
-      console.log('Categories:', categories.map(c => ({ id: c.id, name: c.name })));
-      
-      // Show what category IDs exist in products
-      const productCategoryIds = new Set();
-      products.forEach(p => {
-        const id = (p as any).category_id || (p as any).categoryId;
-        if (id) productCategoryIds.add(id);
-      });
-      console.log('Category IDs found in products:', Array.from(productCategoryIds));
-      
-      // Check Mic products specifically
-      const micProducts = products.filter(p => 
-        (p as any).title?.toLowerCase().includes('mic') ||
-        (p as any).category_name?.toLowerCase().includes('mic')
-      );
-      console.log('Products mentioning "mic":', micProducts.map(p => ({
-        title: (p as any).title,
-        category_id: (p as any).category_id,
-        categoryId: (p as any).categoryId,
-        category_name: (p as any).category_name,
-        category: (p as any).category
-      })));
-      
-      console.log('=== END DEBUG ===');
-    }
-  }, [products, categories]);
 
   // Helper functions for user management
   const getOrCreateUserId = (): string => {
@@ -1065,7 +1084,6 @@ const App: React.FC = () => {
       const comments = await CommentsService.fetchComments(productId);
       setProductComments(prev => ({ ...prev, [productId]: comments }));
       
-      // Update comment count
       setCommentCounts(prev => ({ ...prev, [productId]: comments.length }));
     } catch (error) {
       console.error('Failed to fetch comments:', error);
@@ -1074,7 +1092,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Update handleAddComment to use logged-in name
   const handleAddComment = async (productId: string, content: string) => {
     try {
       const isLoggedIn = !!user;
@@ -1122,7 +1139,6 @@ const App: React.FC = () => {
       const success = await CommentsService.likeComment(commentId, userId);
       
       if (success) {
-        // Update comment in state
         setProductComments(prev => ({
           ...prev,
           [productId]: (prev[productId] || []).map(comment => {
@@ -1149,13 +1165,11 @@ const App: React.FC = () => {
       const success = await CommentsService.deleteComment(commentId);
       
       if (success) {
-        // Remove comment from state
         setProductComments(prev => ({
           ...prev,
           [productId]: (prev[productId] || []).filter(comment => comment.id !== commentId)
         }));
         
-        // Update comment count
         setCommentCounts(prev => ({
           ...prev,
           [productId]: Math.max(0, (prev[productId] || 0) - 1)
@@ -1169,15 +1183,12 @@ const App: React.FC = () => {
     return false;
   };
 
-  // When opening product, fetch comments + record views
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setView('product-detail');
 
-    // Preload comments
     fetchCommentsForProduct(product.id);
 
-    // Record view
     (async () => {
       const viewerKey = getOrCreateUserId();
       const newCount = await ViewsService.recordView(product.id, viewerKey);
@@ -1185,7 +1196,6 @@ const App: React.FC = () => {
     })();
   };
 
-  // Create stable callbacks for ProductDetailView
   const fetchSelectedProductComments = useCallback(() => {
     if (!selectedProduct?.id) return;
     fetchCommentsForProduct(selectedProduct.id);
@@ -1233,7 +1243,7 @@ const App: React.FC = () => {
     setActiveBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
   };
 
-  // Mock Admin session
+  // Admin session
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('sonko_user');
     return saved ? JSON.parse(saved) : null;
@@ -1257,13 +1267,11 @@ const App: React.FC = () => {
         const saved = normalizeProduct(savedRaw, categories);
         setProducts((prev) => [saved, ...prev]);
         
-        // Initialize comment count for new product
         setCommentCounts(prev => ({
           ...prev,
           [saved.id]: 0
         }));
         
-        // Initialize view count for new product
         setViewCounts(prev => ({
           ...prev,
           [saved.id]: 0
@@ -1295,7 +1303,6 @@ const App: React.FC = () => {
       if (result?.success) {
         setProducts((prev) => prev.filter((p) => String(p.id) !== String(id)));
         
-        // Remove comment data for deleted product
         setProductComments(prev => {
           const newComments = { ...prev };
           delete newComments[id];
@@ -1308,7 +1315,6 @@ const App: React.FC = () => {
           return newCounts;
         });
         
-        // Remove view data for deleted product
         setViewCounts(prev => {
           const newCounts = { ...prev };
           delete newCounts[id];
@@ -1406,7 +1412,6 @@ const App: React.FC = () => {
           WatermarkedImage={WatermarkedImage}
           VideoPlayer={VideoPlayer}
           Banner={Banner}
-          // comments
           comments={productComments[selectedProduct.id] || []}
           commentCount={commentCounts[selectedProduct.id] || 0}
           onFetchComments={fetchSelectedProductComments}
@@ -1414,7 +1419,6 @@ const App: React.FC = () => {
           onLikeComment={likeSelectedProductComment}
           onDeleteComment={deleteSelectedProductComment}
           isLoadingComments={isLoadingComments[selectedProduct.id] || false}
-          // views
           viewCount={viewCounts[selectedProduct.id] || 0}
           onRecordView={recordSelectedProductView}
         />
@@ -1430,7 +1434,7 @@ const App: React.FC = () => {
         onCategorySelect={handleCategorySelect}
       />
 
-      {/* Header - Pass handleProductClick as onProductSelect */}
+      {/* Header */}
       {view !== 'product-detail' && (
         <Header
           onMenuClick={() => setIsSidebarOpen(true)}
@@ -1445,7 +1449,6 @@ const App: React.FC = () => {
           <>
             <HeroBanner onClick={() => setView('all-products')} />
 
-            {/* Rotating Banner Carousel - GIF banners work perfectly now */}
             <div className="relative w-full overflow-hidden">
               <div className="relative h-[350px]">
                 {banners.map((banner, index) => (
@@ -1468,7 +1471,6 @@ const App: React.FC = () => {
                 ))}
               </div>
 
-              {/* Banner Navigation */}
               {banners.length > 1 && (
                 <>
                   <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
@@ -1522,7 +1524,6 @@ const App: React.FC = () => {
               WatermarkedImage={WatermarkedImage}
             />
 
-            {/* Promotion Banner */}
             <div className="p-4">
               <Banner
                 src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
@@ -1560,7 +1561,7 @@ const App: React.FC = () => {
                     {selectedCategory.name}
                   </h2>
                   <p className="text-xs text-gray-400 mt-1">
-                    {isLoading ? 'Loading...' : `${categoryProducts.length} products`}
+                    {categoryProducts.length} products
                   </p>
                 </div>
               </div>
@@ -1572,18 +1573,12 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {isLoading ? (
-              <div className="flex justify-center py-12">
-                <div className="w-8 h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <ProductGrid
-                products={categoryProducts}
-                onProductClick={handleProductClick}
-                WatermarkedImage={WatermarkedImage}
-                emptyMessage={`No products found in ${selectedCategory.name} category`}
-              />
-            )}
+            <ProductGrid
+              products={categoryProducts}
+              onProductClick={handleProductClick}
+              WatermarkedImage={WatermarkedImage}
+              emptyMessage={`No products found in ${selectedCategory.name} category`}
+            />
           </div>
         ) : view === 'search-results' ? (
           <div className="animate-fadeIn p-4">
