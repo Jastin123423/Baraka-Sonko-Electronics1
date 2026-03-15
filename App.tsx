@@ -647,7 +647,7 @@ const App: React.FC = () => {
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [categoryProducts, setCategoryProducts] = useState<Product[]>([]); // New state for category-specific products
+  const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -851,12 +851,12 @@ const App: React.FC = () => {
     setView('search-results');
   };
 
-  // UPDATED: Strict category selection with API filtering
+  // UPDATED: Strict category selection with reliable client-side filtering
   const handleCategorySelect = async (category: Category) => {
     setIsSidebarOpen(false);
     
     // Handle "Bidhaa Zote" (id: 14) separately - show all products
-    if (category.id === '14' || category.name === 'Bidhaa Zote') {
+    if (category.id === '14' || category.name === 'Bidhaa Zote' || category.name.toLowerCase().includes('all')) {
       setView('all-products');
       window.scrollTo(0, 0);
       return;
@@ -866,46 +866,116 @@ const App: React.FC = () => {
       // Show loading state
       setIsLoading(true);
       
-      // Fetch products specifically for this category using category_id
-      // This ensures we only get products that belong to this category
+      console.log(`Fetching products for category: ${category.name} (ID: ${category.id})`);
+      
+      // Try to fetch from API first
       const response = await fetch(`https://barakasonko.store/api/products?category_id=${category.id}`);
       const data = await response.json();
       
+      let filteredProducts: Product[] = [];
+      
       if (data.success && Array.isArray(data.data)) {
-        // Store only the products for this category
-        const normalizedCategoryProducts = data.data.map((p: any) => 
-          normalizeProduct(p, categories)
-        );
-        setCategoryProducts(normalizedCategoryProducts);
+        // Normalize the fetched products
+        const fetchedProducts = data.data.map((p: any) => normalizeProduct(p, categories));
+        
+        // STRICT CLIENT-SIDE FILTERING - Only exact matches
+        filteredProducts = fetchedProducts.filter((p) => {
+          // Get category ID from product (check all possible fields)
+          const productCategoryId = String(
+            (p as any).category_id || 
+            (p as any).categoryId || 
+            (p as any).category?.id || 
+            ''
+          ).trim();
+          
+          // Get category name from product
+          const productCategoryName = String(
+            (p as any).category_name || 
+            (p as any).categoryName || 
+            (p as any).category?.name || 
+            (p as any).category || 
+            ''
+          ).toLowerCase().trim();
+          
+          const selectedCategoryId = String(category.id).trim();
+          const selectedCategoryName = category.name.toLowerCase().trim();
+          
+          // STRICT MATCHING - Only exact matches
+          const matchesById = productCategoryId === selectedCategoryId;
+          const matchesByName = productCategoryName === selectedCategoryName;
+          
+          // Log for debugging (remove in production)
+          if (matchesById || matchesByName) {
+            console.log(`✅ Product matched: ${(p as any).title}`, {
+              productCategoryId,
+              productCategoryName,
+              selectedCategoryId,
+              selectedCategoryName
+            });
+          }
+          
+          return matchesById || matchesByName;
+        });
+        
+        console.log(`Found ${filteredProducts.length} products for category ${category.name}`);
       } else {
-        // Fallback to client-side filtering if API fails
-        const filtered = products.filter((p) => {
-          const productCategoryId = String((p as any).category_id || (p as any).categoryId || '');
-          const productCategoryName = String((p as any).category_name || (p as any).category || '').toLowerCase();
-          const selectedCategoryId = String(category.id);
-          const selectedCategoryName = category.name.toLowerCase();
+        // If API fails, filter from all products
+        console.log('API failed, filtering from all products');
+        filteredProducts = products.filter((p) => {
+          const productCategoryId = String(
+            (p as any).category_id || 
+            (p as any).categoryId || 
+            (p as any).category?.id || 
+            ''
+          ).trim();
+          
+          const productCategoryName = String(
+            (p as any).category_name || 
+            (p as any).categoryName || 
+            (p as any).category?.name || 
+            (p as any).category || 
+            ''
+          ).toLowerCase().trim();
+          
+          const selectedCategoryId = String(category.id).trim();
+          const selectedCategoryName = category.name.toLowerCase().trim();
           
           return productCategoryId === selectedCategoryId || 
                  productCategoryName === selectedCategoryName;
         });
-        setCategoryProducts(filtered);
       }
       
+      setCategoryProducts(filteredProducts);
       setSelectedCategory(category);
       setView('category-results');
+      
     } catch (error) {
       console.error('Failed to fetch category products:', error);
       
-      // Fallback to client-side filtering
+      // Fallback to filtering from all products
       const filtered = products.filter((p) => {
-        const productCategoryId = String((p as any).category_id || (p as any).categoryId || '');
-        const productCategoryName = String((p as any).category_name || (p as any).category || '').toLowerCase();
-        const selectedCategoryId = String(category.id);
-        const selectedCategoryName = category.name.toLowerCase();
+        const productCategoryId = String(
+          (p as any).category_id || 
+          (p as any).categoryId || 
+          (p as any).category?.id || 
+          ''
+        ).trim();
+        
+        const productCategoryName = String(
+          (p as any).category_name || 
+          (p as any).categoryName || 
+          (p as any).category?.name || 
+          (p as any).category || 
+          ''
+        ).toLowerCase().trim();
+        
+        const selectedCategoryId = String(category.id).trim();
+        const selectedCategoryName = category.name.toLowerCase().trim();
         
         return productCategoryId === selectedCategoryId || 
                productCategoryName === selectedCategoryName;
       });
+      
       setCategoryProducts(filtered);
       setSelectedCategory(category);
       setView('category-results');
@@ -914,6 +984,39 @@ const App: React.FC = () => {
       window.scrollTo(0, 0);
     }
   };
+
+  // Debug effect to see what category IDs products have
+  useEffect(() => {
+    if (products.length > 0 && categories.length > 0) {
+      console.log('=== CATEGORY DEBUG INFO ===');
+      
+      // Show all categories
+      console.log('Categories:', categories.map(c => ({ id: c.id, name: c.name })));
+      
+      // Show what category IDs exist in products
+      const productCategoryIds = new Set();
+      products.forEach(p => {
+        const id = (p as any).category_id || (p as any).categoryId;
+        if (id) productCategoryIds.add(id);
+      });
+      console.log('Category IDs found in products:', Array.from(productCategoryIds));
+      
+      // Check Mic products specifically
+      const micProducts = products.filter(p => 
+        (p as any).title?.toLowerCase().includes('mic') ||
+        (p as any).category_name?.toLowerCase().includes('mic')
+      );
+      console.log('Products mentioning "mic":', micProducts.map(p => ({
+        title: (p as any).title,
+        category_id: (p as any).category_id,
+        categoryId: (p as any).categoryId,
+        category_name: (p as any).category_name,
+        category: (p as any).category
+      })));
+      
+      console.log('=== END DEBUG ===');
+    }
+  }, [products, categories]);
 
   // Helper functions for user management
   const getOrCreateUserId = (): string => {
