@@ -957,7 +957,7 @@ const App: React.FC = () => {
       }
     });
     
-    // Remove duplicates (in case a product got added multiple times)
+    // Remove duplicates
     Object.keys(map).forEach(catId => {
       map[catId] = map[catId].filter((p, index, self) => 
         index === self.findIndex(t => t.id === p.id)
@@ -965,12 +965,7 @@ const App: React.FC = () => {
     });
     
     setCategoryProductMap(map);
-    console.log('✅ Category product map built:', 
-      Object.keys(map).map(catId => ({
-        category: categories.find(c => c.id === catId)?.name || catId,
-        count: map[catId].length
-      }))
-    );
+    console.log('✅ Category product map built');
   }, [products, categories]);
 
   // Build map when products and categories are loaded
@@ -1502,11 +1497,13 @@ const App: React.FC = () => {
               onMore={() => setView('categories')}
             />
 
-            <FlashSale
-              products={products.slice(0, 5)}
+            {/* Flash Sale - Using ProductGrid with rotating variant */}
+            <ProductGrid
+              title="Flash Sale"
+              products={products}
               onProductClick={handleProductClick}
-              onSeeAll={() => setView('all-products')}
               WatermarkedImage={WatermarkedImage}
+              variant="rotating"
             />
 
             <div className="p-4">
@@ -1519,11 +1516,13 @@ const App: React.FC = () => {
               />
             </div>
 
+            {/* Daily Discoveries - Also rotating */}
             <ProductGrid
               title="Daily Discoveries"
-              products={products.slice(0, 10)}
+              products={products}
               onProductClick={handleProductClick}
               WatermarkedImage={WatermarkedImage}
+              variant="rotating"
             />
           </>
         ) : view === 'all-products' ? (
