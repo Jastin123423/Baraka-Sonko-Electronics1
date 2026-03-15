@@ -1274,12 +1274,13 @@ const App: React.FC = () => {
         onCategorySelect={handleCategorySelect}
       />
 
-      {/* Header */}
+      {/* Header - Pass handleProductClick as onProductSelect */}
       {view !== 'product-detail' && (
         <Header
           onMenuClick={() => setIsSidebarOpen(true)}
           onSearch={handleSearch}
           initialValue={searchQuery}
+          onProductSelect={handleProductClick}
         />
       )}
 
@@ -1452,12 +1453,10 @@ const App: React.FC = () => {
           </div>
         ) : view === 'categories' ? (
           <CategoriesView
-            categories={categories}
             onCategorySelect={handleCategorySelect}
             onShowAllProducts={() => setView('all-products')}
             suggestedProducts={products}
             onProductClick={handleProductClick}
-            WatermarkedImage={WatermarkedImage}
           />
         ) : view === 'admin' ? (
           <ErrorBoundary title="Admin screen crashed">
