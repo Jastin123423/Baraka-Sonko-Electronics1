@@ -1,8 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import { CATEGORIES, COLORS } from '../constants';
+import React, { useMemo, useState, useEffect } from 'react';
+import { COLORS } from '../constants';
 import { Category, Product } from '../types';
 import ProductGrid from './ProductGrid';
 import AdBanner from './AdBanner';
+
+// Cache for categories to avoid multiple fetches
+let categoriesCache: Category[] | null = null;
+let cacheTimestamp: number | null = null;
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour cache
 
 interface CategoriesViewProps {
   onCategorySelect: (category: Category) => void;
@@ -18,22 +23,120 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
   onProductClick 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch categories only once with caching
+  useEffect(() => {
+    const fetchCategories = async () => {
+      // Check if cache is still valid
+      const now = Date.now();
+      if (categoriesCache && cacheTimestamp && (now - cacheTimestamp) < CACHE_DURATION) {
+        setCategories(categoriesCache);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await fetch('/api/categories');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch categories');
+        }
+        
+        const data = await response.json();
+        
+        // Update cache
+        categoriesCache = data;
+        cacheTimestamp = now;
+        setCategories(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load categories');
+        console.error('Error fetching categories:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []); // Empty dependency array ensures this runs only once
+
   // Filter categories based on search term
   const filteredCategories = useMemo(() => {
-    if (!searchTerm.trim()) return CATEGORIES;
+    if (!searchTerm.trim()) return categories;
     
     const term = searchTerm.toLowerCase().trim();
-    return CATEGORIES.filter(cat => 
+    return categories.filter(cat => 
       cat.name.toLowerCase().includes(term) ||
       cat.id.toLowerCase().includes(term)
     );
-  }, [searchTerm]);
+  }, [searchTerm, categories]);
 
   // Select 15 suggested products randomly or sequentially
   const displayProducts = useMemo(() => {
     return suggestedProducts.slice(0, 15);
   }, [suggestedProducts]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="bg-white min-h-screen pb-10 animate-fadeIn">
+        <div className="px-6 pt-8 pb-4 flex flex-col">
+          <h2 className="text-2xl font-black text-gray-900 tracking-tight">All Categories</h2>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Explore Baraka Sonko Collection</p>
+        </div>
+
+        {/* Skeleton Search */}
+        <div className="px-4 mb-6">
+          <div className="h-14 bg-gray-200 rounded-2xl animate-pulse" />
+        </div>
+
+        {/* Skeleton Grid */}
+        <div className="px-4 grid grid-cols-3 gap-4 mb-6">
+          {[...Array(9)].map((_, i) => (
+            <div key={i} className="aspect-square p-4 rounded-3xl bg-gray-100 animate-pulse">
+              <div className="w-full h-full flex flex-col items-center justify-center">
+                <div className="w-8 h-8 bg-gray-200 rounded-full mb-2" />
+                <div className="w-12 h-3 bg-gray-200 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="bg-white min-h-screen pb-10 animate-fadeIn">
+        <div className="px-6 pt-8 pb-4 flex flex-col">
+          <h2 className="text-2xl font-black text-gray-900 tracking-tight">All Categories</h2>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Explore Baraka Sonko Collection</p>
+        </div>
+
+        <div className="px-4 py-12 flex flex-col items-center justify-center text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">Failed to load categories</h3>
+          <p className="text-sm font-medium text-gray-500 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-sm active:scale-95 transition-all"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white min-h-screen pb-10 animate-fadeIn">
@@ -98,7 +201,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
         </div>
 
         {/* Search Results Count */}
-        {searchTerm && (
+        {searchTerm && categories.length > 0 && (
           <div className="mt-2 px-1">
             <p className="text-sm font-medium text-gray-500">
               Found {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
@@ -117,7 +220,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
               className="flex flex-col items-center justify-center aspect-square p-4 rounded-3xl bg-gray-50 border border-gray-100 active:scale-95 transition-all group cursor-pointer shadow-sm hover:shadow-md"
             >
               <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
-                {cat.icon}
+                {cat.icon || '📁'}
               </div>
               <span className="text-[11px] font-black text-gray-800 text-center leading-tight tracking-tighter">
                 {cat.name}
