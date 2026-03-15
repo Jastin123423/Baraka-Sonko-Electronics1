@@ -649,7 +649,7 @@ const App: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
   
-  // NEW: Category-Product mapping for accurate filtering
+  // Category-Product mapping for accurate filtering
   const [categoryProductMap, setCategoryProductMap] = useState<Record<string, Product[]>>({});
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -833,7 +833,7 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
-  // NEW: Build category-product map when data loads
+  // Build category-product map when data loads
   const buildCategoryProductMap = useCallback(() => {
     const map: Record<string, Product[]> = {};
     
@@ -980,21 +980,6 @@ const App: React.FC = () => {
     }
   }, [products, categories, buildCategoryProductMap]);
 
-  // Debug effect to verify mapping
-  useEffect(() => {
-    if (Object.keys(categoryProductMap).length > 0) {
-      console.log('========== CATEGORY MAP VERIFICATION ==========');
-      Object.entries(categoryProductMap).forEach(([catId, prods]) => {
-        const category = categories.find(c => c.id === catId);
-        if (category && prods.length > 0) {
-          console.log(`📁 ${category.name} (${catId}): ${prods.length} products`);
-          console.log('   Sample:', prods.slice(0, 3).map(p => (p as any).title));
-        }
-      });
-      console.log('===============================================');
-    }
-  }, [categoryProductMap, categories]);
-
   // Search Logic
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -1015,7 +1000,7 @@ const App: React.FC = () => {
     setView('search-results');
   };
 
-  // UPDATED: Use pre-built category map for instant, accurate filtering
+  // Use pre-built category map for accurate filtering
   const handleCategorySelect = (category: Category) => {
     setIsSidebarOpen(false);
     
@@ -1542,6 +1527,7 @@ const App: React.FC = () => {
             />
           </>
         ) : view === 'all-products' ? (
+          // ALL PRODUCTS VIEW - Shows ALL products (mixed)
           <AllProductsView
             products={products}
             onProductClick={handleProductClick}
@@ -1550,6 +1536,7 @@ const App: React.FC = () => {
             WatermarkedImage={WatermarkedImage}
           />
         ) : view === 'category-results' && selectedCategory ? (
+          // CATEGORY RESULTS VIEW - Shows ONLY filtered products
           <div className="animate-fadeIn p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
@@ -1569,7 +1556,7 @@ const App: React.FC = () => {
                 className="text-xs font-black text-orange-600"
                 onClick={() => setView('all-products')}
               >
-                View All
+                View All Products
               </button>
             </div>
 
