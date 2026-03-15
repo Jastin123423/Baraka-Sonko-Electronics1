@@ -6,7 +6,7 @@ interface HeaderProps {
   onMenuClick: () => void;
   onSearch: (query: string) => void;
   initialValue?: string;
-  onProductSelect?: (product: Product) => void;
+  onProductSelect?: (product: Product) => void; // This will trigger ProductDetailView
 }
 
 interface SearchSuggestion {
@@ -18,6 +18,9 @@ interface SearchSuggestion {
   category_name?: string;
   category_id?: string;
   description?: string;
+  sellingPrice?: number;
+  original_price?: number;
+  discount?: number;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -165,14 +168,24 @@ const Header: React.FC<HeaderProps> = ({
     setShowSuggestions(false);
     
     if (onProductSelect) {
-      // Convert to Product type
+      // Convert to Product type that ProductDetailView expects
       const product: Product = {
         id: suggestion.id,
         name: suggestion.title || suggestion.name || 'Unknown Product',
-        price: suggestion.price || 0,
+        title: suggestion.title || suggestion.name,
+        price: suggestion.price || suggestion.sellingPrice || 0,
+        sellingPrice: suggestion.sellingPrice || suggestion.price,
+        original_price: suggestion.original_price,
+        discount: suggestion.discount,
         image: suggestion.image,
-        category: suggestion.category_name || 'General'
-      };
+        category: suggestion.category_name || 'General',
+        category_name: suggestion.category_name,
+        description: suggestion.description,
+        images: [suggestion.image].filter(Boolean),
+        // Add any other fields that Product type expects
+      } as Product;
+      
+      // Call the parent handler which should open ProductDetailView
       onProductSelect(product);
     }
   };
