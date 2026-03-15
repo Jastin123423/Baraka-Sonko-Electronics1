@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { COLORS } from '../constants';
+import { CATEGORIES, COLORS } from '../constants';
 import { Category, Product } from '../types';
 import ProductGrid from './ProductGrid';
 import AdBanner from './AdBanner';
@@ -45,7 +45,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
         setError(null);
         
         console.log('Fetching categories from API...');
-        const response = await fetch('https://barakasonko.store/api/products?category_id=${category.id');
+        const response = await fetch('https://barakasonko.store/api/categories');
         
         console.log('API Response status:', response.status);
         
@@ -56,7 +56,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
         const jsonResponse = await response.json();
         console.log('API Response data:', jsonResponse);
         
-        // ✅ CORRECT: Extract the categories from the data property
+        // Extract the categories from the data property
         if (jsonResponse.success && Array.isArray(jsonResponse.data)) {
           const fetchedCategories = jsonResponse.data;
           console.log('Fetched categories:', fetchedCategories);
@@ -86,7 +86,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
     };
 
     fetchCategories();
-  }, []); // Empty dependency array ensures this runs only once
+  }, []);
 
   // Filter categories based on search term - only if search has text
   const filteredCategories = useMemo(() => {
