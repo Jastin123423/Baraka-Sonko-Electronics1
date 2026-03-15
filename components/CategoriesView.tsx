@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { COLORS } from '../constants';
+import { CATEGORIES, COLORS } from '../constants';
 import { Category, Product } from '../types';
 import ProductGrid from './ProductGrid';
 import AdBanner from './AdBanner';
@@ -26,6 +26,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   // Fetch categories only once with caching
   useEffect(() => {
@@ -33,6 +34,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
       // Check if cache is still valid
       const now = Date.now();
       if (categoriesCache && cacheTimestamp && (now - cacheTimestamp) < CACHE_DURATION) {
+        console.log('Using cached categories:', categoriesCache);
         setCategories(categoriesCache);
         setIsLoading(false);
         return;
@@ -42,21 +44,42 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
         setIsLoading(true);
         setError(null);
         
+        console.log('Fetching categories from API...');
         const response = await fetch('https://barakasonko.store/api/categories');
         
+        console.log('API Response status:', response.status);
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch categories');
+          throw new Error(`Failed to fetch categories: ${response.status}`);
         }
         
-        const data = await response.json();
+        const jsonResponse = await response.json();
+        console.log('API Response data:', jsonResponse);
         
-        // Update cache
-        categoriesCache = data;
-        cacheTimestamp = now;
-        setCategories(data);
+        // ✅ CORRECT: Extract the categories from the data property
+        if (jsonResponse.success && Array.isArray(jsonResponse.data)) {
+          const fetchedCategories = jsonResponse.data;
+          console.log('Fetched categories:', fetchedCategories);
+          
+          // Update cache
+          categoriesCache = fetchedCategories;
+          cacheTimestamp = now;
+          setCategories(fetchedCategories);
+          setUsingFallback(false);
+        } else {
+          // If API returns unexpected structure, use local categories
+          console.log('API returned unexpected structure, using local categories');
+          setCategories(CATEGORIES);
+          setUsingFallback(true);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load categories');
         console.error('Error fetching categories:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load categories');
+        
+        // Fallback to local categories
+        console.log('Using local categories as fallback');
+        setCategories(CATEGORIES);
+        setUsingFallback(true);
       } finally {
         setIsLoading(false);
       }
@@ -115,7 +138,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
   }
 
   // Error state
-  if (error) {
+  if (error && !usingFallback) {
     return (
       <div className="bg-white min-h-screen pb-10 animate-fadeIn">
         <div className="px-6 pt-8 pb-4 flex flex-col">
@@ -148,6 +171,9 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
       <div className="px-6 pt-8 pb-4 flex flex-col">
         <h2 className="text-2xl font-black text-gray-900 tracking-tight">All Categories</h2>
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Explore Baraka Sonko Collection</p>
+        {usingFallback && (
+          <p className="text-xs text-orange-500 mt-1">Using local categories (API unavailable)</p>
+        )}
       </div>
 
       {/* Professional Categories Search */}
@@ -175,7 +201,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search categories (e.g., Electronics, Fashion)"
+            placeholder="Search categories (e.g., Mobiles, TV, Spika)"
             className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-base font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-orange-400 focus:bg-white transition-all"
             autoComplete="off"
           />
@@ -262,7 +288,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
               Clear Search
             </button>
           </div>
-        ) : null // Show nothing when there are no categories (shouldn't happen normally)
+        ) : null
       )}
 
       {/* Promotional Banner */}
