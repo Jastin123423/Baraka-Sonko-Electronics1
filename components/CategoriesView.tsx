@@ -45,7 +45,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({
         setError(null);
         
         console.log('Fetching categories from API...');
-        const response = await fetch('https://barakasonko.store/api/categories');
+        const response = await fetch('https://barakasonko.store/api/products?category_id=${category.id');
         
         console.log('API Response status:', response.status);
         
