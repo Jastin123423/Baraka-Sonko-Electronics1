@@ -1497,13 +1497,12 @@ const App: React.FC = () => {
               onMore={() => setView('categories')}
             />
 
-            {/* Flash Sale - Using ProductGrid with rotating variant */}
-            <ProductGrid
-              title="Flash Sale"
+            {/* Flash Sale - UNTOUCHED - horizontal scrollable as before */}
+            <FlashSale
               products={products}
               onProductClick={handleProductClick}
+              onSeeAll={() => setView('all-products')}
               WatermarkedImage={WatermarkedImage}
-              variant="rotating"
             />
 
             <div className="p-4">
@@ -1516,17 +1515,15 @@ const App: React.FC = () => {
               />
             </div>
 
-            {/* Daily Discoveries - Also rotating */}
+            {/* Daily Discoveries - MODIFIED to show more products */}
             <ProductGrid
               title="Daily Discoveries"
               products={products}
               onProductClick={handleProductClick}
               WatermarkedImage={WatermarkedImage}
-              variant="rotating"
             />
           </>
         ) : view === 'all-products' ? (
-          // ALL PRODUCTS VIEW - Shows ALL products (mixed)
           <AllProductsView
             products={products}
             onProductClick={handleProductClick}
@@ -1535,7 +1532,6 @@ const App: React.FC = () => {
             WatermarkedImage={WatermarkedImage}
           />
         ) : view === 'category-results' && selectedCategory ? (
-          // CATEGORY RESULTS VIEW - Shows ONLY filtered products
           <div className="animate-fadeIn p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
