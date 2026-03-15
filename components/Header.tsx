@@ -12,9 +12,10 @@ interface HeaderProps {
 interface SearchSuggestion {
   id: string;
   name: string;
-  type: 'product' | 'category';
+  title?: string;
   image?: string;
   price?: number;
+  category_name?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -46,7 +47,7 @@ const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch search suggestions
+  // Fetch search suggestions from the working API
   useEffect(() => {
     const fetchSuggestions = async () => {
       const trimmedQuery = query.trim();
@@ -64,14 +65,27 @@ const Header: React.FC<HeaderProps> = ({
 
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`, {
+        
+        // Use the working API endpoint
+        const response = await fetch(`https://barakasonko.store/api/products?search=${encodeURIComponent(trimmedQuery)}`, {
           signal: abortControllerRef.current.signal
         });
         
-        if (!response.ok) throw new Error('Search failed');
+        if (!response.ok) {
+          throw new Error('Search failed');
+        }
         
         const data = await response.json();
-        setSuggestions(data.suggestions || []);
+        console.log('Search results:', data);
+        
+        // Extract products from the response
+        // The API returns { success: true, data: [...] }
+        if (data.success && Array.isArray(data.data)) {
+          setSuggestions(data.data);
+        } else {
+          setSuggestions([]);
+        }
+        
         setShowSuggestions(true);
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
@@ -101,15 +115,19 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
-    setQuery(suggestion.name);
+    setQuery(suggestion.title || suggestion.name);
     setShowSuggestions(false);
     
-    if (suggestion.type === 'product' && onProductSelect) {
-      // Navigate to product
-      onProductSelect({ id: suggestion.id, name: suggestion.name } as Product);
-    } else {
-      // Search for category
-      onSearch(suggestion.name);
+    if (onProductSelect) {
+      // Convert to Product type
+      const product: Product = {
+        id: suggestion.id,
+        name: suggestion.title || suggestion.name,
+        price: suggestion.price || 0,
+        image: suggestion.image,
+        category: suggestion.category_name || 'General'
+      };
+      onProductSelect(product);
     }
   };
 
@@ -140,7 +158,7 @@ const Header: React.FC<HeaderProps> = ({
             
             <input 
               type="text" 
-              placeholder="Search phones, speakers, electronics..."
+              placeholder="Search products (e.g., mic, speaker, tv)..."
               className="w-full bg-transparent border-none py-2.5 px-2 text-sm outline-none placeholder-gray-400 font-medium"
               value={query}
               onChange={handleChange}
@@ -176,49 +194,41 @@ const Header: React.FC<HeaderProps> = ({
           {showSuggestions && suggestions.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 max-h-96 overflow-y-auto z-50 animate-fadeIn">
               <div className="py-2">
-                {suggestions.map((suggestion) => (
+                {suggestions.map((product) => (
                   <button
-                    key={`${suggestion.type}-${suggestion.id}`}
-                    onClick={() => handleSuggestionClick(suggestion)}
+                    key={product.id}
+                    onClick={() => handleSuggestionClick(product)}
                     className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3"
                   >
-                    {suggestion.type === 'product' ? (
-                      <>
-                        {suggestion.image ? (
-                          <img 
-                            src={suggestion.image} 
-                            alt={suggestion.name} 
-                            className="w-10 h-10 object-cover rounded-lg"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                            <ICONS.Product className="w-5 h-5" />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{suggestion.name}</p>
-                          {suggestion.price && (
-                            <p className="text-sm text-orange-600 font-bold">
-                              KSh {suggestion.price.toLocaleString()}
-                            </p>
-                          )}
-                          <p className="text-xs text-gray-400">Product</p>
-                        </div>
-                      </>
+                    {product.image ? (
+                      <img 
+                        src={product.image} 
+                        alt={product.title || product.name} 
+                        className="w-12 h-12 object-cover rounded-lg"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/48?text=Product';
+                        }}
+                      />
                     ) : (
-                      <>
-                        <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center text-orange-500">
-                          <ICONS.Category className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{suggestion.name}</p>
-                          <p className="text-xs text-orange-500">Category</p>
-                        </div>
-                      </>
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                        <ICONS.Product className="w-6 h-6" />
+                      </div>
                     )}
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 line-clamp-2">
+                        {product.title || product.name}
+                      </p>
+                      {product.price && (
+                        <p className="text-sm text-orange-600 font-bold mt-1">
+                          TSh {product.price.toLocaleString()}
+                        </p>
+                      )}
+                      {product.category_name && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {product.category_name}
+                        </p>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>
