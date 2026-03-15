@@ -11,11 +11,13 @@ interface HeaderProps {
 
 interface SearchSuggestion {
   id: string;
-  name: string;
-  title?: string;
+  title: string;
+  name?: string;
   image?: string;
   price?: number;
   category_name?: string;
+  category_id?: string;
+  description?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -47,7 +49,53 @@ const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch search suggestions from the working API
+  // Check if a product is actually a microphone
+  const isMicrophone = (product: SearchSuggestion): boolean => {
+    const title = (product.title || product.name || '').toLowerCase();
+    const category = (product.category_name || '').toLowerCase();
+    const description = (product.description || '').toLowerCase();
+    
+    // Keywords that indicate it's a microphone
+    const micKeywords = ['mic', 'microphone', 'maikrofoni', 'wireless mic', 'shure', 'mic wireless'];
+    
+    // Keywords that indicate it's NOT a microphone (false positives)
+    const excludeKeywords = ['mic cable', 'mic stand', 'mic holder', 'wire', 'cable', 'stand', 'adapter'];
+    
+    // Check if it contains mic keywords
+    const hasMicKeyword = micKeywords.some(keyword => 
+      title.includes(keyword) || category.includes(keyword) || description.includes(keyword)
+    );
+    
+    // Check if it should be excluded
+    const shouldExclude = excludeKeywords.some(keyword => 
+      title.includes(keyword) || category.includes(keyword) || description.includes(keyword)
+    );
+    
+    // Also check if it's in the Mic category (category_id "3" from your API)
+    const isMicCategory = product.category_id === "3" || category.includes('mic');
+    
+    return (hasMicKeyword && !shouldExclude) || isMicCategory;
+  };
+
+  // Filter suggestions based on search query
+  const filterSuggestions = (products: SearchSuggestion[], searchQuery: string): SearchSuggestion[] => {
+    const query_lower = searchQuery.toLowerCase();
+    
+    return products.filter(product => {
+      const title = (product.title || product.name || '').toLowerCase();
+      const category = (product.category_name || '').toLowerCase();
+      
+      // If searching for "mic", use the microphone detector
+      if (query_lower === 'mic' || query_lower === 'microphone' || query_lower === 'maikrofoni') {
+        return isMicrophone(product);
+      }
+      
+      // For other searches, do normal title/category matching
+      return title.includes(query_lower) || category.includes(query_lower);
+    });
+  };
+
+  // Fetch search suggestions from the API
   useEffect(() => {
     const fetchSuggestions = async () => {
       const trimmedQuery = query.trim();
@@ -66,7 +114,6 @@ const Header: React.FC<HeaderProps> = ({
       try {
         setIsLoading(true);
         
-        // Use the working API endpoint
         const response = await fetch(`https://barakasonko.store/api/products?search=${encodeURIComponent(trimmedQuery)}`, {
           signal: abortControllerRef.current.signal
         });
@@ -76,12 +123,11 @@ const Header: React.FC<HeaderProps> = ({
         }
         
         const data = await response.json();
-        console.log('Search results:', data);
         
-        // Extract products from the response
-        // The API returns { success: true, data: [...] }
+        // Filter the results to show only relevant products
         if (data.success && Array.isArray(data.data)) {
-          setSuggestions(data.data);
+          const filteredResults = filterSuggestions(data.data, trimmedQuery);
+          setSuggestions(filteredResults);
         } else {
           setSuggestions([]);
         }
@@ -115,14 +161,14 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
-    setQuery(suggestion.title || suggestion.name);
+    setQuery(suggestion.title || suggestion.name || '');
     setShowSuggestions(false);
     
     if (onProductSelect) {
       // Convert to Product type
       const product: Product = {
         id: suggestion.id,
-        name: suggestion.title || suggestion.name,
+        name: suggestion.title || suggestion.name || 'Unknown Product',
         price: suggestion.price || 0,
         image: suggestion.image,
         category: suggestion.category_name || 'General'
@@ -158,7 +204,7 @@ const Header: React.FC<HeaderProps> = ({
             
             <input 
               type="text" 
-              placeholder="Search products (e.g., mic, speaker, tv)..."
+              placeholder="Search for microphones, speakers, etc..."
               className="w-full bg-transparent border-none py-2.5 px-2 text-sm outline-none placeholder-gray-400 font-medium"
               value={query}
               onChange={handleChange}
