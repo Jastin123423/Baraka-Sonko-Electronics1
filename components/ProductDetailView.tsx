@@ -543,10 +543,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     return toUrl(first);
   }, [gallery, product]);
 
+  // ✅ FIXED: Use the product ID directly from the product object
   const productLink = useMemo(() => {
     try {
       const origin = window.location.origin;
-      return `${origin}/product/${encodeURIComponent(String((product as any).id))}`;
+      // Use the product ID directly - no need for encodeURIComponent since IDs are safe
+      return `${origin}/product/${(product as any).id}`;
     } catch {
       return 'https://barakasonko.store';
     }
