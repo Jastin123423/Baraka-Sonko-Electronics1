@@ -36,6 +36,20 @@ const WatermarkedImage: React.FC<{
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
+  // Debug logs
+  useEffect(() => {
+    if (isProduct) {
+      console.log('🎨 Watermark check:', {
+        productId,
+        isProduct,
+        shouldWatermark: isProduct,
+        isLoaded,
+        hasError,
+        src: src.substring(0, 50) + '...'
+      });
+    }
+  }, [productId, isProduct, isLoaded, hasError, src]);
+
   // Only apply watermarks to product images, not banners
   const shouldWatermark = isProduct;
 
@@ -46,7 +60,7 @@ const WatermarkedImage: React.FC<{
     const patterns = [
       { positions: ['bottom-right', 'top-left'], opacities: [0.6, 0.4], sizes: [30, 25] },
       { positions: ['bottom-left', 'top-right'], opacities: [0.5, 0.5], sizes: [28, 28] },
-      { positions: ['center-bottom', 'right-middle'], opacities: [0.4, 0.3], sizes: [35, 22] },
+      { positions: ['center', 'bottom-right'], opacities: [0.4, 0.3], sizes: [35, 22] },
     ];
     // Use a stable hash of productId to ensure consistent pattern
     const patternIndex = productId ? 
@@ -60,48 +74,42 @@ const WatermarkedImage: React.FC<{
   const renderWatermark = (position: string, opacity: number, size: number) => {
     const positions: Record<string, React.CSSProperties> = {
       'bottom-right': { 
-        bottom: '8px', 
-        right: '8px', 
+        bottom: '10px', 
+        right: '10px', 
         width: `${size}px`, 
         height: `${size}px`,
-        zIndex: 10
       },
       'top-left': { 
-        top: '8px', 
-        left: '8px', 
+        top: '10px', 
+        left: '10px', 
         width: `${size}px`, 
         height: `${size}px`,
-        zIndex: 10
       },
       'top-right': { 
-        top: '8px', 
-        right: '8px', 
+        top: '10px', 
+        right: '10px', 
         width: `${size}px`, 
         height: `${size}px`,
-        zIndex: 10
       },
       'bottom-left': { 
-        bottom: '8px', 
-        left: '8px', 
+        bottom: '10px', 
+        left: '10px', 
         width: `${size}px`, 
         height: `${size}px`,
-        zIndex: 10
       },
-      'center-bottom': { 
-        bottom: '15px', 
+      'center': { 
+        top: '50%', 
         left: '50%', 
-        transform: 'translateX(-50%)',
-        width: `${size}px`, 
-        height: `${size}px`,
-        zIndex: 10
+        transform: 'translate(-50%, -50%)',
+        width: `${size * 1.5}px`, 
+        height: `${size * 1.5}px`,
       },
       'right-middle': { 
         top: '50%', 
-        right: '8px', 
+        right: '10px', 
         transform: 'translateY(-50%)',
         width: `${size}px`, 
         height: `${size}px`,
-        zIndex: 10
       },
     };
 
@@ -114,15 +122,15 @@ const WatermarkedImage: React.FC<{
         style={{
           ...positions[position],
           opacity,
-          filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.2))',
+          filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.3))',
+          zIndex: 20,
         }}
       >
         <img
           src={logoUrl}
-          alt="Watermark"
+          alt=""
           className="w-full h-full object-contain"
           draggable="false"
-          onContextMenu={(e) => e.preventDefault()}
           style={{ pointerEvents: 'none' }}
         />
       </div>
@@ -131,7 +139,7 @@ const WatermarkedImage: React.FC<{
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl ${containerClass}`}
+      className={`relative overflow-hidden rounded-xl product-image-container ${containerClass}`}
       onClick={onClick}
       style={{
         userSelect: 'none',
@@ -143,7 +151,7 @@ const WatermarkedImage: React.FC<{
         }
       }}
     >
-      {/* Regular image for banners, watermarked for products */}
+      {/* Main image */}
       <img
         src={src}
         alt={alt}
@@ -154,21 +162,24 @@ const WatermarkedImage: React.FC<{
           pointerEvents: 'auto',
           opacity: isLoaded ? 1 : 0,
         }}
-        onLoad={() => setIsLoaded(true)}
+        onLoad={() => {
+          console.log('✅ Image loaded for:', productId);
+          setIsLoaded(true);
+        }}
         onError={() => {
-          console.error('Failed to load image:', src);
+          console.error('❌ Failed to load image:', src);
           setHasError(true);
         }}
       />
       
       {/* Loading skeleton */}
       {!isLoaded && !hasError && (
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" style={{ zIndex: 1 }} />
       )}
       
       {/* Error state */}
       {hasError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100" style={{ zIndex: 2 }}>
           <div className="text-center p-4">
             <div className="text-gray-400 text-3xl mb-2">🖼️</div>
             <p className="text-xs text-gray-500">Image not available</p>
@@ -176,14 +187,14 @@ const WatermarkedImage: React.FC<{
         </div>
       )}
       
-      {/* Watermarks for PRODUCT images only */}
-      {shouldWatermark && !hasError && isLoaded && (
-        <div className="absolute inset-0 pointer-events-none">
+      {/* Watermarks for PRODUCT images only - always render once loaded */}
+      {shouldWatermark && !hasError && (
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
           {pattern.positions.map((pos, idx) => 
             renderWatermark(pos, pattern.opacities[idx], pattern.sizes[idx])
           )}
           
-          {/* Copyright text for product images */}
+          {/* Copyright text for product images - keep original position */}
           <div
             className="absolute bottom-2 left-2 px-2 py-0.5 rounded"
             style={{
@@ -192,7 +203,7 @@ const WatermarkedImage: React.FC<{
               fontSize: '9px',
               fontWeight: 'bold',
               opacity: 0.8,
-              zIndex: 11
+              zIndex: 21,
             }}
           >
             ©barakasonko
