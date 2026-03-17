@@ -48,7 +48,10 @@ const WatermarkedImage: React.FC<{
       { positions: ['bottom-left', 'top-right'], opacities: [0.5, 0.5], sizes: [28, 28] },
       { positions: ['center-bottom', 'right-middle'], opacities: [0.4, 0.3], sizes: [35, 22] },
     ];
-    const patternIndex = productId ? parseInt(productId, 36) % patterns.length : 0;
+    // Use a stable hash of productId to ensure consistent pattern
+    const patternIndex = productId ? 
+      Math.abs(productId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % patterns.length : 
+      0;
     return patterns[patternIndex];
   };
 
@@ -189,6 +192,7 @@ const WatermarkedImage: React.FC<{
               fontSize: '9px',
               fontWeight: 'bold',
               opacity: 0.8,
+              zIndex: 11
             }}
           >
             ©barakasonko
@@ -425,7 +429,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Helper functions and banners remain the same...
+// Helper functions
 const getDefaultCategoryIcon = (categoryName: string): string => {
   const name = categoryName.toLowerCase();
   
@@ -599,7 +603,7 @@ class ViewsService {
   }
 }
 
-// Banner data - All GIF banners should work now
+// Banner data
 const banners = [
   {
     id: 1,
@@ -647,6 +651,10 @@ const App: React.FC = () => {
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
+  
+  // Category-Product mapping for accurate filtering
+  const [categoryProductMap, setCategoryProductMap] = useState<Record<string, Product[]>>({});
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -668,8 +676,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Only prevent on product images (those with watermarks)
-      if (target.classList.contains('product-image')) {
+      // Check if the clicked element or its parent is a product image container
+      const isProductImage = target.closest('.product-image-container') !== null;
+      if (isProductImage) {
         e.preventDefault();
       }
     };
@@ -690,9 +699,9 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [activeBannerIndex, view]);
 
-  // Transform backend product data
+  // Transform backend product data - ensure product IDs are preserved
   const normalizeProduct = (p: any, categoriesList: Category[]): Product => {
-    const id = String(p?.id ?? '');
+    const id = String(p?.id ?? p?._id ?? '');
     const price = Number(p?.price ?? 0);
     const discount = p?.discount == null ? 0 : Number(p.discount);
 
@@ -830,6 +839,151 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
+  // Build category-product map when data loads
+  const buildCategoryProductMap = useCallback(() => {
+    const map: Record<string, Product[]> = {};
+    
+    // Initialize empty arrays for all categories
+    categories.forEach(cat => {
+      map[cat.id] = [];
+    });
+    
+    // Also ensure "Bidhaa Zote" (id: "14") exists
+    if (!map["14"]) {
+      map["14"] = [];
+    }
+    
+    // Map each product to its category - preserve original product references
+    products.forEach(product => {
+      const productData = product as any;
+      
+      // Try multiple methods to find the correct category
+      let matchedCategoryId: string | null = null;
+      
+      // Method 1: Check by category_id field
+      if (productData.category_id) {
+        const catId = String(productData.category_id).trim();
+        if (map[catId]) {
+          matchedCategoryId = catId;
+        }
+      }
+      
+      // Method 2: Check by categoryId field
+      if (!matchedCategoryId && productData.categoryId) {
+        const catId = String(productData.categoryId).trim();
+        if (map[catId]) {
+          matchedCategoryId = catId;
+        }
+      }
+      
+      // Method 3: Match by category name
+      if (!matchedCategoryId) {
+        const productCatName = (
+          productData.category_name || 
+          productData.categoryName || 
+          productData.category || 
+          ''
+        ).toLowerCase().trim();
+        
+        const matchingCat = categories.find(cat => 
+          cat.name.toLowerCase().trim() === productCatName
+        );
+        
+        if (matchingCat) {
+          matchedCategoryId = matchingCat.id;
+        }
+      }
+      
+      // Method 4: Manual matching based on title keywords
+      if (!matchedCategoryId) {
+        const title = (productData.title || '').toLowerCase();
+        
+        // Mic category (id: "3")
+        if (title.includes('mic') || title.includes('microphone')) {
+          // Exclude accessories
+          if (!title.includes('cable') && !title.includes('wire') && 
+              !title.includes('stand') && !title.includes('stendi')) {
+            matchedCategoryId = "3";
+          }
+        }
+        
+        // Spika category (id: "2")
+        else if (title.includes('spika') || title.includes('speaker') || title.includes('sound')) {
+          matchedCategoryId = "2";
+        }
+        
+        // TV category (id: "6")
+        else if (title.includes('tv') || title.includes('television')) {
+          matchedCategoryId = "6";
+        }
+        
+        // Mobile accessories (id: "7")
+        else if (title.includes('charger') || title.includes('adapter') || 
+                 title.includes('cable') || title.includes('wire')) {
+          matchedCategoryId = "7";
+        }
+        
+        // TV accessories (id: "8")
+        else if (title.includes('tv stand') || title.includes('tv bracket') || 
+                 title.includes('tv stendi')) {
+          matchedCategoryId = "8";
+        }
+        
+        // Guitars (id: "9")
+        else if (title.includes('gitaa') || title.includes('guitar')) {
+          matchedCategoryId = "9";
+        }
+        
+        // Drums (id: "11")
+        else if (title.includes('tumba') || title.includes('drum') || 
+                 title.includes('manyanga') || title.includes('dufu')) {
+          matchedCategoryId = "11";
+        }
+        
+        // Mixers (id: "12")
+        else if (title.includes('mixer') || title.includes('mixing')) {
+          matchedCategoryId = "12";
+        }
+        
+        // Spares (id: "13")
+        else if (title.includes('battery') || title.includes('betri') || 
+                 title.includes('jack') || title.includes('spare')) {
+          matchedCategoryId = "13";
+        }
+      }
+      
+      // Add product to its category map - use the original product reference
+      if (matchedCategoryId && map[matchedCategoryId]) {
+        map[matchedCategoryId].push(product);
+      } else {
+        // If no category found, put in "Bidhaa Zote"
+        if (map["14"]) {
+          map["14"].push(product);
+        }
+      }
+    });
+    
+    // Remove duplicates while preserving original references
+    Object.keys(map).forEach(catId => {
+      const seen = new Set();
+      map[catId] = map[catId].filter(p => {
+        const duplicate = seen.has(p.id);
+        seen.add(p.id);
+        return !duplicate;
+      });
+    });
+    
+    setCategoryProductMap(map);
+    console.log('✅ Category product map built');
+  }, [products, categories]);
+
+  // Build map when products and categories are loaded
+  useEffect(() => {
+    if (products.length > 0 && categories.length > 0) {
+      buildCategoryProductMap();
+    }
+  }, [products, categories, buildCategoryProductMap]);
+
   // Search Logic
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -850,15 +1004,25 @@ const App: React.FC = () => {
     setView('search-results');
   };
 
+  // Use pre-built category map for accurate filtering
   const handleCategorySelect = (category: Category) => {
-    if (category.name === 'Bidhaa Zote' || category.name.toLowerCase().includes('all')) {
+    setIsSidebarOpen(false);
+    
+    // Handle "Bidhaa Zote" - show all products
+    if (category.id === '14' || category.name === 'Bidhaa Zote') {
       setView('all-products');
-      setIsSidebarOpen(false);
+      window.scrollTo(0, 0);
       return;
     }
+    
+    // Get products directly from the pre-built map - these are original product references
+    const productsForCategory = categoryProductMap[category.id] || [];
+    
+    console.log(`📌 Category "${category.name}" has ${productsForCategory.length} products`);
+    
+    setCategoryProducts(productsForCategory);
     setSelectedCategory(category);
     setView('category-results');
-    setIsSidebarOpen(false);
     window.scrollTo(0, 0);
   };
 
@@ -909,7 +1073,6 @@ const App: React.FC = () => {
       const comments = await CommentsService.fetchComments(productId);
       setProductComments(prev => ({ ...prev, [productId]: comments }));
       
-      // Update comment count
       setCommentCounts(prev => ({ ...prev, [productId]: comments.length }));
     } catch (error) {
       console.error('Failed to fetch comments:', error);
@@ -918,7 +1081,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Update handleAddComment to use logged-in name
   const handleAddComment = async (productId: string, content: string) => {
     try {
       const isLoggedIn = !!user;
@@ -966,7 +1128,6 @@ const App: React.FC = () => {
       const success = await CommentsService.likeComment(commentId, userId);
       
       if (success) {
-        // Update comment in state
         setProductComments(prev => ({
           ...prev,
           [productId]: (prev[productId] || []).map(comment => {
@@ -993,13 +1154,11 @@ const App: React.FC = () => {
       const success = await CommentsService.deleteComment(commentId);
       
       if (success) {
-        // Remove comment from state
         setProductComments(prev => ({
           ...prev,
           [productId]: (prev[productId] || []).filter(comment => comment.id !== commentId)
         }));
         
-        // Update comment count
         setCommentCounts(prev => ({
           ...prev,
           [productId]: Math.max(0, (prev[productId] || 0) - 1)
@@ -1013,15 +1172,12 @@ const App: React.FC = () => {
     return false;
   };
 
-  // When opening product, fetch comments + record views
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setView('product-detail');
 
-    // Preload comments
     fetchCommentsForProduct(product.id);
 
-    // Record view
     (async () => {
       const viewerKey = getOrCreateUserId();
       const newCount = await ViewsService.recordView(product.id, viewerKey);
@@ -1029,7 +1185,6 @@ const App: React.FC = () => {
     })();
   };
 
-  // Create stable callbacks for ProductDetailView
   const fetchSelectedProductComments = useCallback(() => {
     if (!selectedProduct?.id) return;
     fetchCommentsForProduct(selectedProduct.id);
@@ -1077,7 +1232,7 @@ const App: React.FC = () => {
     setActiveBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
   };
 
-  // Mock Admin session
+  // Admin session
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('sonko_user');
     return saved ? JSON.parse(saved) : null;
@@ -1101,13 +1256,11 @@ const App: React.FC = () => {
         const saved = normalizeProduct(savedRaw, categories);
         setProducts((prev) => [saved, ...prev]);
         
-        // Initialize comment count for new product
         setCommentCounts(prev => ({
           ...prev,
           [saved.id]: 0
         }));
         
-        // Initialize view count for new product
         setViewCounts(prev => ({
           ...prev,
           [saved.id]: 0
@@ -1139,7 +1292,6 @@ const App: React.FC = () => {
       if (result?.success) {
         setProducts((prev) => prev.filter((p) => String(p.id) !== String(id)));
         
-        // Remove comment data for deleted product
         setProductComments(prev => {
           const newComments = { ...prev };
           delete newComments[id];
@@ -1152,7 +1304,6 @@ const App: React.FC = () => {
           return newCounts;
         });
         
-        // Remove view data for deleted product
         setViewCounts(prev => {
           const newCounts = { ...prev };
           delete newCounts[id];
@@ -1195,7 +1346,7 @@ const App: React.FC = () => {
       ? 'categories'
       : 'home';
 
-  if (isLoading) {
+  if (isLoading && view !== 'category-results') {
     return (
       <div className="fixed inset-0 bg-white flex flex-col items-center justify-center space-y-4">
         <div className="text-3xl font-black italic text-orange-600 animate-pulse">SONKO</div>
@@ -1250,7 +1401,6 @@ const App: React.FC = () => {
           WatermarkedImage={WatermarkedImage}
           VideoPlayer={VideoPlayer}
           Banner={Banner}
-          // comments
           comments={productComments[selectedProduct.id] || []}
           commentCount={commentCounts[selectedProduct.id] || 0}
           onFetchComments={fetchSelectedProductComments}
@@ -1258,7 +1408,6 @@ const App: React.FC = () => {
           onLikeComment={likeSelectedProductComment}
           onDeleteComment={deleteSelectedProductComment}
           isLoadingComments={isLoadingComments[selectedProduct.id] || false}
-          // views
           viewCount={viewCounts[selectedProduct.id] || 0}
           onRecordView={recordSelectedProductView}
         />
@@ -1280,6 +1429,7 @@ const App: React.FC = () => {
           onMenuClick={() => setIsSidebarOpen(true)}
           onSearch={handleSearch}
           initialValue={searchQuery}
+          onProductSelect={handleProductClick}
         />
       )}
 
@@ -1288,7 +1438,6 @@ const App: React.FC = () => {
           <>
             <HeroBanner onClick={() => setView('all-products')} />
 
-            {/* Rotating Banner Carousel - GIF banners work perfectly now */}
             <div className="relative w-full overflow-hidden">
               <div className="relative h-[350px]">
                 {banners.map((banner, index) => (
@@ -1311,7 +1460,6 @@ const App: React.FC = () => {
                 ))}
               </div>
 
-              {/* Banner Navigation */}
               {banners.length > 1 && (
                 <>
                   <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
@@ -1358,14 +1506,14 @@ const App: React.FC = () => {
               onMore={() => setView('categories')}
             />
 
+            {/* Flash Sale - with product images watermarked */}
             <FlashSale
-              products={products.slice(0, 5)}
+              products={products}
               onProductClick={handleProductClick}
               onSeeAll={() => setView('all-products')}
               WatermarkedImage={WatermarkedImage}
             />
 
-            {/* Promotion Banner */}
             <div className="p-4">
               <Banner
                 src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
@@ -1376,9 +1524,10 @@ const App: React.FC = () => {
               />
             </div>
 
+            {/* Daily Discoveries - with product images watermarked */}
             <ProductGrid
               title="Daily Discoveries"
-              products={products.slice(0, 10)}
+              products={products}
               onProductClick={handleProductClick}
               WatermarkedImage={WatermarkedImage}
             />
@@ -1391,33 +1540,35 @@ const App: React.FC = () => {
             isLoading={false}
             WatermarkedImage={WatermarkedImage}
           />
-        ) : view === 'category-results' ? (
+        ) : view === 'category-results' && selectedCategory ? (
           <div className="animate-fadeIn p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
-                {selectedCategory?.icon && (
-                  <span className="text-xl">{selectedCategory.icon}</span>
+                {selectedCategory.icon && (
+                  <span className="text-2xl">{selectedCategory.icon}</span>
                 )}
-                <h2 className="text-sm font-bold text-gray-500 uppercase">
-                  {selectedCategory ? selectedCategory.name : 'Category'}
-                </h2>
+                <div>
+                  <h2 className="text-sm font-bold text-gray-500 uppercase">
+                    {selectedCategory.name}
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {categoryProducts.length} products
+                  </p>
+                </div>
               </div>
               <button
                 className="text-xs font-black text-orange-600"
                 onClick={() => setView('all-products')}
               >
-                View All
+                View All Products
               </button>
             </div>
 
             <ProductGrid
-              products={products.filter((p) => {
-                const cat = String((p as any).category ?? (p as any).categoryName ?? '').toLowerCase();
-                const target = String(selectedCategory?.name ?? '').toLowerCase();
-                return target ? cat === target : true;
-              })}
+              products={categoryProducts}
               onProductClick={handleProductClick}
               WatermarkedImage={WatermarkedImage}
+              emptyMessage={`No products found in ${selectedCategory.name} category`}
             />
           </div>
         ) : view === 'search-results' ? (
@@ -1452,12 +1603,10 @@ const App: React.FC = () => {
           </div>
         ) : view === 'categories' ? (
           <CategoriesView
-            categories={categories}
             onCategorySelect={handleCategorySelect}
             onShowAllProducts={() => setView('all-products')}
             suggestedProducts={products}
             onProductClick={handleProductClick}
-            WatermarkedImage={WatermarkedImage}
           />
         ) : view === 'admin' ? (
           <ErrorBoundary title="Admin screen crashed">
