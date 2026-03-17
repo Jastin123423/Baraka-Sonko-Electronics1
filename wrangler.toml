@@ -1,30 +1,18 @@
-{
-  "name": "copy-of-copy-of-copy-of-unera-social-network-1",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "react-router-dom": "^6.22.0",     ← HERE IT IS!
-    "hono": "^4.11.3",
-    "@hono/zod-validator": "^0.7.6",
-    "zod": "^4.2.1",
-    "@google/genai": "^1.35.0",
-    "jose": "^6.1.3",
-    "@fortawesome/react-fontawesome": "^0.2.0",
-    "@fortawesome/fontawesome-svg-core": "^6.5.1",
-    "@fortawesome/free-solid-svg-icons": "^6.5.1"
-  },
-  "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
-  }
-}
+name = "baraka-sonko-electronics"
+compatibility_date = "2026-02-02"
+pages_build_output_dir = "dist"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "sonko"
+database_id = "0777b428-f6f5-4900-bbd5-d6694ccc8586"
+
+# R2 Bucket (MUST match upload.ts)
+[[r2_buckets]]
+binding = "R2_MEDIA"
+bucket_name = "sonko"
+
+# Environment variables
+[vars]
+PUBLIC_MEDIA_BASE = "https://media.barakasonko.store"
