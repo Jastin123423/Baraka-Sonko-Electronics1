@@ -1,5 +1,6 @@
 // App.tsx
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import HeroBanner from './components/HeroBanner';
 import QuickActions from './components/QuickActions';
@@ -35,20 +36,6 @@ const WatermarkedImage: React.FC<{
   const logoUrl = "https://media.barakasonko.store/download__82_-removebg-preview.png";
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-
-  // Debug logs
-  useEffect(() => {
-    if (isProduct) {
-      console.log('🎨 Watermark check:', {
-        productId,
-        isProduct,
-        shouldWatermark: isProduct,
-        isLoaded,
-        hasError,
-        src: src.substring(0, 50) + '...'
-      });
-    }
-  }, [productId, isProduct, isLoaded, hasError, src]);
 
   // Only apply watermarks to product images, not banners
   const shouldWatermark = isProduct;
@@ -163,7 +150,6 @@ const WatermarkedImage: React.FC<{
           opacity: isLoaded ? 1 : 0,
         }}
         onLoad={() => {
-          console.log('✅ Image loaded for:', productId);
           setIsLoaded(true);
         }}
         onError={() => {
@@ -646,7 +632,11 @@ const banners = [
   }
 ];
 
-const App: React.FC = () => {
+// Main App Content with Router hooks
+const AppContent: React.FC = () => {
+  const navigate = useNavigate();
+  const { productId } = useParams<{ productId: string }>();
+  
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
@@ -850,6 +840,30 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
+  // Handle direct product URL access
+  useEffect(() => {
+    if (productId && products.length > 0) {
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        setSelectedProduct(product);
+        setView('product-detail');
+        
+        // Fetch comments for this product
+        fetchCommentsForProduct(product.id);
+        
+        // Record view
+        (async () => {
+          const viewerKey = getOrCreateUserId();
+          const newCount = await ViewsService.recordView(product.id, viewerKey);
+          setViewCounts(prev => ({ ...prev, [product.id]: newCount }));
+        })();
+      } else {
+        // Product not found, redirect to home
+        navigate('/', { replace: true });
+      }
+    }
+  }, [productId, products, navigate]);
+
   // Build category-product map when data loads
   const buildCategoryProductMap = useCallback(() => {
     const map: Record<string, Product[]> = {};
@@ -1013,6 +1027,7 @@ const App: React.FC = () => {
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setView('search-results');
+    navigate('/');
   };
 
   // Use pre-built category map for accurate filtering
@@ -1022,6 +1037,7 @@ const App: React.FC = () => {
     // Handle "Bidhaa Zote" - show all products
     if (category.id === '14' || category.name === 'Bidhaa Zote') {
       setView('all-products');
+      navigate('/all-products');
       window.scrollTo(0, 0);
       return;
     }
@@ -1034,6 +1050,7 @@ const App: React.FC = () => {
     setCategoryProducts(productsForCategory);
     setSelectedCategory(category);
     setView('category-results');
+    navigate(`/category/${category.id}`);
     window.scrollTo(0, 0);
   };
 
@@ -1186,6 +1203,9 @@ const App: React.FC = () => {
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setView('product-detail');
+    
+    // Update URL to product-specific path
+    navigate(`/product/${product.id}`);
 
     fetchCommentsForProduct(product.id);
 
@@ -1233,6 +1253,7 @@ const App: React.FC = () => {
 
   const handleBannerClick = () => {
     setView('all-products');
+    navigate('/all-products');
   };
 
   const goToNextBanner = () => {
@@ -1328,7 +1349,10 @@ const App: React.FC = () => {
 
   const handleAdminAccess = () => {
     if (!user) setShowAuth(true);
-    else setView('admin');
+    else {
+      setView('admin');
+      navigate('/admin');
+    }
   };
 
   const handleLogin = (newUser: User) => {
@@ -1336,12 +1360,19 @@ const App: React.FC = () => {
     localStorage.setItem('sonko_user', JSON.stringify(newUser));
     setShowAuth(false);
     setView('admin');
+    navigate('/admin');
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('sonko_user');
     setView('home');
+    navigate('/');
+  };
+
+  const handleBackToHome = () => {
+    setView('home');
+    navigate('/');
   };
 
   const navView =
@@ -1407,7 +1438,7 @@ const App: React.FC = () => {
         <ProductDetailView
           product={selectedProduct}
           allProducts={products}
-          onBack={() => setView('home')}
+          onBack={handleBackToHome}
           onProductClick={handleProductClick}
           WatermarkedImage={WatermarkedImage}
           VideoPlayer={VideoPlayer}
@@ -1447,7 +1478,10 @@ const App: React.FC = () => {
       <main className="w-full max-w-[600px] mx-auto pb-24">
         {view === 'home' ? (
           <>
-            <HeroBanner onClick={() => setView('all-products')} />
+            <HeroBanner onClick={() => {
+              setView('all-products');
+              navigate('/all-products');
+            }} />
 
             <div className="relative w-full overflow-hidden">
               <div className="relative h-[350px]">
@@ -1509,26 +1543,35 @@ const App: React.FC = () => {
               )}
             </div>
 
-            <QuickActions onActionSelect={() => setView('all-products')} />
+            <QuickActions onActionSelect={() => {
+              setView('all-products');
+              navigate('/all-products');
+            }} />
 
             <CategorySection
               categories={categories}
               onCategorySelect={handleCategorySelect}
-              onMore={() => setView('categories')}
+              onMore={() => {
+                setView('categories');
+                navigate('/categories');
+              }}
             />
 
             {/* Flash Sale - with product images watermarked */}
             <FlashSale
               products={products}
               onProductClick={handleProductClick}
-              onSeeAll={() => setView('all-products')}
+              onSeeAll={() => {
+                setView('all-products');
+                navigate('/all-products');
+              }}
               WatermarkedImage={WatermarkedImage}
             />
 
             <div className="p-4">
               <Banner
                 src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
-                onClick={() => setView('all-products')}
+                onClick={handleBannerClick}
                 containerClass="h-[110px]"
                 alt="Special promotion banner"
                 isGif={true}
@@ -1569,7 +1612,10 @@ const App: React.FC = () => {
               </div>
               <button
                 className="text-xs font-black text-orange-600"
-                onClick={() => setView('all-products')}
+                onClick={() => {
+                  setView('all-products');
+                  navigate('/all-products');
+                }}
               >
                 View All Products
               </button>
@@ -1615,7 +1661,10 @@ const App: React.FC = () => {
         ) : view === 'categories' ? (
           <CategoriesView
             onCategorySelect={handleCategorySelect}
-            onShowAllProducts={() => setView('all-products')}
+            onShowAllProducts={() => {
+              setView('all-products');
+              navigate('/all-products');
+            }}
             suggestedProducts={products}
             onProductClick={handleProductClick}
           />
@@ -1640,7 +1689,16 @@ const App: React.FC = () => {
           currentView={navView as any}
           onViewChange={(v: any) => {
             if (v === 'admin') handleAdminAccess();
-            else setView(v);
+            else if (v === 'home') {
+              setView('home');
+              navigate('/');
+            } else if (v === 'categories') {
+              setView('categories');
+              navigate('/categories');
+            } else if (v === 'all-products') {
+              setView('all-products');
+              navigate('/all-products');
+            }
           }}
         />
       )}
@@ -1650,6 +1708,23 @@ const App: React.FC = () => {
         ©barakasonko - Product images protected
       </div>
     </div>
+  );
+};
+
+// Main App component with Router
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<AppContent />} />
+        <Route path="/product/:productId" element={<AppContent />} />
+        <Route path="/category/:categoryId" element={<AppContent />} />
+        <Route path="/categories" element={<AppContent />} />
+        <Route path="/all-products" element={<AppContent />} />
+        <Route path="/admin" element={<AppContent />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
