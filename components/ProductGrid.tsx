@@ -98,7 +98,7 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
 ================================= */
 
 const API_LIMIT = 2000;
-const API_URL = '/api/products?app=sound';
+const API_URL = '/api/products';  // Kept original API URL (no ?app=sound)
 
 const safeProductId = (p: any, idx: number) =>
   String(p?.id ?? p?.product_id ?? p?.slug ?? `idx-${idx}`);
@@ -139,8 +139,6 @@ const dedupeProducts = (items: Product[]): Product[] => {
   return out;
 };
 
-// REMOVED shuffleWithSeed function - we don't want to shuffle!
-
 const extractProductsFromPayload = (payload: any): Product[] => {
   const raw =
     Array.isArray(payload) ? payload :
@@ -170,10 +168,10 @@ interface ProductGridProps {
   title?: string;
   products: Product[];
   onProductClick: (product: Product) => void;
-  onLoadMore?: () => void; // kept for compatibility, but API fetch is handled here
+  onLoadMore?: () => void;
   hasMore?: boolean;
   isLoading?: boolean;
-  emptyMessage?: string; // Added for empty state
+  emptyMessage?: string;
 }
 
 const ProductGrid: React.FC<ProductGridProps> = ({
@@ -198,23 +196,17 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     };
   }, []);
 
-  // Normalize and dedupe the products
   const normalizedProducts = useMemo(() => {
     return dedupeProducts((products || []).filter(Boolean).map(normalizeProduct));
   }, [products]);
 
-  // Use the provided products directly - NO SHUFFLING or merging with API products
-  // This ensures category-specific products stay together
   const displayProducts = useMemo(() => {
-    // If we have provided products, use them directly
     if (normalizedProducts.length > 0) {
       return normalizedProducts;
     }
-    // Otherwise use cached API products as fallback
     return apiProducts;
   }, [normalizedProducts, apiProducts]);
 
-  // Split into two columns for masonry layout - but keep order
   const [colLeft, colRight] = useMemo(() => {
     const left: Product[] = [];
     const right: Product[] = [];
@@ -283,9 +275,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     }
   }, [page, hasMoreInternal]);
 
-  // Only load more if we have no provided products and need to show fallback
   useEffect(() => {
-    // Only load from API if we have no products provided
     if (normalizedProducts.length > 0) return;
     
     const totalNow = apiProducts.length;
@@ -319,7 +309,6 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     return () => observer.disconnect();
   }, [loadMoreFromApi, loadingMore, hasMoreInternal]);
 
-  // Show empty state if no products
   if (displayProducts.length === 0) {
     return (
       <div className="px-2 mb-4">
