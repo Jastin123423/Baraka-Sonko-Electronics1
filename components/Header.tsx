@@ -39,7 +39,7 @@ const Header: React.FC<HeaderProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const [activeTopTab, setActiveTopTab] = useState<'ai' | 'products' | 'manufacturers'>('products');
-  const [activeInsideTab, setActiveInsideTab] = useState<'sonko' | 'baraka'>('sonko');
+  const [activeInsideTab, setActiveInsideTab] = useState<'sonko' | 'baraka'>('baraka');
 
   const searchRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -75,29 +75,30 @@ const Header: React.FC<HeaderProps> = ({
       title.includes(keyword) || category.includes(keyword) || description.includes(keyword)
     );
 
-    const isMicCategory = product.category_id === "3" || category.includes('mic');
+    const isMicCategory = product.category_id === '3' || category.includes('mic');
 
     return (hasMicKeyword && !shouldExclude) || isMicCategory;
   };
 
   const filterSuggestions = (products: SearchSuggestion[], searchQuery: string): SearchSuggestion[] => {
-    const query_lower = searchQuery.toLowerCase();
+    const queryLower = searchQuery.toLowerCase();
 
     return products.filter(product => {
       const title = (product.title || product.name || '').toLowerCase();
       const category = (product.category_name || '').toLowerCase();
 
-      if (query_lower === 'mic' || query_lower === 'microphone' || query_lower === 'maikrofoni') {
+      if (queryLower === 'mic' || queryLower === 'microphone' || queryLower === 'maikrofoni') {
         return isMicrophone(product);
       }
 
-      return title.includes(query_lower) || category.includes(query_lower);
+      return title.includes(queryLower) || category.includes(queryLower);
     });
   };
 
   useEffect(() => {
     const fetchSuggestions = async () => {
       const trimmedQuery = query.trim();
+
       if (trimmedQuery.length < 2) {
         setSuggestions([]);
         return;
@@ -187,14 +188,16 @@ const Header: React.FC<HeaderProps> = ({
 
   const insideTabs = [
     {
-      id: 'sonko',
-      label: 'Ndani ya Baraka Sonko Electronics',
-      badge: 'Studio & Audio',
+      id: 'baraka',
+      label: 'Baraka Sonko',
+      badge: 'Store & Deals',
+      type: 'baraka',
     },
     {
-      id: 'baraka',
-      label: 'Ndani ya Baraka Sonko',
-      badge: 'Store & Deals',
+      id: 'sonko',
+      label: 'Sonko Sound',
+      badge: 'Studio & Audio',
+      type: 'sonko',
     },
   ] as const;
 
@@ -231,7 +234,7 @@ const Header: React.FC<HeaderProps> = ({
 
         @keyframes brandGlow {
           0%, 100% {
-            box-shadow: 0 0 0 rgba(255,255,255,0.0);
+            box-shadow: 0 0 0 rgba(255,255,255,0);
             opacity: 0.92;
           }
           50% {
@@ -255,6 +258,59 @@ const Header: React.FC<HeaderProps> = ({
           }
         }
 
+        @keyframes soundPulse {
+          0% { transform: scale(1); opacity: 0.65; }
+          50% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(1); opacity: 0.65; }
+        }
+
+        @keyframes barDance {
+          0% { transform: scaleY(0.45); }
+          50% { transform: scaleY(1); }
+          100% { transform: scaleY(0.45); }
+        }
+
+        @keyframes miniBrandFloat {
+          0% {
+            transform: translateX(0px) translateY(0px) scale(1);
+          }
+          25% {
+            transform: translateX(2px) translateY(-1px) scale(1.04);
+          }
+          50% {
+            transform: translateX(4px) translateY(-2px) scale(1.08);
+          }
+          75% {
+            transform: translateX(2px) translateY(-1px) scale(1.04);
+          }
+          100% {
+            transform: translateX(0px) translateY(0px) scale(1);
+          }
+        }
+
+        @keyframes miniGlowPulse {
+          0%, 100% {
+            opacity: 0.9;
+            filter: drop-shadow(0 0 0 rgba(249, 115, 22, 0));
+          }
+          50% {
+            opacity: 1;
+            filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.35));
+          }
+        }
+
+        @keyframes miniSoundPulse {
+          0% { transform: scale(1); opacity: 0.55; }
+          50% { transform: scale(1.18); opacity: 1; }
+          100% { transform: scale(1); opacity: 0.55; }
+        }
+
+        @keyframes miniBarDance {
+          0% { transform: scaleY(0.45); }
+          50% { transform: scaleY(1); }
+          100% { transform: scaleY(0.45); }
+        }
+
         @keyframes fadeInSoft {
           from { opacity: 0; transform: translateY(6px); }
           to { opacity: 1; transform: translateY(0); }
@@ -268,6 +324,27 @@ const Header: React.FC<HeaderProps> = ({
         .animate-brand-ring {
           animation: orbitRing 3.6s linear infinite;
           transform-origin: center;
+        }
+
+        .animate-sound-pulse {
+          animation: soundPulse 1.6s ease-in-out infinite;
+        }
+
+        .eq-bar-1 { animation: barDance 0.85s ease-in-out infinite; transform-origin: bottom; }
+        .eq-bar-2 { animation: barDance 1.05s ease-in-out infinite; transform-origin: bottom; }
+        .eq-bar-3 { animation: barDance 0.95s ease-in-out infinite; transform-origin: bottom; }
+
+        .animate-mini-brand {
+          animation: miniBrandFloat 2.6s ease-in-out infinite, miniGlowPulse 2.6s ease-in-out infinite;
+          transform-origin: center;
+        }
+
+        .mini-eq-bar-1 { animation: miniBarDance 0.85s ease-in-out infinite; transform-origin: bottom; }
+        .mini-eq-bar-2 { animation: miniBarDance 1.05s ease-in-out infinite; transform-origin: bottom; }
+        .mini-eq-bar-3 { animation: miniBarDance 0.95s ease-in-out infinite; transform-origin: bottom; }
+
+        .animate-mini-sound-pulse {
+          animation: miniSoundPulse 1.5s ease-in-out infinite;
         }
 
         .animate-fadeIn {
@@ -284,6 +361,7 @@ const Header: React.FC<HeaderProps> = ({
         }
       `}</style>
 
+      {/* Top branding + search row */}
       <div className="bg-gradient-to-r from-orange-500 via-orange-500 to-orange-600 px-3 pt-3 pb-3">
         <div className="flex items-center gap-3">
           <button
@@ -294,12 +372,15 @@ const Header: React.FC<HeaderProps> = ({
             <ICONS.Menu />
           </button>
 
+          {/* Logo */}
           <div className="flex items-center gap-2 min-w-0">
             <div className="relative flex-shrink-0 w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-orange-100 via-white to-orange-50" />
-
               <div className="absolute inset-[5px] rounded-[16px] border border-orange-200/70 animate-brand-ring" />
-              <div className="absolute inset-[9px] rounded-[14px] border border-orange-300/60 animate-brand-ring" style={{ animationDelay: '-1.2s' }} />
+              <div
+                className="absolute inset-[9px] rounded-[14px] border border-orange-300/60 animate-brand-ring"
+                style={{ animationDelay: '-1.2s' }}
+              />
 
               <div className="relative z-10 animate-brand-b">
                 <span className="text-orange-600 font-black text-[28px] leading-none tracking-tight select-none">
@@ -310,14 +391,15 @@ const Header: React.FC<HeaderProps> = ({
 
             <div className="min-w-0">
               <p className="text-white font-extrabold text-[17px] leading-tight tracking-tight truncate">
-                Baraka Sonko Electronics
+                B Baraka Sonko Electronics
               </p>
               <p className="text-orange-100 text-[11px] leading-tight font-medium truncate">
-                Professional Audio, Electronics & Smart Shopping App
+                Professional Audio, Electronics & Smart Shopping
               </p>
             </div>
           </div>
 
+          {/* Country flag */}
           <div className="ml-auto flex-shrink-0">
             <div className="w-8 h-8 rounded-full overflow-hidden border border-white/40 shadow-md bg-white">
               <img
@@ -330,6 +412,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
+        {/* Search */}
         <div className="mt-3 relative" ref={searchRef}>
           <div className="flex items-center bg-white rounded-full overflow-hidden border border-orange-100 shadow-sm focus-within:ring-2 focus-within:ring-white/40">
             <button
@@ -377,6 +460,7 @@ const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
+          {/* Suggestions */}
           {showSuggestions && suggestions.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 max-h-96 overflow-y-auto z-50 animate-fadeIn">
               <div className="py-2">
@@ -450,6 +534,7 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
+      {/* Main tabs */}
       <div className="bg-white border-b border-gray-100">
         <div className="overflow-x-auto hide-scrollbar">
           <div className="flex items-center gap-7 px-4 min-w-max">
@@ -474,36 +559,89 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      <div className="bg-[#fffaf5] border-b border-orange-100 px-3 py-2">
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+      {/* Baraka Sonko | Sonko Sound section */}
+      <div className="bg-gradient-to-r from-[#fffaf5] via-white to-[#fff7ed] border-b border-orange-100 px-3 py-3">
+        <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar">
           {insideTabs.map((tab) => {
             const isActive = activeInsideTab === tab.id;
+
             return (
               <button
                 key={tab.id}
                 onClick={() => handleInsideTabClick(tab.id)}
-                className={`relative min-w-max rounded-2xl px-4 py-2.5 text-left transition-all border ${
+                className={`group relative min-w-max rounded-[20px] px-4 py-3 text-left transition-all duration-300 border ${
                   isActive
-                    ? 'bg-white border-orange-200 shadow-sm'
-                    : 'bg-transparent border-transparent hover:bg-white/70'
+                    ? 'bg-white border-orange-200 shadow-[0_8px_24px_rgba(0,0,0,0.08)] scale-[1.01]'
+                    : 'bg-white/70 border-orange-100 hover:bg-white hover:border-orange-200 hover:shadow-md'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      tab.id === 'sonko' ? 'bg-orange-500' : 'bg-gray-700'
-                    }`}
-                  />
-                  <span className={`text-sm font-bold ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
-                    {tab.label}
-                  </span>
+                <div className="flex items-center gap-3">
+                  {/* Icon */}
+                  <div
+                    className={`relative w-10 h-10 rounded-2xl flex items-center justify-center overflow-hidden ${
+                      isActive
+                        ? 'bg-gradient-to-br from-orange-100 via-white to-orange-50 border-orange-200'
+                        : 'bg-gradient-to-br from-gray-50 to-white border-gray-200'
+                    } border`}
+                  >
+                    {tab.type === 'baraka' ? (
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent" />
+                        <div className="relative z-10 animate-mini-brand">
+                          <span className="text-orange-600 font-black text-[22px] leading-none select-none">
+                            B
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent" />
+                        <div className="relative z-10 flex items-center justify-center animate-mini-brand">
+                          <div className="relative flex items-end gap-[2px] h-4 mr-1">
+                            <span className="mini-eq-bar-1 w-[2.5px] h-2.5 rounded-full bg-orange-500" />
+                            <span className="mini-eq-bar-2 w-[2.5px] h-4 rounded-full bg-orange-600" />
+                            <span className="mini-eq-bar-3 w-[2.5px] h-3 rounded-full bg-orange-500" />
+                          </div>
+
+                          <div className="relative">
+                            <div className="w-3.5 h-3.5 rounded-full bg-orange-500 shadow-sm" />
+                            <span className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 border-r-2 border-t-2 border-orange-400 rotate-45 rounded-sm animate-mini-sound-pulse" />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Text */}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[14px] font-extrabold tracking-tight ${
+                          isActive ? 'text-gray-900' : 'text-gray-700'
+                        }`}
+                      >
+                        {tab.type === 'baraka' ? 'B Baraka Sonko' : 'Sonko Sound'}
+                      </span>
+
+                      {isActive && (
+                        <span className="px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 text-[10px] font-bold border border-orange-100">
+                          LIVE
+                        </span>
+                      )}
+                    </div>
+
+                    <p
+                      className={`mt-1 text-[11px] font-medium ${
+                        isActive ? 'text-orange-500' : 'text-gray-400'
+                      }`}
+                    >
+                      {tab.badge}
+                    </p>
+                  </div>
                 </div>
-                <p className={`mt-0.5 text-[11px] ${isActive ? 'text-orange-500' : 'text-gray-400'}`}>
-                  {tab.badge}
-                </p>
 
                 {isActive && (
-                  <span className="absolute inset-x-4 -bottom-[6px] h-[3px] rounded-full bg-orange-500" />
+                  <span className="absolute left-4 right-4 -bottom-[6px] h-[3px] rounded-full bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600" />
                 )}
               </button>
             );
