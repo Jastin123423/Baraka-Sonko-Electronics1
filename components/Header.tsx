@@ -190,7 +190,7 @@ const Header: React.FC<HeaderProps> = ({
     {
       id: 'baraka',
       label: 'Baraka Sonko',
-      badge: 'Store & Deals',
+      badge: 'Home & Deals',
       type: 'baraka',
     },
     {
@@ -204,10 +204,19 @@ const Header: React.FC<HeaderProps> = ({
   const handleInsideTabClick = (tabId: 'sonko' | 'baraka') => {
     setActiveInsideTab(tabId);
 
-    if (tabId === 'baraka' && onBarakasonkoClick) {
-      onBarakasonkoClick();
-    } else if (tabId === 'sonko' && onSonkoClick) {
-      onSonkoClick();
+    if (tabId === 'baraka') {
+      if (onBarakasonkoClick) {
+        onBarakasonkoClick();
+      }
+      return;
+    }
+
+    if (tabId === 'sonko') {
+      if (onSonkoClick) {
+        onSonkoClick();
+      } else {
+        window.location.href = 'https://sonkosound.barakasonko.store';
+      }
     }
   };
 
@@ -270,45 +279,23 @@ const Header: React.FC<HeaderProps> = ({
           100% { transform: scaleY(0.45); }
         }
 
-        @keyframes miniBrandFloat {
-          0% {
-            transform: translateX(0px) translateY(0px) scale(1);
-          }
-          25% {
-            transform: translateX(2px) translateY(-1px) scale(1.04);
-          }
-          50% {
-            transform: translateX(4px) translateY(-2px) scale(1.08);
-          }
-          75% {
-            transform: translateX(2px) translateY(-1px) scale(1.04);
-          }
-          100% {
-            transform: translateX(0px) translateY(0px) scale(1);
-          }
+        @keyframes miniFloat {
+          0% { transform: translateX(0px) translateY(0px) scale(1); }
+          25% { transform: translateX(2px) translateY(-1px) scale(1.03); }
+          50% { transform: translateX(4px) translateY(-2px) scale(1.06); }
+          75% { transform: translateX(2px) translateY(-1px) scale(1.03); }
+          100% { transform: translateX(0px) translateY(0px) scale(1); }
         }
 
-        @keyframes miniGlowPulse {
+        @keyframes miniGlow {
           0%, 100% {
-            opacity: 0.9;
-            filter: drop-shadow(0 0 0 rgba(249, 115, 22, 0));
+            opacity: 0.92;
+            filter: drop-shadow(0 0 0 rgba(249,115,22,0));
           }
           50% {
             opacity: 1;
-            filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.35));
+            filter: drop-shadow(0 0 8px rgba(249,115,22,0.3));
           }
-        }
-
-        @keyframes miniSoundPulse {
-          0% { transform: scale(1); opacity: 0.55; }
-          50% { transform: scale(1.18); opacity: 1; }
-          100% { transform: scale(1); opacity: 0.55; }
-        }
-
-        @keyframes miniBarDance {
-          0% { transform: scaleY(0.45); }
-          50% { transform: scaleY(1); }
-          100% { transform: scaleY(0.45); }
         }
 
         @keyframes fadeInSoft {
@@ -334,17 +321,9 @@ const Header: React.FC<HeaderProps> = ({
         .eq-bar-2 { animation: barDance 1.05s ease-in-out infinite; transform-origin: bottom; }
         .eq-bar-3 { animation: barDance 0.95s ease-in-out infinite; transform-origin: bottom; }
 
-        .animate-mini-brand {
-          animation: miniBrandFloat 2.6s ease-in-out infinite, miniGlowPulse 2.6s ease-in-out infinite;
+        .animate-mini-icon {
+          animation: miniFloat 2.6s ease-in-out infinite, miniGlow 2.6s ease-in-out infinite;
           transform-origin: center;
-        }
-
-        .mini-eq-bar-1 { animation: miniBarDance 0.85s ease-in-out infinite; transform-origin: bottom; }
-        .mini-eq-bar-2 { animation: miniBarDance 1.05s ease-in-out infinite; transform-origin: bottom; }
-        .mini-eq-bar-3 { animation: miniBarDance 0.95s ease-in-out infinite; transform-origin: bottom; }
-
-        .animate-mini-sound-pulse {
-          animation: miniSoundPulse 1.5s ease-in-out infinite;
         }
 
         .animate-fadeIn {
@@ -361,7 +340,6 @@ const Header: React.FC<HeaderProps> = ({
         }
       `}</style>
 
-      {/* Top branding + search row */}
       <div className="bg-gradient-to-r from-orange-500 via-orange-500 to-orange-600 px-3 pt-3 pb-3">
         <div className="flex items-center gap-3">
           <button
@@ -372,7 +350,6 @@ const Header: React.FC<HeaderProps> = ({
             <ICONS.Menu />
           </button>
 
-          {/* Logo */}
           <div className="flex items-center gap-2 min-w-0">
             <div className="relative flex-shrink-0 w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-orange-100 via-white to-orange-50" />
@@ -381,7 +358,6 @@ const Header: React.FC<HeaderProps> = ({
                 className="absolute inset-[9px] rounded-[14px] border border-orange-300/60 animate-brand-ring"
                 style={{ animationDelay: '-1.2s' }}
               />
-
               <div className="relative z-10 animate-brand-b">
                 <span className="text-orange-600 font-black text-[28px] leading-none tracking-tight select-none">
                   B
@@ -399,7 +375,6 @@ const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Country flag */}
           <div className="ml-auto flex-shrink-0">
             <div className="w-8 h-8 rounded-full overflow-hidden border border-white/40 shadow-md bg-white">
               <img
@@ -412,7 +387,6 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Search */}
         <div className="mt-3 relative" ref={searchRef}>
           <div className="flex items-center bg-white rounded-full overflow-hidden border border-orange-100 shadow-sm focus-within:ring-2 focus-within:ring-white/40">
             <button
@@ -460,7 +434,6 @@ const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Suggestions */}
           {showSuggestions && suggestions.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 max-h-96 overflow-y-auto z-50 animate-fadeIn">
               <div className="py-2">
@@ -534,7 +507,6 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Main tabs */}
       <div className="bg-white border-b border-gray-100">
         <div className="overflow-x-auto hide-scrollbar">
           <div className="flex items-center gap-7 px-4 min-w-max">
@@ -559,93 +531,69 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Baraka Sonko | Sonko Sound section */}
       <div className="bg-gradient-to-r from-[#fffaf5] via-white to-[#fff7ed] border-b border-orange-100 px-3 py-3">
-        <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar">
-          {insideTabs.map((tab) => {
-            const isActive = activeInsideTab === tab.id;
+        <div className="flex items-center justify-center">
+          <div className="flex items-stretch w-full max-w-xl rounded-[22px] border border-orange-100 bg-white shadow-[0_8px_30px_rgba(249,115,22,0.08)] overflow-hidden">
+            {insideTabs.map((tab, index) => {
+              const isActive = activeInsideTab === tab.id;
 
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleInsideTabClick(tab.id)}
-                className={`group relative min-w-max rounded-[20px] px-4 py-3 text-left transition-all duration-300 border ${
-                  isActive
-                    ? 'bg-white border-orange-200 shadow-[0_8px_24px_rgba(0,0,0,0.08)] scale-[1.01]'
-                    : 'bg-white/70 border-orange-100 hover:bg-white hover:border-orange-200 hover:shadow-md'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Icon */}
-                  <div
-                    className={`relative w-10 h-10 rounded-2xl flex items-center justify-center overflow-hidden ${
-                      isActive
-                        ? 'bg-gradient-to-br from-orange-100 via-white to-orange-50 border-orange-200'
-                        : 'bg-gradient-to-br from-gray-50 to-white border-gray-200'
-                    } border`}
+              return (
+                <React.Fragment key={tab.id}>
+                  <button
+                    onClick={() => handleInsideTabClick(tab.id)}
+                    className={`relative flex-1 px-4 py-3 transition-all duration-300 ${
+                      isActive ? 'bg-orange-50/70' : 'bg-white hover:bg-orange-50/40'
+                    }`}
                   >
-                    {tab.type === 'baraka' ? (
-                      <>
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent" />
-                        <div className="relative z-10 animate-mini-brand">
-                          <span className="text-orange-600 font-black text-[22px] leading-none select-none">
-                            B
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent" />
-                        <div className="relative z-10 flex items-center justify-center animate-mini-brand">
-                          <div className="relative flex items-end gap-[2px] h-4 mr-1">
-                            <span className="mini-eq-bar-1 w-[2.5px] h-2.5 rounded-full bg-orange-500" />
-                            <span className="mini-eq-bar-2 w-[2.5px] h-4 rounded-full bg-orange-600" />
-                            <span className="mini-eq-bar-3 w-[2.5px] h-3 rounded-full bg-orange-500" />
-                          </div>
-
-                          <div className="relative">
-                            <div className="w-3.5 h-3.5 rounded-full bg-orange-500 shadow-sm" />
-                            <span className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 border-r-2 border-t-2 border-orange-400 rotate-45 rounded-sm animate-mini-sound-pulse" />
+                    <div className="flex items-center justify-center gap-3">
+                      {tab.type === 'baraka' ? (
+                        <div className="relative w-9 h-9 rounded-2xl bg-gradient-to-br from-orange-100 via-white to-orange-50 border border-orange-200 flex items-center justify-center overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent" />
+                          <div className="relative z-10 animate-mini-icon">
+                            <span className="text-orange-600 font-black text-[18px] leading-none select-none">
+                              B
+                            </span>
                           </div>
                         </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Text */}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-[14px] font-extrabold tracking-tight ${
-                          isActive ? 'text-gray-900' : 'text-gray-700'
-                        }`}
-                      >
-                        {tab.type === 'baraka' ? 'B Baraka Sonko' : 'Sonko Sound'}
-                      </span>
-
-                      {isActive && (
-                        <span className="px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 text-[10px] font-bold border border-orange-100">
-                          LIVE
-                        </span>
+                      ) : (
+                        <div className="relative w-9 h-9 rounded-2xl bg-gradient-to-br from-orange-100 via-white to-orange-50 border border-orange-200 flex items-center justify-center overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent" />
+                          <div className="relative z-10 flex items-center justify-center animate-mini-icon">
+                            <div className="relative flex items-end gap-[2px] h-4 mr-1">
+                              <span className="eq-bar-1 w-[2.5px] h-2.5 rounded-full bg-orange-500" />
+                              <span className="eq-bar-2 w-[2.5px] h-4 rounded-full bg-orange-600" />
+                              <span className="eq-bar-3 w-[2.5px] h-3 rounded-full bg-orange-500" />
+                            </div>
+                            <div className="relative">
+                              <div className="w-3.5 h-3.5 rounded-full bg-orange-500 shadow-sm" />
+                              <span className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 border-r-2 border-t-2 border-orange-400 rotate-45 rounded-sm animate-sound-pulse" />
+                            </div>
+                          </div>
+                        </div>
                       )}
+
+                      <div className="text-left">
+                        <p className={`text-[14px] font-extrabold tracking-tight ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
+                          {tab.label}
+                        </p>
+                        <p className={`text-[11px] font-medium mt-0.5 ${isActive ? 'text-orange-500' : 'text-gray-400'}`}>
+                          {tab.badge}
+                        </p>
+                      </div>
                     </div>
 
-                    <p
-                      className={`mt-1 text-[11px] font-medium ${
-                        isActive ? 'text-orange-500' : 'text-gray-400'
-                      }`}
-                    >
-                      {tab.badge}
-                    </p>
-                  </div>
-                </div>
+                    {isActive && (
+                      <span className="absolute left-5 right-5 bottom-0 h-[3px] rounded-full bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600" />
+                    )}
+                  </button>
 
-                {isActive && (
-                  <span className="absolute left-4 right-4 -bottom-[6px] h-[3px] rounded-full bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600" />
-                )}
-              </button>
-            );
-          })}
+                  {index === 0 && (
+                    <div className="w-px bg-gradient-to-b from-transparent via-orange-200 to-transparent my-3" />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
       </div>
     </header>
