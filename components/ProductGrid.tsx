@@ -53,7 +53,7 @@ const openProductSmart = (product: any, fallbackOpen: (product: Product) => void
 };
 
 /* ===============================
-   PRODUCT CARD - Alibaba Style with Subtle Backgrounds
+   PRODUCT CARD - Alibaba Style with Rich Backgrounds
 ================================= */
 
 const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ product, onClick }) => {
@@ -77,10 +77,10 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
 
   return (
     <div
-      className="bg-white rounded-xl overflow-hidden shadow-[0_4px_12px_rgba(255,106,0,0.06)] hover:shadow-[0_8px_20px_rgba(255,106,0,0.1)] transition-all duration-300 flex flex-col mb-3 active:scale-[0.98] cursor-pointer border border-[#FFF0E8] group"
+      className="bg-white rounded-xl overflow-hidden shadow-[0_6px_16px_rgba(255,106,0,0.12)] hover:shadow-[0_12px_28px_rgba(255,106,0,0.18)] transition-all duration-300 flex flex-col mb-3 active:scale-[0.98] cursor-pointer border border-[#FFD9C6] group"
       onClick={onClick}
     >
-      <div className="relative w-full bg-gradient-to-br from-[#FFFAF5] to-[#FFF5ED]">
+      <div className="relative w-full bg-gradient-to-br from-[#FFE8D9] to-[#FFD9C2]">
         <img
           src={(product as any).image || (product as any).image_url || ''}
           alt={(product as any).title || 'Product'}
@@ -89,19 +89,19 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
         />
 
         {showDiscount && (
-          <div className="absolute top-2 left-2 bg-gradient-to-r from-[#FF6A00] to-[#FF8533] text-white text-[10px] px-2 py-1 font-bold rounded-lg z-10 shadow-lg shadow-[#FF6A00]/10">
+          <div className="absolute top-2 left-2 bg-gradient-to-r from-[#FF4D00] to-[#FF6A00] text-white text-[10px] px-2 py-1 font-bold rounded-lg z-10 shadow-lg shadow-[#FF6A00]/30">
             -{safeDiscount}%
           </div>
         )}
 
-        <div className="absolute bottom-2 right-2 p-2 bg-white/90 backdrop-blur-sm rounded-full text-gray-400 hover:text-[#FF6A00] transition-colors opacity-0 group-hover:opacity-100">
+        <div className="absolute bottom-2 right-2 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-500 hover:text-[#FF6A00] transition-colors opacity-0 group-hover:opacity-100 shadow-md">
           <ICONS.Heart />
         </div>
       </div>
 
       <div className="p-3 flex-grow flex flex-col justify-between bg-white">
         <div className="space-y-2">
-          <h3 className="text-[13px] text-[#2A2E3A] line-clamp-2 leading-tight font-medium h-10">
+          <h3 className="text-[13px] text-[#1A1E2B] line-clamp-2 leading-tight font-semibold h-10">
             {(product as any).title || 'Untitled'}
           </h3>
 
@@ -119,15 +119,15 @@ const ProductCard: React.FC<{ product: Product; onClick: () => void }> = ({ prod
 
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center space-x-1">
-              <span className="text-[#FFB800]">⭐</span>
-              <span className="text-[11px] text-gray-600 font-semibold">
+              <span className="text-[#FFB800] text-[12px]">⭐</span>
+              <span className="text-[11px] text-gray-700 font-semibold">
                 {typeof (product as any).rating === 'number'
                   ? (product as any).rating.toFixed(1)
                   : '5.0'}
               </span>
             </div>
             
-            <span className="text-[9px] text-gray-400">
+            <span className="text-[9px] text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
               {Math.floor(Math.random() * 50) + 10}+ sold
             </span>
           </div>
@@ -204,7 +204,7 @@ let cachedHasMore = true;
 let activeFetchPromise: Promise<void> | null = null;
 
 /* ===============================
-   PRODUCT GRID - Alibaba Style with Subtle Backgrounds
+   PRODUCT GRID - Alibaba Style with Rich Backgrounds
 ================================= */
 
 interface ProductGridProps {
@@ -361,17 +361,17 @@ const ProductGrid: React.FC<ProductGridProps> = ({
       <div className="px-2 mb-4">
         {title && (
           <div className="flex items-center justify-center py-6">
-            <div className="h-px bg-gradient-to-r from-transparent via-[#FF6A00] to-transparent w-24 opacity-30" />
+            <div className="h-px bg-gradient-to-r from-transparent via-[#FF6A00] to-transparent w-24" />
             <span className="text-xs font-black text-[#FF6A00] uppercase tracking-widest px-4">
               {title}
             </span>
-            <div className="h-px bg-gradient-to-r from-transparent via-[#FF6A00] to-transparent w-24 opacity-30" />
+            <div className="h-px bg-gradient-to-r from-transparent via-[#FF6A00] to-transparent w-24" />
           </div>
         )}
-        <div className="py-16 text-center bg-gradient-to-b from-[#FFFAF5] to-[#FFF5ED] rounded-2xl border border-[#FFE8DD]">
-          <div className="text-[#FF6A00] text-5xl mb-4 opacity-70">🛒</div>
-          <p className="text-sm font-medium text-[#2A2E3A] mb-2">{emptyMessage}</p>
-          <p className="text-xs text-gray-400">Check back later for new items</p>
+        <div className="py-16 text-center bg-gradient-to-b from-[#FFF0E6] to-[#FFE4D6] rounded-2xl border border-[#FFCAB0]">
+          <div className="text-[#FF6A00] text-5xl mb-4">🛒</div>
+          <p className="text-sm font-medium text-[#1A1E2B] mb-2">{emptyMessage}</p>
+          <p className="text-xs text-gray-500">Check back later for new items</p>
         </div>
       </div>
     );
@@ -381,11 +381,11 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     <div className="px-2 mb-4">
       {title && (
         <div className="flex items-center justify-center py-6">
-          <div className="h-px bg-gradient-to-r from-transparent via-[#FF6A00] to-transparent w-24 opacity-30" />
+          <div className="h-px bg-gradient-to-r from-transparent via-[#FF6A00] to-transparent w-24" />
           <span className="text-xs font-black text-[#FF6A00] uppercase tracking-widest px-4">
             {title}
           </span>
-          <div className="h-px bg-gradient-to-r from-transparent via-[#FF6A00] to-transparent w-24 opacity-30" />
+          <div className="h-px bg-gradient-to-r from-transparent via-[#FF6A00] to-transparent w-24" />
         </div>
       )}
 
@@ -419,25 +419,21 @@ const ProductGrid: React.FC<ProductGridProps> = ({
           <div className="flex items-center space-x-3">
             <div className="flex space-x-1.5">
               <div
-                className="w-2.5 h-2.5 bg-[#FF6A00] rounded-full animate-bounce opacity-70"
+                className="w-3 h-3 bg-[#FF6A00] rounded-full animate-bounce"
                 style={{ animationDelay: '0ms' }}
               />
               <div
-                className="w-2.5 h-2.5 bg-[#FF8533] rounded-full animate-bounce opacity-70"
+                className="w-3 h-3 bg-[#FF8533] rounded-full animate-bounce"
                 style={{ animationDelay: '150ms' }}
               />
               <div
-                className="w-2.5 h-2.5 bg-[#FFA366] rounded-full animate-bounce opacity-70"
+                className="w-3 h-3 bg-[#FFA366] rounded-full animate-bounce"
                 style={{ animationDelay: '300ms' }}
               />
             </div>
-            <span className="text-xs text-gray-400 font-medium">Loading more products...</span>
+            <span className="text-xs text-gray-500 font-medium">Loading more products...</span>
           </div>
         )}
-      </div>
-
-      <div className="mt-4 text-center">
-        <span className="text-[9px] text-gray-300">©SonkoSound</span>
       </div>
     </div>
   );
