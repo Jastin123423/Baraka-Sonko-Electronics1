@@ -76,7 +76,7 @@ const usePreloadVideo = (videoUrl: string) => {
 };
 
 /** -----------------------------
- * ✅ Large Watermarked Image with Baraka Sonko branding
+ * ✅ Large Watermarked Image with Baraka Sonko branding (FOR MAIN IMAGE ONLY)
  * ------------------------------*/
 const LargeWatermarkedImage: React.FC<{
   src: string;
@@ -194,6 +194,41 @@ const LargeWatermarkedImage: React.FC<{
             ©BarakaSonko
           </div>
         </div>
+      )}
+    </div>
+  );
+};
+
+/** -----------------------------
+ * ✅ Small Thumbnail Image (NO WATERMARK)
+ * ------------------------------*/
+const ThumbnailImage: React.FC<{
+  src: string;
+  alt?: string;
+  containerClass?: string;
+}> = ({ src, alt = '', containerClass = '' }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div className={`relative overflow-hidden ${containerClass}`}>
+      <img
+        src={toUrl(src)}
+        alt={alt}
+        className="w-full h-full object-cover transition-opacity duration-200"
+        draggable="false"
+        loading="lazy"
+        decoding="async"
+        style={{
+          opacity: isLoaded ? 1 : 0.5,
+        }}
+        onLoad={() => setIsLoaded(true)}
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.opacity = '1';
+          setIsLoaded(true);
+        }}
+      />
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gray-200 animate-pulse" />
       )}
     </div>
   );
@@ -727,12 +762,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         : 'border-gray-200'
                     }`}
                   >
-                    <WatermarkedImage
+                    {/* Use ThumbnailImage WITHOUT watermark */}
+                    <ThumbnailImage
                       src={img}
                       alt={`Thumbnail ${idx + 1}`}
                       containerClass="w-full h-full"
-                      productId={(product as any).id}
-                      isProduct={true}
                     />
 
                     {thumbPrice > 0 && (
