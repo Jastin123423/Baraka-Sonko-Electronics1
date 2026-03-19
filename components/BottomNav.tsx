@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ICONS, COLORS } from '../constants';
 
@@ -8,55 +7,81 @@ interface BottomNavProps {
 }
 
 const BottomNav: React.FC<BottomNavProps> = ({ currentView, onViewChange }) => {
-  return (
-    <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 flex justify-around items-center py-2 px-2 z-50 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
-      <button 
-        onClick={() => onViewChange('home')}
-        className={`flex flex-col items-center transition-colors ${currentView === 'home' ? '' : 'text-gray-400'}`}
-        style={currentView === 'home' ? { color: COLORS.primary } : {}}
-      >
-        <ICONS.Home />
-        <span className="text-[10px] mt-0.5 font-bold">Home</span>
-      </button>
-      
-      <button 
-        onClick={() => onViewChange('categories')}
-        className={`flex flex-col items-center transition-colors ${currentView === 'categories' ? '' : 'text-gray-400'}`}
-        style={currentView === 'categories' ? { color: COLORS.primary } : {}}
-      >
-        <ICONS.List />
-        <span className="text-[10px] mt-0.5 font-bold">Categories</span>
-      </button>
 
-      <button 
-        onClick={() => onViewChange('all-products')}
-        className={`flex flex-col items-center transition-colors ${currentView === 'all-products' ? '' : 'text-gray-400'}`}
-        style={currentView === 'all-products' ? { color: COLORS.primary } : {}}
-      >
-        <ICONS.Products />
-        <span className="text-[10px] mt-0.5 font-bold text-center">Bidhaa Zote</span>
-      </button>
-      
-      <button 
-        onClick={() => onViewChange('search-results')}
-        className={`flex flex-col items-center transition-colors ${currentView === 'search-results' ? '' : 'text-gray-400'}`}
-        style={currentView === 'search-results' ? { color: COLORS.primary } : {}}
-      >
-        <ICONS.Search />
-        <span className="text-[10px] mt-0.5 font-medium">Search</span>
-      </button>
-      
-      <button 
-        onClick={() => onViewChange('admin')}
-        className={`flex flex-col items-center transition-colors ${currentView === 'admin' ? '' : 'text-gray-400'}`}
-        style={currentView === 'admin' ? { color: COLORS.primary } : {}}
-      >
-        <div className="relative">
-          <ICONS.User />
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-white"></div>
-        </div>
-        <span className="text-[10px] mt-0.5 font-medium">Admin</span>
-      </button>
+  const navItems = [
+    { id: 'home', label: 'Home', icon: <ICONS.Home /> },
+    { id: 'categories', label: 'Categories', icon: <ICONS.List /> },
+    { id: 'all-products', label: 'Products', icon: <ICONS.Products />, center: true },
+    { id: 'search-results', label: 'Search', icon: <ICONS.Search /> },
+    { id: 'admin', label: 'Account', icon: <ICONS.User /> },
+  ] as const;
+
+  return (
+    <div className="fixed bottom-3 left-0 w-full z-50 flex justify-center px-3">
+      {/* Floating container */}
+      <div className="w-full max-w-md bg-white/90 backdrop-blur-xl border border-orange-100 shadow-xl rounded-3xl px-2 py-2 flex justify-between items-center">
+
+        {navItems.map((item) => {
+          const isActive = currentView === item.id;
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => onViewChange(item.id)}
+              className={`relative flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+                isActive ? 'scale-105' : 'opacity-70'
+              }`}
+            >
+              {/* Active background */}
+              {isActive && !item.center && (
+                <div className="absolute inset-0 bg-orange-50 rounded-2xl" />
+              )}
+
+              {/* Icon */}
+              <div
+                className={`relative z-10 ${
+                  item.center
+                    ? 'w-12 h-12 rounded-2xl flex items-center justify-center shadow-md'
+                    : 'mb-0.5'
+                }`}
+                style={
+                  item.center
+                    ? {
+                        background: 'linear-gradient(135deg, #ff7a00, #ff5e00)',
+                        color: 'white',
+                      }
+                    : { color: isActive ? COLORS.primary : '#9ca3af' }
+                }
+              >
+                {item.icon}
+
+                {/* Admin status dot */}
+                {item.id === 'admin' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
+                )}
+              </div>
+
+              {/* Label */}
+              {!item.center && (
+                <span
+                  className={`text-[10px] font-semibold mt-0.5 ${
+                    isActive ? 'text-orange-600' : 'text-gray-400'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              )}
+
+              {/* Center label */}
+              {item.center && (
+                <span className="text-[10px] font-bold text-orange-600 mt-1">
+                  Bidhaa
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };
