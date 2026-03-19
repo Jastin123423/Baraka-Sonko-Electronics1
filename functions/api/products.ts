@@ -1,3 +1,4 @@
+
 // functions/api/products.ts
 import type { PagesFunction } from '@cloudflare/workers-types';
 
@@ -83,10 +84,25 @@ const genId = () => {
   return `p_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
+const normalizeIsSoundProduct = (value: any, fallback = 0): number => {
+  if (value === undefined || value === null || value === '') return fallback;
+
+  if (typeof value === 'boolean') return value ? 1 : 0;
+
+  if (typeof value === 'number') return value === 1 ? 1 : 0;
+
+  const s = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(s)) return 1;
+  if (['0', 'false', 'no', 'off'].includes(s)) return 0;
+
+  return fallback;
+};
+
 const buildProductResponse = (row: any) => {
   const imagesArr = safeJsonParseArray(row.images);
   const descArr = safeJsonParseArray(row.description_images);
   const imageVariants = safeJsonParseImageVariants(row.image_variants);
+  const isSoundProduct = normalizeIsSoundProduct(row.is_sound_product, 0);
 
   return {
     id: String(row.id),
@@ -130,6 +146,9 @@ const buildProductResponse = (row: any) => {
     image_variants: imageVariants,
     imageVariants,
 
+    is_sound_product: isSoundProduct,
+    isSoundProduct: isSoundProduct,
+
     status: String(row.status || 'online'),
     created_at: String(row.created_at || ''),
     createdAt: String(row.created_at || ''),
@@ -144,7 +163,8 @@ const getProductById = async (env: Env, id: string) => {
     SELECT
       id, title, image, images, description_images, video_url,
       price, original_price, discount, sold_count, order_count, rating,
-      category_id, category_name, status, created_at, updated_at,
+      category_id, category_name, is_sound_product,
+      status, created_at, updated_at,
       description, image_variants
     FROM products
     WHERE id = ?
@@ -268,6 +288,11 @@ const normalizeIncomingProduct = (body: any, existing?: any) => {
       ? String(body.status || 'online')
       : String(existing?.status || 'online');
 
+  const isSoundProduct =
+    body.is_sound_product !== undefined || body.isSoundProduct !== undefined
+      ? normalizeIsSoundProduct(body.is_sound_product ?? body.isSoundProduct, 0)
+      : normalizeIsSoundProduct(existing?.is_sound_product, 0);
+
   return {
     title,
     description,
@@ -284,6 +309,7 @@ const normalizeIncomingProduct = (body: any, existing?: any) => {
     soldCount,
     orderCount,
     rating: Number.isFinite(Number(rating)) ? Number(rating) : 5.0,
+    isSoundProduct,
     status,
   };
 };
@@ -308,7 +334,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
       SELECT
         id, title, image, images, description_images, video_url,
         price, original_price, discount, sold_count, order_count, rating,
-        category_id, category_name, status, created_at, updated_at,
+        category_id, category_name, is_sound_product,
+        status, created_at, updated_at,
         description, image_variants
       FROM products
       ORDER BY datetime(created_at) DESC
@@ -350,14 +377,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
         id, title, image, images, description_images, video_url,
         price, original_price, discount,
         sold_count, order_count, rating,
-        category_id, category_name,
+        category_id, category_name, is_sound_product,
         status, created_at, updated_at,
         description, image_variants
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?,
         ?, ?, ?,
-        ?, ?,
+        ?, ?, ?,
         ?, ?, ?,
         ?, ?
       )
@@ -378,6 +405,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
         normalized.rating,
         normalized.categoryId,
         normalized.categoryName,
+        normalized.isSoundProduct,
         normalized.status,
         String(body.created_at || body.createdAt || now),
         now,
@@ -437,6 +465,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ env, request }) => {
         rating = ?,
         category_id = ?,
         category_name = ?,
+        is_sound_product = ?,
         status = ?,
         updated_at = ?,
         description = ?,
@@ -458,6 +487,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ env, request }) => {
         normalized.rating,
         normalized.categoryId,
         normalized.categoryName,
+        normalized.isSoundProduct,
         normalized.status,
         now,
         normalized.description,
@@ -517,6 +547,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ env, request }) => {
         rating = ?,
         category_id = ?,
         category_name = ?,
+        is_sound_product = ?,
         status = ?,
         updated_at = ?,
         description = ?,
@@ -538,6 +569,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ env, request }) => {
         normalized.rating,
         normalized.categoryId,
         normalized.categoryName,
+        normalized.isSoundProduct,
         normalized.status,
         now,
         normalized.description,
