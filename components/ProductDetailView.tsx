@@ -76,7 +76,7 @@ const usePreloadVideo = (videoUrl: string) => {
 };
 
 /** -----------------------------
- * ✅ Large Watermarked Image
+ * ✅ Large Watermarked Image with Baraka Sonko branding
  * ------------------------------*/
 const LargeWatermarkedImage: React.FC<{
   src: string;
@@ -191,7 +191,7 @@ const LargeWatermarkedImage: React.FC<{
               border: '2px solid rgba(255,255,255,0.3)',
             }}
           >
-            ©barakasonko
+            ©BarakaSonko
           </div>
         </div>
       )}
@@ -326,14 +326,14 @@ const SharePanel: React.FC<{
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: COLORS.primary }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FF6A00' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
                 <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
               </svg>
             </div>
             <div>
-              <h3 className="text-base font-bold text-gray-800">Share Bidhaa</h3>
-              <p className="text-xs text-gray-500">Share bidhaa hii na marafiki zako</p>
+              <h3 className="text-base font-bold text-gray-800">Share Product</h3>
+              <p className="text-xs text-gray-500">Share this product with friends</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Close">
@@ -400,7 +400,7 @@ const SharePanel: React.FC<{
           </div>
 
           <div className="mb-4">
-            <p className="text-xs font-medium text-gray-700 mb-2">Copy link hapa:</p>
+            <p className="text-xs font-medium text-gray-700 mb-2">Copy link here:</p>
             <div className="flex items-center space-x-2">
               <div className="flex-1 bg-gray-100 rounded-lg p-2 border border-gray-300">
                 <p className="text-xs text-gray-700 truncate font-mono">{productLink}</p>
@@ -408,17 +408,17 @@ const SharePanel: React.FC<{
               <button
                 onClick={handleCopyLink}
                 className={`px-3 py-2 rounded-lg font-medium text-xs transition-all duration-200 ${
-                  copied ? 'bg-green-600 text-white' : 'bg-gray-800 text-white hover:bg-gray-900'
+                  copied ? 'bg-green-600 text-white' : 'bg-[#FF6A00] text-white hover:bg-[#FF8533]'
                 }`}
               >
                 {copied ? 'Copied!' : 'Copy'}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Bonyeza link hapo juu, kisha nakili</p>
+            <p className="text-xs text-gray-500 mt-1">Click the link above, then copy</p>
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Kushare kutasaidia wengine kupata bidhaa nzuri kutoka BARAKA SONKO!
+            Sharing helps others find great products from BARAKA SONKO ELECTRONICS!
           </p>
         </div>
 
@@ -543,11 +543,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     return toUrl(first);
   }, [gallery, product]);
 
-  // ✅ FIXED: Use the product ID directly from the product object
   const productLink = useMemo(() => {
     try {
       const origin = window.location.origin;
-      // Use the product ID directly - no need for encodeURIComponent since IDs are safe
       return `${origin}/product/${(product as any).id}`;
     } catch {
       return 'https://barakasonko.store';
@@ -648,19 +646,20 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const productDescription =
     toUrl((product as any).description) ||
-    `Welcome to BARAKA SONKO. Our ${(product as any).title} is selected for its superior quality and durability. Perfect for professional or home use.`;
+    `Welcome to BARAKA SONKO ELECTRONICS. Our ${(product as any).title} is selected for its superior quality and durability. Perfect for professional or home use.`;
 
   return (
     <div className="fixed inset-0 bg-white z-[100] flex flex-col animate-fadeIn overflow-hidden">
-      <div className="flex-shrink-0 bg-white/95 backdrop-blur-md flex items-center justify-between px-4 py-3 border-b border-gray-100 shadow-sm">
-        <button onClick={onBack} className="p-2 -ml-2 text-gray-800 active:scale-90 transition-transform">
+      {/* Header with Alibaba orange */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-[#FF6A00] to-[#FF8533] text-white flex items-center justify-between px-4 py-3 shadow-md">
+        <button onClick={onBack} className="p-2 -ml-2 text-white active:scale-90 transition-transform">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <div className="text-sm font-black text-gray-800 truncate px-4">BARAKA SONKO</div>
+        <div className="text-sm font-black text-white truncate px-4">BARAKA SONKO</div>
         <div className="flex items-center space-x-2">
-          <button onClick={handleShare} className="p-2 text-gray-800 hover:text-blue-600 transition-colors" aria-label="Share">
+          <button onClick={handleShare} className="p-2 text-white hover:text-white/80 transition-colors" aria-label="Share">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="18" cy="5" r="3" />
               <circle cx="6" cy="12" r="3" />
@@ -669,7 +668,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
           </button>
-          <button className="p-2 text-gray-800" aria-label="Cart (placeholder)">
+          <button className="p-2 text-white" aria-label="Cart (placeholder)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
             </svg>
@@ -677,7 +676,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </div>
       </div>
 
-      <div id="product-detail-scroll-area" className="flex-grow overflow-y-auto no-scrollbar bg-white">
+      <div id="product-detail-scroll-area" className="flex-grow overflow-y-auto no-scrollbar bg-gradient-to-b from-white to-[#FFF4E8]">
         <div className="relative w-full aspect-square bg-[#f9f9f9] border-b border-gray-50">
           <div
             ref={heroScrollRef}
@@ -701,7 +700,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             ))}
           </div>
 
-          <div className="absolute bottom-4 right-4 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded-full font-bold backdrop-blur-sm">
+          <div className="absolute bottom-4 right-4 bg-[#FF6A00] text-white text-[10px] px-2.5 py-1 rounded-full font-bold shadow-lg">
             {gallery.length ? activeImage + 1 : 1} / {Math.max(gallery.length, 1)}
           </div>
         </div>
@@ -724,7 +723,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     onClick={() => goToImage(idx)}
                     className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
                       activeImage === idx
-                        ? 'border-orange-500 shadow-md'
+                        ? 'border-[#FF6A00] shadow-md'
                         : 'border-gray-200'
                     }`}
                   >
@@ -737,7 +736,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     />
 
                     {thumbPrice > 0 && (
-                      <div className="absolute bottom-1 left-1 right-1 bg-black/75 text-white text-[10px] font-black rounded-md px-1 py-1 truncate">
+                      <div className="absolute bottom-1 left-1 right-1 bg-[#FF6A00] text-white text-[10px] font-black rounded-md px-1 py-1 truncate">
                         TSh {thumbPrice.toLocaleString()}
                       </div>
                     )}
@@ -765,13 +764,13 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
                   <span
                     className="text-2xl md:text-3xl font-black whitespace-nowrap"
-                    style={{ color: COLORS.primary }}
+                    style={{ color: '#FF6A00' }}
                   >
                     TSh {displayedPriceStr}
                   </span>
 
                   {!allImagesHaveOwnPrices && Number((product as any).discount || 0) > 0 ? (
-                    <span className="bg-red-50 text-red-600 text-[10px] px-2 py-1 rounded-lg font-black uppercase tracking-tighter whitespace-nowrap">
+                    <span className="bg-[#FF6A00]/10 text-[#FF6A00] text-[10px] px-2 py-1 rounded-lg font-black uppercase tracking-tighter whitespace-nowrap">
                       -{Number((product as any).discount)}% OFF
                     </span>
                   ) : null}
@@ -796,9 +795,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 ) : null}
               </div>
 
-              <div className="flex items-center space-x-1.5 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100 flex-shrink-0">
+              <div className="flex items-center space-x-1.5 bg-gradient-to-r from-[#FF6A00]/10 to-[#FF8533]/10 px-3 py-1.5 rounded-full border border-[#FF6A00]/20 flex-shrink-0">
                 <div className="animate-blink text-sm">👁️</div>
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-tight whitespace-nowrap">
+                <span className="text-[10px] font-black text-[#FF6A00] uppercase tracking-tight whitespace-nowrap">
                   {viewCount} views
                 </span>
               </div>
@@ -809,7 +808,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             <button
               onClick={handleShare}
               className="flex items-center space-x-2 px-5 py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 active:scale-95 shadow-lg"
-              style={{ backgroundColor: COLORS.primary, boxShadow: `0 6px 16px ${COLORS.primary}40` }}
+              style={{ backgroundColor: '#FF6A00', boxShadow: `0 6px 16px ${'#FF6A00'}40` }}
               aria-label="Share on social media"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
@@ -857,7 +856,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             <div className="mt-12 mb-10">
               <div className="mb-4 flex items-center justify-between px-1">
                 <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Products You May Like</h3>
-                <button className="text-xs font-black text-orange-600">View All</button>
+                <button className="text-xs font-black text-[#FF6A00]">View All</button>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -895,11 +894,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <h4 className="text-xs font-bold text-gray-800 mb-1 line-clamp-2">{(relatedProduct as any).title}</h4>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-black text-orange-600 whitespace-nowrap">
+                        <span className="text-sm font-black text-[#FF6A00] whitespace-nowrap">
                           TSh {Number(relatedShownPrice || 0).toLocaleString()}
                         </span>
                         {Number((relatedProduct as any).discount || 0) > 0 ? (
-                          <span className="text-[10px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                          <span className="text-[10px] font-bold bg-[#FF6A00]/10 text-[#FF6A00] px-1.5 py-0.5 rounded-full whitespace-nowrap">
                             -{Number((relatedProduct as any).discount)}%
                           </span>
                         ) : null}
@@ -910,6 +909,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </div>
             </div>
           ) : null}
+
+          {/* Baraka Sonko watermark footer */}
+          <div className="mt-8 text-center pb-4">
+            <span className="text-xs text-gray-400">©BarakaSonko - Product images protected</span>
+          </div>
         </div>
       </div>
 
@@ -917,7 +921,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         <button
           onClick={handleCall}
           className="flex-1 flex flex-col items-center justify-center py-2 rounded-xl border-2 active:scale-95 transition-all"
-          style={{ borderColor: COLORS.primary, color: COLORS.primary }}
+          style={{ borderColor: '#FF6A00', color: '#FF6A00' }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -928,7 +932,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         <button
           onClick={handleWhatsApp}
           className="flex-[2] flex items-center justify-center space-x-2 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all shadow-lg"
-          style={{ backgroundColor: COLORS.primary, boxShadow: `0 8px 20px -4px ${COLORS.primary}60` }}
+          style={{ backgroundColor: '#FF6A00', boxShadow: `0 8px 20px -4px ${'#FF6A00'}60` }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654z" />
