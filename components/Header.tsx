@@ -310,10 +310,10 @@ const Header: React.FC<HeaderProps> = ({
 
             <div className="min-w-0">
               <p className="text-white font-extrabold text-[17px] leading-tight tracking-tight truncate">
-                B Baraka Sonko Electronics
+                Baraka Sonko Electronics
               </p>
               <p className="text-orange-100 text-[11px] leading-tight font-medium truncate">
-                Professional Audio, Electronics & Smart Shopping
+                Professional Audio, Electronics & Smart Shopping App
               </p>
             </div>
           </div>
