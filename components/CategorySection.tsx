@@ -15,7 +15,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({ onCategorySelect, onM
     const fetchCategories = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('/api/categories?app=sound', {
+        const response = await fetch('/api/categories', {
           headers: { Accept: 'application/json' }
         });
         
