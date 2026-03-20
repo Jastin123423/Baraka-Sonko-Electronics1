@@ -16,6 +16,74 @@ import CategoriesView from './components/CategoriesView';
 import AllProductsView from './components/AllProductsView';
 import { Product, User, Category, Comment } from './types';
 
+// ============ CACHE HELPERS ============
+
+const PRODUCTS_CACHE_KEY = 'barakasonko_products_cache_v2';
+const CATEGORIES_CACHE_KEY = 'barakasonko_categories_cache_v2';
+const CACHE_META_KEY = 'barakasonko_cache_meta_v2';
+const CACHE_MAX_AGE = 1000 * 60 * 60 * 24 * 30; // 30 days
+
+type CachePayload<T> = {
+  timestamp: number;
+  data: T;
+};
+
+const saveToCache = <T,>(key: string, data: T) => {
+  try {
+    const payload: CachePayload<T> = {
+      timestamp: Date.now(),
+      data,
+    };
+    localStorage.setItem(key, JSON.stringify(payload));
+  } catch (error) {
+    console.error(`Failed to save cache for ${key}`, error);
+  }
+};
+
+const loadFromCache = <T,>(key: string, maxAge = CACHE_MAX_AGE): T | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+
+    const parsed: CachePayload<T> = JSON.parse(raw);
+    if (!parsed || typeof parsed.timestamp !== 'number') return null;
+
+    const expired = Date.now() - parsed.timestamp > maxAge;
+    if (expired) {
+      localStorage.removeItem(key);
+      return null;
+    }
+
+    return parsed.data;
+  } catch (error) {
+    console.error(`Failed to load cache for ${key}`, error);
+    return null;
+  }
+};
+
+const saveCacheMeta = (meta: Record<string, any>) => {
+  try {
+    localStorage.setItem(CACHE_META_KEY, JSON.stringify(meta));
+  } catch (error) {
+    console.error('Failed to save cache meta', error);
+  }
+};
+
+const loadCacheMeta = (): Record<string, any> | null => {
+  try {
+    const raw = localStorage.getItem(CACHE_META_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearStoreCache = () => {
+  localStorage.removeItem(PRODUCTS_CACHE_KEY);
+  localStorage.removeItem(CATEGORIES_CACHE_KEY);
+  localStorage.removeItem(CACHE_META_KEY);
+};
+
 // ============ UTILITY FUNCTIONS ============
 
 const getInitialViewFromPath = (pathname: string) => {
@@ -230,7 +298,7 @@ const VideoPlayer: React.FC<{
   const handlePlayPause = () => {
     if (videoRef.current) {
       if (videoRef.current.paused) {
-        videoRef.current.play().then(() => setIsPlaying(true));
+        videoRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
       } else {
         videoRef.current.pause();
         setIsPlaying(false);
@@ -724,15 +792,151 @@ const AppContent: React.FC = () => {
     } as any;
   };
 
+  const buildCategoryProductMap = useCallback((productList: Product[], categoryList: Category[]) => {
+    const map: Record<string, Product[]> = {};
+
+    categoryList.forEach(cat => {
+      map[cat.id] = [];
+    });
+
+    if (!map["14"]) {
+      map["14"] = [];
+    }
+
+    productList.forEach(product => {
+      const productData = product as any;
+      let matchedCategoryId: string | null = null;
+
+      if (productData.category_id) {
+        const catId = String(productData.category_id).trim();
+        if (map[catId]) matchedCategoryId = catId;
+      }
+
+      if (!matchedCategoryId && productData.categoryId) {
+        const catId = String(productData.categoryId).trim();
+        if (map[catId]) matchedCategoryId = catId;
+      }
+
+      if (!matchedCategoryId) {
+        const productCatName = (
+          productData.category_name ||
+          productData.categoryName ||
+          productData.category ||
+          ''
+        ).toLowerCase().trim();
+
+        const matchingCat = categoryList.find(cat =>
+          cat.name.toLowerCase().trim() === productCatName
+        );
+
+        if (matchingCat) matchedCategoryId = matchingCat.id;
+      }
+
+      if (!matchedCategoryId) {
+        const title = (productData.title || '').toLowerCase();
+
+        if (title.includes('mic') || title.includes('microphone')) {
+          if (!title.includes('cable') && !title.includes('wire') &&
+              !title.includes('stand') && !title.includes('stendi')) {
+            matchedCategoryId = "3";
+          }
+        } else if (title.includes('spika') || title.includes('speaker') || title.includes('sound')) {
+          matchedCategoryId = "2";
+        } else if (title.includes('tv') || title.includes('television')) {
+          matchedCategoryId = "6";
+        } else if (title.includes('charger') || title.includes('adapter') ||
+                 title.includes('cable') || title.includes('wire')) {
+          matchedCategoryId = "7";
+        } else if (title.includes('tv stand') || title.includes('tv bracket') ||
+                 title.includes('tv stendi')) {
+          matchedCategoryId = "8";
+        } else if (title.includes('gitaa') || title.includes('guitar')) {
+          matchedCategoryId = "9";
+        } else if (title.includes('tumba') || title.includes('drum') ||
+                 title.includes('manyanga') || title.includes('dufu')) {
+          matchedCategoryId = "11";
+        } else if (title.includes('mixer') || title.includes('mixing')) {
+          matchedCategoryId = "12";
+        } else if (title.includes('battery') || title.includes('betri') ||
+                 title.includes('jack') || title.includes('spare')) {
+          matchedCategoryId = "13";
+        }
+      }
+
+      if (matchedCategoryId && map[matchedCategoryId]) {
+        map[matchedCategoryId].push(product);
+      } else if (map["14"]) {
+        map["14"].push(product);
+      }
+    });
+
+    Object.keys(map).forEach(catId => {
+      const seen = new Set();
+      map[catId] = map[catId].filter(p => {
+        const duplicate = seen.has(p.id);
+        seen.add(p.id);
+        return !duplicate;
+      });
+    });
+
+    return map;
+  }, []);
+
+  useEffect(() => {
+    if (products.length > 0 && categories.length > 0) {
+      const map = buildCategoryProductMap(products, categories);
+      setCategoryProductMap(map);
+      console.log('✅ Category product map built');
+    }
+  }, [products, categories, buildCategoryProductMap]);
+
   useEffect(() => {
     const initApp = async () => {
       try {
         setIsLoading(true);
         setFetchError(null);
 
+        const cachedProducts = loadFromCache<Product[]>(PRODUCTS_CACHE_KEY);
+        const cachedCategories = loadFromCache<Category[]>(CATEGORIES_CACHE_KEY);
+
+        if (cachedCategories && cachedProducts) {
+          setCategories(cachedCategories);
+          setProducts(cachedProducts);
+
+          const initialCounts: Record<string, number> = {};
+          const initialViewCounts: Record<string, number> = {};
+
+          cachedProducts.forEach(product => {
+            initialCounts[product.id] = 0;
+            initialViewCounts[product.id] = 0;
+          });
+
+          setCommentCounts(initialCounts);
+          setViewCounts(initialViewCounts);
+          setCategoryProductMap(buildCategoryProductMap(cachedProducts, cachedCategories));
+          setIsLoading(false);
+
+          void fetchFreshData();
+          return;
+        }
+
+        await fetchFreshData();
+      } catch (error: any) {
+        console.error('❌ App: Failed to initialize app', error);
+        setFetchError(error.message || 'Network or server error');
+        setIsLoading(false);
+      }
+    };
+
+    const fetchFreshData = async () => {
+      try {
         const [prodRes, catRes] = await Promise.all([
-          fetch('/api/products'),
-          fetch('/api/categories'),
+          fetch('/api/products', {
+            headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' }
+          }),
+          fetch('/api/categories', {
+            headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' }
+          }),
         ]);
 
         const prodData = await prodRes.json().catch(() => ({
@@ -745,11 +949,13 @@ const AppContent: React.FC = () => {
           error: 'Invalid JSON from categories API'
         }));
 
-        let normalizedCats: Category[] = [];
+        let normalizedCats: Category[] = categories;
+
         if (catData?.success) {
           const rawCats = Array.isArray(catData.data) ? catData.data : [];
           normalizedCats = rawCats.map(normalizeCategory);
           setCategories(normalizedCats);
+          saveToCache(CATEGORIES_CACHE_KEY, normalizedCats);
         } else {
           setFetchError(prev => prev ? `${prev}; Categories: ${catData?.error}` : `Categories: ${catData?.error || 'Unknown error'}`);
         }
@@ -757,7 +963,14 @@ const AppContent: React.FC = () => {
         if (prodData?.success) {
           const raw = Array.isArray(prodData.data) ? prodData.data : [];
           const normalized = raw.map((p: any) => normalizeProduct(p, normalizedCats));
+
           setProducts(normalized);
+          saveToCache(PRODUCTS_CACHE_KEY, normalized);
+          saveCacheMeta({
+            lastFetchAt: Date.now(),
+            productCount: normalized.length,
+            categoryCount: normalizedCats.length
+          });
 
           const initialCounts: Record<string, number> = {};
           const initialViewCounts: Record<string, number> = {};
@@ -769,19 +982,22 @@ const AppContent: React.FC = () => {
 
           setCommentCounts(initialCounts);
           setViewCounts(initialViewCounts);
+          setCategoryProductMap(buildCategoryProductMap(normalized, normalizedCats));
         } else {
           setFetchError(prev => prev ? `${prev}; Products: ${prodData?.error}` : `Products: ${prodData?.error || 'Unknown error'}`);
         }
       } catch (error: any) {
-        console.error('❌ App: Failed to initialize app', error);
-        setFetchError(error.message || 'Network or server error');
+        console.error('❌ App: Failed to refresh data', error);
+        if (!products.length) {
+          setFetchError(error.message || 'Network or server error');
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     void initApp();
-  }, []);
+  }, [buildCategoryProductMap]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -854,103 +1070,6 @@ const AppContent: React.FC = () => {
 
     setView(pathView);
   }, [isLoading, location.pathname, productId, categoryId, products, categories, categoryProductMap, navigate, searchQuery]);
-
-  const buildCategoryProductMap = useCallback(() => {
-    const map: Record<string, Product[]> = {};
-
-    categories.forEach(cat => {
-      map[cat.id] = [];
-    });
-
-    if (!map["14"]) {
-      map["14"] = [];
-    }
-
-    products.forEach(product => {
-      const productData = product as any;
-      let matchedCategoryId: string | null = null;
-
-      if (productData.category_id) {
-        const catId = String(productData.category_id).trim();
-        if (map[catId]) matchedCategoryId = catId;
-      }
-
-      if (!matchedCategoryId && productData.categoryId) {
-        const catId = String(productData.categoryId).trim();
-        if (map[catId]) matchedCategoryId = catId;
-      }
-
-      if (!matchedCategoryId) {
-        const productCatName = (
-          productData.category_name ||
-          productData.categoryName ||
-          productData.category ||
-          ''
-        ).toLowerCase().trim();
-
-        const matchingCat = categories.find(cat =>
-          cat.name.toLowerCase().trim() === productCatName
-        );
-
-        if (matchingCat) matchedCategoryId = matchingCat.id;
-      }
-
-      if (!matchedCategoryId) {
-        const title = (productData.title || '').toLowerCase();
-
-        if (title.includes('mic') || title.includes('microphone')) {
-          if (!title.includes('cable') && !title.includes('wire') &&
-              !title.includes('stand') && !title.includes('stendi')) {
-            matchedCategoryId = "3";
-          }
-        } else if (title.includes('spika') || title.includes('speaker') || title.includes('sound')) {
-          matchedCategoryId = "2";
-        } else if (title.includes('tv') || title.includes('television')) {
-          matchedCategoryId = "6";
-        } else if (title.includes('charger') || title.includes('adapter') ||
-                 title.includes('cable') || title.includes('wire')) {
-          matchedCategoryId = "7";
-        } else if (title.includes('tv stand') || title.includes('tv bracket') ||
-                 title.includes('tv stendi')) {
-          matchedCategoryId = "8";
-        } else if (title.includes('gitaa') || title.includes('guitar')) {
-          matchedCategoryId = "9";
-        } else if (title.includes('tumba') || title.includes('drum') ||
-                 title.includes('manyanga') || title.includes('dufu')) {
-          matchedCategoryId = "11";
-        } else if (title.includes('mixer') || title.includes('mixing')) {
-          matchedCategoryId = "12";
-        } else if (title.includes('battery') || title.includes('betri') ||
-                 title.includes('jack') || title.includes('spare')) {
-          matchedCategoryId = "13";
-        }
-      }
-
-      if (matchedCategoryId && map[matchedCategoryId]) {
-        map[matchedCategoryId].push(product);
-      } else if (map["14"]) {
-        map["14"].push(product);
-      }
-    });
-
-    Object.keys(map).forEach(catId => {
-      const seen = new Set();
-      map[catId] = map[catId].filter(p => {
-        const duplicate = seen.has(p.id);
-        seen.add(p.id);
-        return !duplicate;
-      });
-    });
-
-    setCategoryProductMap(map);
-    console.log('✅ Category product map built');
-  }, [products, categories]);
-
-  useEffect(() => {
-    if (products.length > 0 && categories.length > 0) {
-      buildCategoryProductMap();
-    }
-  }, [products, categories, buildCategoryProductMap]);
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -1210,7 +1329,18 @@ const AppContent: React.FC = () => {
       const savedRaw = result.data || result.product || result.item;
       if (savedRaw) {
         const saved = normalizeProduct(savedRaw, categories);
-        setProducts((prev) => [saved, ...prev]);
+
+        setProducts((prev) => {
+          const updated = [saved, ...prev];
+          saveToCache(PRODUCTS_CACHE_KEY, updated);
+          saveCacheMeta({
+            lastFetchAt: Date.now(),
+            productCount: updated.length,
+            categoryCount: categories.length,
+            invalidatedByPost: true
+          });
+          return updated;
+        });
 
         setCommentCounts(prev => ({
           ...prev,
@@ -1225,11 +1355,13 @@ const AppContent: React.FC = () => {
         return true;
       }
 
+      clearStoreCache();
       const prodRes = await fetch('/api/products');
       const prodData = await prodRes.json().catch(() => null);
       if (prodData?.success) {
         const normalized = (prodData.data || []).map((p: any) => normalizeProduct(p, categories));
         setProducts(normalized);
+        saveToCache(PRODUCTS_CACHE_KEY, normalized);
       }
 
       return true;
@@ -1246,7 +1378,17 @@ const AppContent: React.FC = () => {
       });
       const result = await response.json().catch(() => null);
       if (result?.success) {
-        setProducts((prev) => prev.filter((p) => String(p.id) !== String(id)));
+        setProducts((prev) => {
+          const updated = prev.filter((p) => String(p.id) !== String(id));
+          saveToCache(PRODUCTS_CACHE_KEY, updated);
+          saveCacheMeta({
+            lastFetchAt: Date.now(),
+            productCount: updated.length,
+            categoryCount: categories.length,
+            invalidatedByDelete: true
+          });
+          return updated;
+        });
 
         setProductComments(prev => {
           const newComments = { ...prev };
@@ -1300,6 +1442,11 @@ const AppContent: React.FC = () => {
     navigate('/');
   };
 
+  const handleRefreshCachedData = async () => {
+    clearStoreCache();
+    window.location.reload();
+  };
+
   const navView =
     view === 'admin'
       ? 'admin'
@@ -1313,7 +1460,6 @@ const AppContent: React.FC = () => {
       ? 'categories'
       : 'home';
 
-  // Disable full preloader for direct product route
   if (isLoading && !isDirectProductRoute && view !== 'category-results') {
     return (
       <div className="fixed inset-0 bg-white flex flex-col items-center justify-center space-y-4">
@@ -1328,7 +1474,6 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Direct product route: keep blank while resolving so user doesn't feel shifted
   if (isDirectProductRoute && (isLoading || (productId && !selectedProduct && !fetchError))) {
     return <div className="fixed inset-0 bg-white" />;
   }
