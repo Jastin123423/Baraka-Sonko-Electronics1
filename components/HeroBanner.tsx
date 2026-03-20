@@ -7,7 +7,7 @@ const BANNERS = [
     title: "Best Sound Systems", 
     sub: "Powerful Bass >>", 
     bg: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
-    img: "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=300&q=80",
+    img: "",
     textColor: "text-white"
   },
   { 
