@@ -15,7 +15,7 @@ const BANNERS = [
     title: "Latest Smartphones", 
     sub: "Shop Now >>", 
     bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
-    img: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=300&q=80",
+    img: "",
     textColor: "text-gray-800"
   },
   { 
@@ -23,7 +23,7 @@ const BANNERS = [
     title: "Pro Mixers & Audio", 
     sub: "Recording Studio >>", 
     bg: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
-    img: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=300&q=80",
+    img: "",
     textColor: "text-gray-800"
   }
 ];
