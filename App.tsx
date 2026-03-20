@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import Header from './components/Header';
-import HeroBanner from './components/HeroBanner';
 import QuickActions from './components/QuickActions';
 import CategorySection from './components/CategorySection';
 import FlashSale from './components/FlashSale';
