@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { COLORS } from '../constants';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Product } from '../types';
 
 interface FlashSaleProps {
@@ -7,6 +6,18 @@ interface FlashSaleProps {
   onProductClick: (product: Product) => void;
   onSeeAll: () => void;
 }
+
+const getProductAppFlag = (product: any): number => {
+  const raw =
+    product?.app_flag ??
+    product?.appFlag ??
+    product?.app ??
+    product?.is_sound_product ??
+    product?.isSoundProduct ??
+    0;
+
+  return Number(raw) === 1 ? 1 : 0;
+};
 
 const FlashSale: React.FC<FlashSaleProps> = ({ products, onProductClick, onSeeAll }) => {
   const [timeLeft, setTimeLeft] = useState({ h: 12, m: 45, s: 30 });
@@ -78,6 +89,10 @@ const FlashSale: React.FC<FlashSaleProps> = ({ products, onProductClick, onSeeAl
       return Number((product as any).originalPrice);
     }
 
+    if ((product as any).original_price) {
+      return Number((product as any).original_price);
+    }
+
     if (product.discount && product.discount > 0) {
       return Math.round(Number(product.price) * (1 + Number(product.discount) / 100));
     }
@@ -85,7 +100,15 @@ const FlashSale: React.FC<FlashSaleProps> = ({ products, onProductClick, onSeeAl
     return Number(product.price);
   };
 
-  const displayProducts = products.length > 0 ? [...products, ...products] : [];
+  const normalizedProducts = useMemo(() => {
+    return (products || []).map((p) => ({
+      ...p,
+      appFlag: getProductAppFlag(p),
+      app_flag: getProductAppFlag(p),
+    }));
+  }, [products]);
+
+  const displayProducts = normalizedProducts.length > 0 ? [...normalizedProducts, ...normalizedProducts] : [];
 
   return (
     <section className="mx-3 my-3 rounded-3xl overflow-hidden border border-orange-100 bg-white shadow-sm">
@@ -162,6 +185,7 @@ const FlashSale: React.FC<FlashSaleProps> = ({ products, onProductClick, onSeeAl
             const discount = p.discount && p.discount > 0 ? p.discount : 0;
             const sellingPrice = Number(p.price) || 0;
             const originalPrice = getOriginalPrice(p);
+            const isSonkoSound = getProductAppFlag(p) === 1;
 
             return (
               <button
@@ -171,8 +195,8 @@ const FlashSale: React.FC<FlashSaleProps> = ({ products, onProductClick, onSeeAl
               >
                 <div className="relative aspect-square bg-white">
                   <img
-                    src={p.image}
-                    alt={p.title || 'Product'}
+                    src={(p as any).image}
+                    alt={p.title || (p as any).name || 'Product'}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://via.placeholder.com/128?text=No+Image';
@@ -184,11 +208,17 @@ const FlashSale: React.FC<FlashSaleProps> = ({ products, onProductClick, onSeeAl
                       -{discount}%
                     </div>
                   )}
+
+                  {isSonkoSound && (
+                    <div className="absolute top-2 right-2 bg-black/80 text-white text-[9px] px-2 py-1 rounded-full font-bold shadow-sm">
+                      Sonko Sound
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-2.5">
                   <p className="text-[11px] font-semibold text-gray-700 line-clamp-2 min-h-[32px]">
-                    {p.title || p.name || 'Product'}
+                    {p.title || (p as any).name || 'Product'}
                   </p>
 
                   <div className="mt-2 flex flex-col items-start">
