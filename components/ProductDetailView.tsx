@@ -24,6 +24,12 @@ type ImageVariant = {
   position?: number;
 };
 
+declare global {
+  interface Window {
+    __barakaRecordedViews?: Set<string>;
+  }
+}
+
 /** -----------------------------
  * ✅ UTIL: Safe string url
  * ------------------------------*/
@@ -70,7 +76,9 @@ const usePreloadVideo = (videoUrl: string) => {
     document.head.appendChild(link);
 
     return () => {
-      document.head.removeChild(link);
+      if (document.head.contains(link)) {
+        document.head.removeChild(link);
+      }
     };
   }, [videoUrl]);
 };
@@ -227,7 +235,9 @@ const ThumbnailImage: React.FC<{
           setIsLoaded(true);
         }}
       />
-      {!isLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+      )}
     </div>
   );
 };
@@ -352,10 +362,7 @@ const SharePanel: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
         className="bg-white w-full max-w-sm rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp max-h-[70vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
@@ -493,7 +500,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   }, [product]);
 
   const gallery = useMemo(() => {
-    const variantUrls = imageVariants.map((v) => toUrl(v.url)).filter(Boolean);
+    const variantUrls = imageVariants.map(v => toUrl(v.url)).filter(Boolean);
 
     const imgs = Array.isArray((product as any).images)
       ? (product as any).images.map(toUrl).filter(Boolean)
@@ -511,8 +518,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     const di = Array.isArray((product as any).descriptionImages)
       ? (product as any).descriptionImages
       : Array.isArray((product as any).description_images)
-        ? (product as any).description_images
-        : [];
+      ? (product as any).description_images
+      : [];
     return di.map(toUrl).filter(Boolean);
   }, [product]);
 
@@ -521,7 +528,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const selectedVariant = useMemo(() => {
     if (!selectedImageUrl) return imageVariants[activeImage] || null;
     return (
-      imageVariants.find((v) => toUrl(v.url) === toUrl(selectedImageUrl)) ||
+      imageVariants.find(v => toUrl(v.url) === toUrl(selectedImageUrl)) ||
       imageVariants[activeImage] ||
       null
     );
@@ -531,7 +538,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     if (!gallery.length || !imageVariants.length) return false;
 
     return gallery.every((imgUrl) =>
-      imageVariants.some((v) => toUrl(v.url) === toUrl(imgUrl) && Number(v.price) > 0)
+      imageVariants.some(v => toUrl(v.url) === toUrl(imgUrl) && Number(v.price) > 0)
     );
   }, [gallery, imageVariants]);
 
@@ -539,10 +546,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     (product as any).sellingPrice ?? (product as any).price ?? 0
   );
 
-  const displayedPrice =
-    Number(selectedVariant?.price) > 0
-      ? Number(selectedVariant?.price)
-      : fallbackSellingPrice;
+  const displayedPrice = Number(selectedVariant?.price) > 0
+    ? Number(selectedVariant?.price)
+    : fallbackSellingPrice;
 
   const displayedPriceStr = Number.isFinite(displayedPrice)
     ? displayedPrice.toLocaleString()
@@ -550,11 +556,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const originalPriceValue = Number(
     (product as any).originalPrice ||
-      (allImagesHaveOwnPrices
-        ? 0
-        : (product as any).discount
-          ? Math.round(Number((product as any).price || 0) * (1 + Number((product as any).discount) / 100))
-          : 0)
+    (allImagesHaveOwnPrices ? 0 : (
+      (product as any).discount
+        ? Math.round(Number((product as any).price || 0) * (1 + Number((product as any).discount) / 100))
+        : 0
+    ))
   );
 
   const originalPriceStr = Number.isFinite(originalPriceValue)
@@ -562,12 +568,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     : '0';
 
   const minVariantPrice = useMemo(() => {
-    const nums = imageVariants.map((v) => Number(v.price || 0)).filter((n) => n > 0);
+    const nums = imageVariants.map(v => Number(v.price || 0)).filter(n => n > 0);
     return nums.length ? Math.min(...nums) : 0;
   }, [imageVariants]);
 
   const maxVariantPrice = useMemo(() => {
-    const nums = imageVariants.map((v) => Number(v.price || 0)).filter((n) => n > 0);
+    const nums = imageVariants.map(v => Number(v.price || 0)).filter(n => n > 0);
     return nums.length ? Math.max(...nums) : 0;
   }, [imageVariants]);
 
@@ -608,27 +614,30 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   }, [WHATSAPP_TEXT]);
 
   /** -----------------------------
-   * ✅ FIX: Prevent double view count
-   * Uses sessionStorage so remounts / StrictMode won't double count
-   * Counts 1 time per product per browser tab session
+   * ✅ FIX: count once per real page load
+   * Prevent duplicate counts from StrictMode / remounts
+   * But allow a fresh browser refresh to count again
    * ------------------------------*/
   useEffect(() => {
     const pid = String((product as any).id || '').trim();
-    if (!pid || typeof window === 'undefined') return;
+    if (!pid || typeof window === 'undefined' || typeof onRecordView !== 'function') return;
 
-    const storageKey = `product_view_recorded_${pid}`;
+    if (!window.__barakaRecordedViews) {
+      window.__barakaRecordedViews = new Set<string>();
+    }
 
-    if (sessionStorage.getItem(storageKey) === '1') return;
+    const viewKey = `product:${pid}`;
 
-    const timer = window.setTimeout(() => {
-      if (document.visibilityState !== 'visible') return;
-      if (sessionStorage.getItem(storageKey) === '1') return;
+    if (window.__barakaRecordedViews.has(viewKey)) return;
 
-      sessionStorage.setItem(storageKey, '1');
-      onRecordView?.();
-    }, 250);
+    window.__barakaRecordedViews.add(viewKey);
 
-    return () => window.clearTimeout(timer);
+    try {
+      onRecordView();
+    } catch (err) {
+      window.__barakaRecordedViews.delete(viewKey);
+      console.error('Failed to record view:', err);
+    }
   }, [(product as any).id]);
 
   useEffect(() => {
@@ -761,7 +770,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
               {gallery.map((img, idx) => {
                 const variant =
-                  imageVariants.find((v) => toUrl(v.url) === toUrl(img)) ||
+                  imageVariants.find(v => toUrl(v.url) === toUrl(img)) ||
                   imageVariants[idx] ||
                   null;
 
@@ -773,7 +782,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     type="button"
                     onClick={() => goToImage(idx)}
                     className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                      activeImage === idx ? 'border-[#FF6A00] shadow-md' : 'border-gray-200'
+                      activeImage === idx
+                        ? 'border-[#FF6A00] shadow-md'
+                        : 'border-gray-200'
                     }`}
                   >
                     <ThumbnailImage
@@ -914,7 +925,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   );
 
                   const relatedMinVariantPrice = relatedVariants.length
-                    ? Math.min(...relatedVariants.map((v) => Number(v.price || 0)).filter((n) => n > 0))
+                    ? Math.min(...relatedVariants.map(v => Number(v.price || 0)).filter(n => n > 0))
                     : 0;
 
                   const relatedShownPrice =
