@@ -1,5 +1,5 @@
-// AdminView.tsx (updated with edit functionality)
-import React, { useState, useEffect } from 'react';
+// AdminView.tsx
+import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Category, AdminStats } from '../types';
 
 interface AdminViewProps {
@@ -44,6 +44,8 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -117,11 +119,47 @@ const AdminView: React.FC<AdminViewProps> = ({
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // Reset form when closing
+  const filteredCategories = useMemo(() => {
+    const q = categorySearch.trim().toLowerCase();
+    if (!q) return categories;
+
+    return categories.filter((category) => {
+      const name = String(category.name || '').toLowerCase();
+      const id = String(category.id || '').toLowerCase();
+      return name.includes(q) || id.includes(q);
+    });
+  }, [categories, categorySearch]);
+
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return products;
+
+    return products.filter((product) => {
+      const title = String(product.title || '').toLowerCase();
+      const categoryName = String(
+        (product as any).category_name ||
+        product.categoryName ||
+        product.category ||
+        ''
+      ).toLowerCase();
+      const id = String(product.id || '').toLowerCase();
+
+      return (
+        title.includes(q) ||
+        categoryName.includes(q) ||
+        id.includes(q)
+      );
+    });
+  }, [products, productSearch]);
+
+  const selectedCategoryName =
+    categories.find(c => String(c.id) === String(formData.categoryId))?.name || '';
+
   const closeForm = () => {
     setIsAdding(false);
     setEditMode('create');
     setEditingProductId(null);
+    setCategorySearch('');
     setFormData({
       title: '',
       description: '',
@@ -135,12 +173,9 @@ const AdminView: React.FC<AdminViewProps> = ({
     setUploadError('');
   };
 
-  // Load product data for editing
   const loadProductForEdit = (product: Product) => {
-    // Convert product data to form format
     const images: ProductImageItem[] = [];
-    
-    // Handle image variants if they exist
+
     if ((product as any).imageVariants && Array.isArray((product as any).imageVariants)) {
       (product as any).imageVariants.forEach((variant: any, index: number) => {
         images.push({
@@ -150,9 +185,7 @@ const AdminView: React.FC<AdminViewProps> = ({
           isMain: variant.isMain || index === 0,
         });
       });
-    } 
-    // Fallback to regular images
-    else {
+    } else {
       const productImages = (product as any).images || (product as any).image_urls || [];
       if (Array.isArray(productImages) && productImages.length > 0) {
         productImages.forEach((url: string, index: number) => {
@@ -173,10 +206,10 @@ const AdminView: React.FC<AdminViewProps> = ({
       }
     }
 
-    // Get description images
-    const descImages = (product as any).descriptionImages || 
-                       (product as any).description_images || 
-                       [];
+    const descImages =
+      (product as any).descriptionImages ||
+      (product as any).description_images ||
+      [];
 
     setFormData({
       title: product.title || '',
@@ -185,13 +218,14 @@ const AdminView: React.FC<AdminViewProps> = ({
       sellingPrice: String(product.sellingPrice || product.price || ''),
       categoryId: String((product as any).categoryId || (product as any).category_id || ''),
       videoUrl: (product as any).videoUrl || (product as any).video_url || '',
-      images: images,
+      images,
       descriptionImages: Array.isArray(descImages) ? descImages.map(String) : [],
     });
 
     setEditMode('edit');
     setEditingProductId(product.id);
     setIsAdding(true);
+    setCategorySearch('');
   };
 
   const uploadSingleFile = async (file: File): Promise<string> => {
@@ -221,9 +255,9 @@ const AdminView: React.FC<AdminViewProps> = ({
 
       const cleanup = () => {
         setUploadProgress(prev => {
-          const newProgress = { ...prev };
-          delete newProgress[progressKey];
-          return newProgress;
+          const next = { ...prev };
+          delete next[progressKey];
+          return next;
         });
         setUploadingCount(c => Math.max(0, c - 1));
       };
@@ -288,14 +322,10 @@ const AdminView: React.FC<AdminViewProps> = ({
   ) => {
     setUploadError('');
 
-    console.log('🎯 handleFileUpload FIRED with type:', type);
     addDebugLog(`handleFileUpload triggered for ${type}`);
 
     const files = e.currentTarget.files;
     const fileList: File[] = files ? Array.from(files) : [];
-
-    console.log('📁 files selected:', fileList.length);
-    console.log('📁 file details:', fileList.map(f => `${f.name} (type: "${f.type}") ${f.size} bytes`));
 
     if (fileList.length === 0) {
       addDebugLog('❌ No files selected or picker cancelled');
@@ -348,8 +378,6 @@ const AdminView: React.FC<AdminViewProps> = ({
         }
       }
 
-      console.log('📊 upload complete. URLs received:', uploadedUrls);
-
       if (type === 'image') {
         setFormData(prev => {
           const existing = prev.images.length;
@@ -368,7 +396,6 @@ const AdminView: React.FC<AdminViewProps> = ({
             ? newImages
             : newImages.map((img, i) => ({ ...img, isMain: i === 0 }));
 
-          console.log('🔄 Setting new images array:', normalized);
           addDebugLog(`Setting ${normalized.length} images (${uploadedUrls.length} new)`);
 
           return {
@@ -377,32 +404,23 @@ const AdminView: React.FC<AdminViewProps> = ({
           };
         });
       } else if (type === 'desc_image') {
-        setFormData(prev => {
-          const newDescImages = [...prev.descriptionImages, ...uploadedUrls].slice(0, 20);
-          console.log('🔄 Setting new descriptionImages:', newDescImages);
-          return {
-            ...prev,
-            descriptionImages: newDescImages,
-          };
-        });
+        setFormData(prev => ({
+          ...prev,
+          descriptionImages: [...prev.descriptionImages, ...uploadedUrls].slice(0, 20),
+        }));
       } else if (type === 'video') {
         if (uploadedUrls.length > 0) {
-          setFormData(prev => {
-            console.log('🔄 Setting videoUrl:', uploadedUrls[0]);
-            return { ...prev, videoUrl: uploadedUrls[0] };
-          });
+          setFormData(prev => ({ ...prev, videoUrl: uploadedUrls[0] }));
         }
       }
 
       addDebugLog(`✅ Successfully updated form state for ${type}`);
     } catch (err: any) {
       const errorMessage = err?.message || 'Upload failed. Please check your connection and try again.';
-      console.error('🔥 handleFileUpload error:', err);
       addDebugLog(`❌ Error: ${errorMessage}`);
       setUploadError(errorMessage);
     } finally {
       setUploadProgress({});
-      console.log('🏁 handleFileUpload completed');
     }
   };
 
@@ -412,7 +430,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         const nextImages = prev.images.filter((_, i) => i !== index);
         const normalized = nextImages.map((img, i) => ({
           ...img,
-          isMain: i === 0 ? true : false,
+          isMain: i === 0,
         }));
 
         return {
@@ -476,16 +494,6 @@ const AdminView: React.FC<AdminViewProps> = ({
       alert('⏳ Please wait for all uploads to finish before publishing');
       return;
     }
-
-    console.log('🚀 SUBMIT CALLED!');
-    console.log('📋 SUBMIT images:', formData.images);
-    console.log('📋 SUBMIT images.length:', formData.images.length);
-    console.log('📋 SUBMIT uploadingCount:', uploadingCount);
-    console.log('📋 SUBMIT isActuallyUploading:', isActuallyUploading);
-    console.log('📋 SUBMIT uploadProgress keys:', Object.keys(uploadProgress));
-    console.log('📋 FULL formData:', formData);
-    console.log('📋 Edit mode:', editMode);
-    console.log('📋 Editing product ID:', editingProductId);
 
     const mainImageObj =
       formData.images.find(img => img.isMain) ||
@@ -589,14 +597,9 @@ const AdminView: React.FC<AdminViewProps> = ({
         status: 'online',
       };
 
-      console.log('📤 Sending payload to backend:', payload);
-      console.log('📤 Method:', editMode === 'edit' ? 'PUT' : 'POST');
-      console.log('📤 URL:', editMode === 'edit' ? `/api/products?id=${editingProductId}` : '/api/products');
-
       let success = false;
 
       if (editMode === 'edit' && editingProductId) {
-        // Use PUT for full update
         const response = await fetch(`/api/products?id=${editingProductId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -604,14 +607,12 @@ const AdminView: React.FC<AdminViewProps> = ({
         });
 
         const result = await response.json().catch(() => null);
-        console.log('📥 PUT response:', result);
         success = result?.success === true;
 
         if (success && onEditProduct && result.data) {
           onEditProduct(result.data);
         }
       } else {
-        // Use POST for new product
         success = await onAddProduct(payload as any);
       }
 
@@ -653,19 +654,19 @@ const AdminView: React.FC<AdminViewProps> = ({
   };
 
   const inputClass =
-    'w-full bg-white border border-gray-300 rounded-xl px-4 py-4 text-base font-bold outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200';
+    'w-full bg-white border border-[#E5E7EB] rounded-2xl px-4 py-4 text-base font-bold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all duration-200 shadow-sm';
 
   const descriptionTextareaClass =
-    'w-full bg-white border border-gray-300 rounded-xl px-4 py-4 text-base text-gray-800 font-normal leading-7 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200 resize-y';
+    'w-full bg-white border border-[#E5E7EB] rounded-2xl px-4 py-4 text-base text-gray-800 font-normal leading-7 outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all duration-200 resize-y shadow-sm';
 
   const labelClass =
-    'block text-xs font-black text-gray-500 uppercase mb-2 ml-1 tracking-wide';
+    'block text-[11px] font-black text-[#6B7280] uppercase mb-2 ml-1 tracking-[0.12em]';
 
   const isDev =
     typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV;
 
   return (
-    <div className="bg-[#fcfcfc] min-h-screen">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#FFF7F0_0%,#FFF2E8_35%,#FFF9F5_100%)]">
       {isDev && debugLogs.length > 0 && (
         <div className="fixed top-20 right-4 w-80 max-h-96 bg-black/90 text-white text-xs p-3 rounded-lg overflow-y-auto z-50">
           <div className="flex justify-between items-center mb-2">
@@ -685,49 +686,74 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      <div className="bg-white sticky top-0 z-10 border-b border-gray-100 px-2 shadow-sm">
-        <div className="flex space-x-6 py-4 px-2 overflow-x-auto no-scrollbar">
+      <div className="sticky top-0 z-20 bg-[linear-gradient(90deg,#FF6A00_0%,#FF7C1F_45%,#FF9A3D_100%)] text-white shadow-[0_10px_30px_rgba(255,106,0,0.22)] border-b border-orange-300/30">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md border border-white/25 flex items-center justify-center shadow-lg">
+                <span className="text-white text-xl font-black">SS</span>
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-xl font-black tracking-tight truncate">Sonko Sound Admin</h1>
+                <p className="text-xs text-orange-100 truncate">Alibaba-style management panel</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-[11px] font-bold">
+                {products.length} Products
+              </span>
+              <span className="px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-[11px] font-bold">
+                ©SonkoSound
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="sticky top-[74px] z-10 bg-white/90 backdrop-blur-md border-b border-orange-100 shadow-sm px-3">
+        <div className="flex space-x-6 py-4 overflow-x-auto no-scrollbar">
           {(['dashboard', 'products', 'orders', 'withdraw'] as AdminTab[]).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`text-[11px] font-black uppercase tracking-wider transition-all relative pb-2 whitespace-nowrap ${
+              className={`text-[11px] font-black uppercase tracking-[0.18em] transition-all relative pb-2 whitespace-nowrap ${
                 activeTab === tab
-                  ? 'text-orange-600'
-                  : 'text-gray-400 hover:text-gray-600'
+                  ? 'text-[#FF6A00]'
+                  : 'text-gray-400 hover:text-gray-700'
               }`}
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 rounded-full animate-pulse" />
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-[#FF6A00] to-[#FF9A3D] rounded-full" />
               )}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="p-4 pb-12 max-w-4xl mx-auto">
+      <div className="p-4 pb-12 max-w-5xl mx-auto">
         {activeTab === 'dashboard' && (
-          <div className="space-y-4">
-            <h1 className="text-xl font-black text-gray-800 mb-4">Dashboard Overview</h1>
+          <div className="space-y-5">
+            <h1 className="text-xl font-black text-gray-800">Dashboard Overview</h1>
+
             {stats ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Total Products</p>
-                  <p className="text-2xl font-black">{stats.totalProducts?.toLocaleString() || '0'}</p>
+                <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Total Products</p>
+                  <p className="text-3xl font-black text-gray-900">{stats.totalProducts?.toLocaleString() || '0'}</p>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Net Sales</p>
-                  <p className="text-2xl font-black">TSh {stats.netSales?.toLocaleString() || '0'}</p>
+                <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Net Sales</p>
+                  <p className="text-3xl font-black text-gray-900">TSh {stats.netSales?.toLocaleString() || '0'}</p>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Earnings</p>
-                  <p className="text-2xl font-black text-orange-600">TSh {stats.earnings?.toLocaleString() || '0'}</p>
+                <div className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,#FFF7F0_0%,#FFFFFF_100%)] shadow-[0_6px_20px_rgba(255,106,0,0.08)] p-6">
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Earnings</p>
+                  <p className="text-3xl font-black text-[#FF6A00]">TSh {stats.earnings?.toLocaleString() || '0'}</p>
                 </div>
               </div>
             ) : (
-              <div className="bg-white p-8 rounded-2xl text-center">
-                <div className="inline-block w-8 h-8 border-3 border-gray-300 border-t-orange-600 rounded-full animate-spin mb-4"></div>
+              <div className="bg-white rounded-3xl p-8 text-center border border-orange-100 shadow-sm">
+                <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
                 <p className="text-gray-500">Loading dashboard data...</p>
               </div>
             )}
@@ -736,32 +762,54 @@ const AdminView: React.FC<AdminViewProps> = ({
 
         {activeTab === 'products' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <h1 className="text-xl font-black text-gray-800">Products Management</h1>
-              <button
-                onClick={() => {
-                  setEditMode('create');
-                  setEditingProductId(null);
-                  setIsAdding(true);
-                }}
-                className="bg-gradient-to-r from-orange-600 to-orange-500 text-white font-black py-3 px-6 rounded-xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all"
-              >
-                + ADD NEW PRODUCT
-              </button>
+
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative w-full md:w-80">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="M21 21l-4.35-4.35" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Search product, category, or ID..."
+                    className="w-full rounded-2xl border border-orange-200 bg-white pl-11 pr-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
+                  />
+                </div>
+
+                <button
+                  onClick={() => {
+                    setEditMode('create');
+                    setEditingProductId(null);
+                    setIsAdding(true);
+                    setCategorySearch('');
+                  }}
+                  className="bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-3 px-6 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] hover:shadow-[0_14px_28px_rgba(255,106,0,0.28)] active:scale-[0.98] transition-all"
+                >
+                  + ADD NEW PRODUCT
+                </button>
+              </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              {products.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-orange-100 overflow-hidden shadow-[0_8px_24px_rgba(255,106,0,0.05)]">
+              {filteredProducts.length === 0 ? (
                 <div className="p-12 text-center text-gray-400">
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                   </svg>
-                  <p className="font-bold">No products yet</p>
-                  <p className="text-sm mt-1">Start by adding your first product</p>
+                  <p className="font-bold">{products.length === 0 ? 'No products yet' : 'No matching products'}</p>
+                  <p className="text-sm mt-1">
+                    {products.length === 0 ? 'Start by adding your first product' : 'Try a different search'}
+                  </p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {products.map(product => {
+                <div className="divide-y divide-orange-100">
+                  {filteredProducts.map(product => {
                     const originalPriceNumber = Number((product as any).originalPrice ?? 0);
                     const sellingPriceNumber = Number((product as any).sellingPrice ?? (product as any).price ?? 0);
                     const displaySellingPrice = Number.isFinite(sellingPriceNumber) ? sellingPriceNumber.toLocaleString() : '0';
@@ -775,9 +823,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                     return (
                       <div
                         key={product.id}
-                        className="p-4 flex items-center space-x-4 hover:bg-gray-50 transition-colors relative"
+                        className="p-4 flex items-center space-x-4 hover:bg-[#FFF9F5] transition-colors relative"
                       >
-                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-200">
+                        <div className="w-16 h-16 rounded-2xl overflow-hidden border border-orange-200 bg-white shadow-sm">
                           <WatermarkedImage
                             src={product.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+'}
                             alt={product.title}
@@ -786,26 +834,28 @@ const AdminView: React.FC<AdminViewProps> = ({
                             isProduct={true}
                           />
                         </div>
+
                         <div className="flex-grow min-w-0">
-                          <p className="text-sm font-bold truncate">{product.title}</p>
-                          <div className="flex items-center space-x-3 mt-1">
+                          <p className="text-sm font-bold truncate text-gray-900">{product.title}</p>
+
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
                             {discount > 0 ? (
-                              <div className="flex items-center space-x-2">
-                                <p className="text-xs font-black text-orange-600">
+                              <>
+                                <p className="text-xs font-black text-[#FF6A00]">
                                   TSh {displaySellingPrice}
                                 </p>
                                 <p className="text-xs font-black text-gray-400 line-through">
                                   TSh {displayOriginalPrice}
                                 </p>
-                              </div>
+                              </>
                             ) : (
-                              <p className="text-xs font-black text-orange-600">
+                              <p className="text-xs font-black text-[#FF6A00]">
                                 TSh {displaySellingPrice}
                               </p>
                             )}
 
                             {discount > 0 && (
-                              <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                              <span className="text-[10px] font-black bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
                                 -{discount}%
                               </span>
                             )}
@@ -820,7 +870,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                               </span>
                             </div>
 
-                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
                               product.status === 'online'
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-100 text-gray-700'
@@ -828,7 +878,8 @@ const AdminView: React.FC<AdminViewProps> = ({
                               {product.status}
                             </span>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
+
+                          <p className="text-xs text-gray-500 mt-1 truncate">
                             Category: {(product as any).category_name || product.categoryName || product.category || 'Uncategorized'}
                           </p>
                         </div>
@@ -836,7 +887,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                         <div className="relative">
                           <button
                             onClick={(e) => handleMenuClick(e, product.id)}
-                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                            className="p-2 rounded-xl hover:bg-orange-100 transition-colors"
                           >
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <circle cx="12" cy="12" r="1" fill="currentColor" />
@@ -846,10 +897,10 @@ const AdminView: React.FC<AdminViewProps> = ({
                           </button>
 
                           {activeMenuId === product.id && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-orange-100 py-2 z-50 overflow-hidden">
                               <button
                                 onClick={(e) => handleEdit(e, product)}
-                                className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center space-x-3"
+                                className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-orange-50 flex items-center space-x-3"
                               >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
@@ -874,11 +925,15 @@ const AdminView: React.FC<AdminViewProps> = ({
                 </div>
               )}
             </div>
+
+            <div className="mt-4 text-center py-2">
+              <span className="text-xs text-gray-400">©SonkoSound - Product images protected</span>
+            </div>
           </div>
         )}
 
         {activeTab === 'orders' && (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-orange-100 shadow-sm">
             <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
@@ -888,7 +943,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         )}
 
         {activeTab === 'withdraw' && (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-orange-100 shadow-sm">
             <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
@@ -900,8 +955,8 @@ const AdminView: React.FC<AdminViewProps> = ({
 
       {isAdding && (
         <div className="fixed inset-0 bg-black/75 z-[110] flex flex-col">
-          <div className="bg-white w-full h-full p-4 md:p-6 overflow-y-auto">
-            <div className="flex justify-between items-center mb-6 pb-4 border-b">
+          <div className="bg-[linear-gradient(180deg,#FFF9F5_0%,#FFFFFF_35%,#FFF8F2_100%)] w-full h-full p-4 md:p-6 overflow-y-auto">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-orange-100">
               <h2 className="text-xl md:text-2xl font-black text-gray-800">
                 {editMode === 'edit' ? 'Edit Product' : 'Add New Product'}
               </h2>
@@ -915,7 +970,7 @@ const AdminView: React.FC<AdminViewProps> = ({
             </div>
 
             {editMode === 'edit' && (
-              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <div className="mb-6 p-4 bg-blue-50 rounded-2xl border border-blue-200">
                 <p className="text-sm font-black text-blue-800">
                   ✏️ Editing Product: {formData.title}
                 </p>
@@ -923,7 +978,7 @@ const AdminView: React.FC<AdminViewProps> = ({
             )}
 
             {uploadError && (
-              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
+              <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
@@ -939,7 +994,7 @@ const AdminView: React.FC<AdminViewProps> = ({
             )}
 
             {isActuallyUploading && Object.keys(uploadProgress).length > 0 && (
-              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="mb-6 p-4 bg-blue-50 rounded-2xl border border-blue-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-black text-blue-700 uppercase tracking-wide">
                     Uploading Files... ({uploadingCount} active)
@@ -952,7 +1007,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                   <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${getTotalUploadProgress()}%` }}
-                  ></div>
+                  />
                 </div>
                 <p className="text-xs text-blue-600 mt-2">
                   Please wait for uploads to complete before publishing
@@ -961,7 +1016,7 @@ const AdminView: React.FC<AdminViewProps> = ({
             )}
 
             {(formData.images.length > 0 || formData.videoUrl || formData.descriptionImages.length > 0) && (
-              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="mb-6 p-4 bg-blue-50 rounded-2xl border border-blue-100">
                 <h4 className="text-sm font-black text-blue-800 uppercase tracking-wide mb-3">
                   📸 Upload Summary
                 </h4>
@@ -1003,7 +1058,7 @@ const AdminView: React.FC<AdminViewProps> = ({
             )}
 
             {(formData.originalPrice || formData.sellingPrice) && (
-              <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-100">
+              <div className="mb-6 p-4 bg-green-50 rounded-2xl border border-green-100">
                 <h4 className="text-sm font-black text-green-800 uppercase tracking-wide mb-3">
                   💰 Professional Price Preview
                 </h4>
@@ -1016,7 +1071,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                   </div>
                   <div className="text-center">
                     <p className="text-xs font-bold text-gray-500 mb-1">Selling Price</p>
-                    <p className="text-lg font-black text-orange-600">
+                    <p className="text-lg font-black text-[#FF6A00]">
                       TSh {parseFloat(formData.sellingPrice || '0').toLocaleString()}
                     </p>
                   </div>
@@ -1114,9 +1169,10 @@ Package includes:
                       />
                     </div>
                     <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                      Price before any discount (set this first)
+                      Price before any discount
                     </p>
                   </div>
+
                   <div>
                     <label className={labelClass}>Selling Price (TSh) *</label>
                     <div className="relative">
@@ -1145,9 +1201,10 @@ Package includes:
                     )}
                   </div>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
+
+                <div className="bg-[#FFF7F0] p-3 rounded-xl border border-orange-100">
                   <p className="text-xs font-bold text-gray-600">
-                    💡 <span className="text-orange-600">Professional Tip:</span> Enter the original price first, then the selling price.
+                    💡 <span className="text-[#FF6A00]">Professional Tip:</span> Enter the original price first, then the selling price.
                     The discount percentage is calculated automatically:
                     <span className="font-black"> ((Original - Selling) / Original) × 100</span>
                   </p>
@@ -1155,28 +1212,50 @@ Package includes:
               </div>
 
               <div>
-                <label className={labelClass}>Category *</label>
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <label className={labelClass}>Category *</label>
+                  <div className="relative w-full max-w-sm">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="M21 21l-4.35-4.35" />
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      placeholder="Search category..."
+                      className="w-full rounded-xl border border-orange-200 bg-white pl-9 pr-3 py-2.5 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
+                      disabled={isActuallyUploading}
+                    />
+                  </div>
+                </div>
+
                 <select
                   className={inputClass}
                   value={formData.categoryId}
                   onChange={e => setFormData({ ...formData, categoryId: e.target.value })}
                   required
                   disabled={isActuallyUploading}
+                  size={Math.min(Math.max(filteredCategories.length + 1, 4), 8)}
                 >
                   <option value="">Select Category</option>
-                  {categories.map(c => (
+                  {filteredCategories.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
                   ))}
                 </select>
+
                 {formData.categoryId && (
                   <p className="mt-2 text-xs font-bold text-green-600">
-                    Selected: {categories.find(c => String(c.id) === String(formData.categoryId))?.name || 'Unknown'}
+                    Selected: {selectedCategoryName || 'Unknown'}
                   </p>
                 )}
+
                 <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                  Category is required for proper product organization and filtering
+                  Search categories above to reduce scrolling time
                 </p>
               </div>
 
@@ -1207,7 +1286,7 @@ Package includes:
                   {formData.images.map((imageItem, index) => (
                     <div
                       key={index}
-                      className="relative border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-orange-400 hover:shadow-lg"
+                      className="relative border-2 border-orange-100 rounded-2xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-[#FF6A00] hover:shadow-lg"
                     >
                       <div className="relative aspect-square w-full overflow-hidden">
                         <WatermarkedImage
@@ -1217,7 +1296,7 @@ Package includes:
                           productId={`temp-${index}`}
                           isProduct={true}
                         />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
 
                         <button
                           type="button"
@@ -1236,7 +1315,7 @@ Package includes:
                         </div>
                       </div>
 
-                      <div className="p-3 space-y-3 bg-white border-t">
+                      <div className="p-3 space-y-3 bg-white border-t border-orange-100">
                         <div>
                           <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">
                             Thumbnail Price
@@ -1247,7 +1326,7 @@ Package includes:
                             step="100"
                             value={imageItem.price}
                             onChange={(e) => updateImagePrice(index, e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-orange-500"
+                            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100"
                             placeholder="Enter price"
                             disabled={isActuallyUploading}
                           />
@@ -1261,7 +1340,7 @@ Package includes:
                             type="text"
                             value={imageItem.label || ''}
                             onChange={(e) => updateImageLabel(index, e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-orange-500"
+                            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100"
                             placeholder="e.g. Red, XL, 128GB"
                             disabled={isActuallyUploading}
                           />
@@ -1270,9 +1349,9 @@ Package includes:
                         <button
                           type="button"
                           onClick={() => setMainImage(index)}
-                          className={`w-full text-[11px] font-black py-2 rounded-lg transition ${
+                          className={`w-full text-[11px] font-black py-2 rounded-xl transition ${
                             imageItem.isMain
-                              ? 'bg-orange-600 text-white'
+                              ? 'bg-[#FF6A00] text-white'
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                           disabled={isActuallyUploading}
@@ -1285,8 +1364,8 @@ Package includes:
 
                   {formData.images.length < 10 && (
                     <label className={`aspect-square border-2 border-dashed ${
-                      isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
-                    } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
+                      isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-[#FF6A00] cursor-pointer'
+                    } rounded-2xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
                       <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M12 5v14M5 12h14"/>
@@ -1313,9 +1392,9 @@ Package includes:
                 </div>
 
                 {formData.images.length > 0 && (
-                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-3">
+                  <div className="bg-orange-50 border border-orange-100 rounded-2xl p-3">
                     <p className="text-xs font-bold text-orange-700">
-                      Each image can now have its own price and label. This is useful for different colors, sizes, storage options, or variants shown in the same product gallery.
+                      Each image can have its own price and label for different sizes, colors, storage, or variants.
                     </p>
                   </div>
                 )}
@@ -1326,7 +1405,7 @@ Package includes:
 
                 {formData.videoUrl ? (
                   <div className="relative group">
-                    <div className="aspect-video rounded-xl overflow-hidden bg-black border-2 border-gray-200">
+                    <div className="aspect-video rounded-2xl overflow-hidden bg-black border-2 border-orange-100">
                       <VideoPlayer
                         src={formData.videoUrl}
                         containerClass="w-full h-full"
@@ -1339,7 +1418,7 @@ Package includes:
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, videoUrl: '' }))}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg font-black text-xs uppercase shadow-lg hover:bg-red-700 transition-colors"
+                        className="bg-red-600 text-white px-4 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-red-700 transition-colors"
                         disabled={isActuallyUploading}
                       >
                         Remove Video
@@ -1348,9 +1427,9 @@ Package includes:
                   </div>
                 ) : (
                   <label className={`w-full aspect-video border-2 border-dashed ${
-                    isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-orange-500 cursor-pointer'
-                  } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
-                    <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-orange-500 mb-3 border border-gray-100">
+                    isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-[#FF6A00] cursor-pointer'
+                  } rounded-2xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
+                    <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-[#FF6A00] mb-3 border border-gray-100">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <polygon points="23 7 16 12 23 17 23 7" />
                         <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
@@ -1400,7 +1479,7 @@ Package includes:
                   {formData.descriptionImages.map((url, index) => (
                     <div
                       key={index}
-                      className="relative aspect-square border-2 border-gray-200 rounded-xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-purple-400 hover:shadow-lg"
+                      className="relative aspect-square border-2 border-orange-100 rounded-2xl overflow-hidden group bg-gray-50 transition-all duration-300 hover:border-purple-400 hover:shadow-lg"
                     >
                       <div className="relative w-full h-full overflow-hidden">
                         <WatermarkedImage
@@ -1410,7 +1489,7 @@ Package includes:
                           productId={`desc-${index}`}
                           isProduct={true}
                         />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
                       </div>
                       <button
                         type="button"
@@ -1432,7 +1511,7 @@ Package includes:
                   {formData.descriptionImages.length < 20 && (
                     <label className={`aspect-square border-2 border-dashed ${
                       isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-purple-500 cursor-pointer'
-                    } rounded-xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
+                    } rounded-2xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
                       <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M12 5v14M5 12h14"/>
@@ -1462,64 +1541,38 @@ Package includes:
                 </p>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
                 <h4 className="text-sm font-black text-blue-800 uppercase tracking-wide mb-3">
                   🚀 Professional Features Summary
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="flex items-start space-x-2">
-                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
-                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                      </svg>
+                  {[
+                    ['Automatic Discount Calculation', 'Discount % calculated from original & selling price'],
+                    ['Real View Counter', 'Starts at 0, increments on each view'],
+                    ['Category Search + Management', 'Find categories faster and organize products correctly'],
+                    ['Per-Image Pricing', 'Every gallery image can have its own price and label'],
+                  ].map(([title, desc]) => (
+                    <div key={title} className="flex items-start space-x-2">
+                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-700">{title}</p>
+                        <p className="text-[10px] text-gray-500">{desc}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-700">Automatic Discount Calculation</p>
-                      <p className="text-[10px] text-gray-500">Discount % calculated from original & selling price</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
-                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-700">Real View Counter</p>
-                      <p className="text-[10px] text-gray-500">Starts at 0, increments on each view</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
-                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-700">Category Management</p>
-                      <p className="text-[10px] text-gray-500">Required for proper product organization</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
-                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-700">Per-Image Pricing</p>
-                      <p className="text-[10px] text-gray-500">Every gallery image can have its own price and label</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="sticky bottom-0 bg-white pt-6 pb-4 border-t border-gray-100">
+              <div className="sticky bottom-0 bg-white/95 backdrop-blur-md pt-6 pb-4 border-t border-orange-100">
                 <div className="flex space-x-3">
                   <button
                     type="button"
                     onClick={closeForm}
-                    className="flex-1 bg-gray-100 text-gray-700 font-black py-4 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    className="flex-1 bg-gray-100 text-gray-700 font-black py-4 rounded-2xl hover:bg-gray-200 transition-colors disabled:opacity-50"
                     disabled={isActuallyUploading}
                   >
                     CANCEL
@@ -1527,7 +1580,7 @@ Package includes:
                   <button
                     type="submit"
                     disabled={isActuallyUploading}
-                    className="flex-1 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-black py-4 rounded-xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3"
+                    className="flex-1 bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-4 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] hover:shadow-[0_14px_28px_rgba(255,106,0,0.28)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3"
                   >
                     {isActuallyUploading ? (
                       <>
@@ -1541,7 +1594,7 @@ Package includes:
                           <path d="M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"></path>
                         </svg>
                         <span>
-                          {editMode === 'edit' ? 'UPDATE PRODUCT' : 'PUBLISH PRODUCT WITH PROFESSIONAL PRICING'}
+                          {editMode === 'edit' ? 'UPDATE PRODUCT' : 'PUBLISH PRODUCT'}
                         </span>
                       </>
                     )}
