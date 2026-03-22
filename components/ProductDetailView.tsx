@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Product } from '../types';
-import { COLORS } from '../constants';
 
 interface ProductDetailViewProps {
   product: Product;
@@ -84,7 +83,7 @@ const usePreloadVideo = (videoUrl: string) => {
 };
 
 /** -----------------------------
- * ✅ Large Watermarked Image with Baraka Sonko branding (FOR MAIN IMAGE ONLY)
+ * ✅ Large Watermarked Image
  * ------------------------------*/
 const LargeWatermarkedImage: React.FC<{
   src: string;
@@ -172,15 +171,15 @@ const LargeWatermarkedImage: React.FC<{
               decoding="async"
               style={{
                 filter: `
-                  drop-shadow(0 0 15px rgba(0,0,0,0.8)) 
+                  drop-shadow(0 0 15px rgba(0,0,0,0.8))
                   drop-shadow(0 0 25px rgba(0,0,0,0.6))
-                  brightness(1.2) 
+                  brightness(1.2)
                   contrast(1.5)
                 `,
                 WebkitFilter: `
-                  drop-shadow(0 0 15px rgba(0,0,0,0.8)) 
+                  drop-shadow(0 0 15px rgba(0,0,0,0.8))
                   drop-shadow(0 0 25px rgba(0,0,0,0.6))
-                  brightness(1.2) 
+                  brightness(1.2)
                   contrast(1.5)
                 `,
               }}
@@ -208,7 +207,7 @@ const LargeWatermarkedImage: React.FC<{
 };
 
 /** -----------------------------
- * ✅ Small Thumbnail Image (NO WATERMARK)
+ * ✅ Small Thumbnail Image
  * ------------------------------*/
 const ThumbnailImage: React.FC<{
   src: string;
@@ -226,18 +225,14 @@ const ThumbnailImage: React.FC<{
         draggable="false"
         loading="lazy"
         decoding="async"
-        style={{
-          opacity: isLoaded ? 1 : 0.5,
-        }}
+        style={{ opacity: isLoaded ? 1 : 0.5 }}
         onLoad={() => setIsLoaded(true)}
         onError={(e) => {
           (e.target as HTMLImageElement).style.opacity = '1';
           setIsLoaded(true);
         }}
       />
-      {!isLoaded && (
-        <div className="absolute inset-0 bg-gray-200 animate-pulse" />
-      )}
+      {!isLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
     </div>
   );
 };
@@ -322,7 +317,7 @@ const SharePanel: React.FC<{
   productTitle: string;
   productLink: string;
   shareImageUrl: string;
-}> = ({ isOpen, onClose, productTitle, productLink, shareImageUrl }) => {
+}> = ({ isOpen, onClose, productTitle, productLink }) => {
   const [copied, setCopied] = useState(false);
 
   const shareText = `Check out "${productTitle}" on BARAKA SONKO ELECTRONICS APP! 🛒\n${productLink}\n\n#barakasonko #electronics #tanzania`;
@@ -362,7 +357,10 @@ const SharePanel: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
         className="bg-white w-full max-w-sm rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp max-h-[70vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
@@ -500,7 +498,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   }, [product]);
 
   const gallery = useMemo(() => {
-    const variantUrls = imageVariants.map(v => toUrl(v.url)).filter(Boolean);
+    const variantUrls = imageVariants.map((v) => toUrl(v.url)).filter(Boolean);
 
     const imgs = Array.isArray((product as any).images)
       ? (product as any).images.map(toUrl).filter(Boolean)
@@ -518,8 +516,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     const di = Array.isArray((product as any).descriptionImages)
       ? (product as any).descriptionImages
       : Array.isArray((product as any).description_images)
-      ? (product as any).description_images
-      : [];
+        ? (product as any).description_images
+        : [];
     return di.map(toUrl).filter(Boolean);
   }, [product]);
 
@@ -528,7 +526,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const selectedVariant = useMemo(() => {
     if (!selectedImageUrl) return imageVariants[activeImage] || null;
     return (
-      imageVariants.find(v => toUrl(v.url) === toUrl(selectedImageUrl)) ||
+      imageVariants.find((v) => toUrl(v.url) === toUrl(selectedImageUrl)) ||
       imageVariants[activeImage] ||
       null
     );
@@ -538,7 +536,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     if (!gallery.length || !imageVariants.length) return false;
 
     return gallery.every((imgUrl) =>
-      imageVariants.some(v => toUrl(v.url) === toUrl(imgUrl) && Number(v.price) > 0)
+      imageVariants.some((v) => toUrl(v.url) === toUrl(imgUrl) && Number(v.price) > 0)
     );
   }, [gallery, imageVariants]);
 
@@ -546,9 +544,10 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     (product as any).sellingPrice ?? (product as any).price ?? 0
   );
 
-  const displayedPrice = Number(selectedVariant?.price) > 0
-    ? Number(selectedVariant?.price)
-    : fallbackSellingPrice;
+  const displayedPrice =
+    Number(selectedVariant?.price) > 0
+      ? Number(selectedVariant?.price)
+      : fallbackSellingPrice;
 
   const displayedPriceStr = Number.isFinite(displayedPrice)
     ? displayedPrice.toLocaleString()
@@ -556,11 +555,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const originalPriceValue = Number(
     (product as any).originalPrice ||
-    (allImagesHaveOwnPrices ? 0 : (
-      (product as any).discount
-        ? Math.round(Number((product as any).price || 0) * (1 + Number((product as any).discount) / 100))
-        : 0
-    ))
+      (allImagesHaveOwnPrices
+        ? 0
+        : (product as any).discount
+          ? Math.round(Number((product as any).price || 0) * (1 + Number((product as any).discount) / 100))
+          : 0)
   );
 
   const originalPriceStr = Number.isFinite(originalPriceValue)
@@ -568,12 +567,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     : '0';
 
   const minVariantPrice = useMemo(() => {
-    const nums = imageVariants.map(v => Number(v.price || 0)).filter(n => n > 0);
+    const nums = imageVariants.map((v) => Number(v.price || 0)).filter((n) => n > 0);
     return nums.length ? Math.min(...nums) : 0;
   }, [imageVariants]);
 
   const maxVariantPrice = useMemo(() => {
-    const nums = imageVariants.map(v => Number(v.price || 0)).filter(n => n > 0);
+    const nums = imageVariants.map((v) => Number(v.price || 0)).filter((n) => n > 0);
     return nums.length ? Math.max(...nums) : 0;
   }, [imageVariants]);
 
@@ -614,9 +613,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   }, [WHATSAPP_TEXT]);
 
   /** -----------------------------
-   * ✅ FIX: count once per real page load
-   * Prevent duplicate counts from StrictMode / remounts
-   * But allow a fresh browser refresh to count again
+   * ✅ Prevent duplicate view POSTs in same page load
+   * One real refresh = one new view
    * ------------------------------*/
   useEffect(() => {
     const pid = String((product as any).id || '').trim();
@@ -626,16 +624,16 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       window.__barakaRecordedViews = new Set<string>();
     }
 
-    const viewKey = `product:${pid}`;
+    const pageLoadKey = `product:${pid}`;
 
-    if (window.__barakaRecordedViews.has(viewKey)) return;
+    if (window.__barakaRecordedViews.has(pageLoadKey)) return;
 
-    window.__barakaRecordedViews.add(viewKey);
+    window.__barakaRecordedViews.add(pageLoadKey);
 
     try {
       onRecordView();
     } catch (err) {
-      window.__barakaRecordedViews.delete(viewKey);
+      window.__barakaRecordedViews.delete(pageLoadKey);
       console.error('Failed to record view:', err);
     }
   }, [(product as any).id]);
@@ -770,7 +768,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
               {gallery.map((img, idx) => {
                 const variant =
-                  imageVariants.find(v => toUrl(v.url) === toUrl(img)) ||
+                  imageVariants.find((v) => toUrl(v.url) === toUrl(img)) ||
                   imageVariants[idx] ||
                   null;
 
@@ -782,9 +780,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     type="button"
                     onClick={() => goToImage(idx)}
                     className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                      activeImage === idx
-                        ? 'border-[#FF6A00] shadow-md'
-                        : 'border-gray-200'
+                      activeImage === idx ? 'border-[#FF6A00] shadow-md' : 'border-gray-200'
                     }`}
                   >
                     <ThumbnailImage
@@ -925,7 +921,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   );
 
                   const relatedMinVariantPrice = relatedVariants.length
-                    ? Math.min(...relatedVariants.map(v => Number(v.price || 0)).filter(n => n > 0))
+                    ? Math.min(...relatedVariants.map((v) => Number(v.price || 0)).filter((n) => n > 0))
                     : 0;
 
                   const relatedShownPrice =
