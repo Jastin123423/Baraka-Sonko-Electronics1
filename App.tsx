@@ -688,6 +688,7 @@ const AppContent: React.FC = () => {
 
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
   const [isRecordingView, setIsRecordingView] = useState<Record<string, boolean>>({});
+  const recordingViewRef = useRef<Set<string>>(new Set());
 
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -890,6 +891,15 @@ const AppContent: React.FC = () => {
     }
   }, [products, categories, buildCategoryProductMap]);
 
+  const getOrCreateUserId = (): string => {
+    let userId = localStorage.getItem('sonko_user_id');
+    if (!userId) {
+      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('sonko_user_id', userId);
+    }
+    return userId;
+  };
+
   useEffect(() => {
     const initApp = async () => {
       try {
@@ -1011,16 +1021,19 @@ const AppContent: React.FC = () => {
     }
 
     if (location.pathname.startsWith('/all-products')) {
+      setSelectedProduct(null);
       setView('all-products');
       return;
     }
 
     if (location.pathname.startsWith('/categories')) {
+      setSelectedProduct(null);
       setView('categories');
       return;
     }
 
     if (location.pathname.startsWith('/admin')) {
+      setSelectedProduct(null);
       setView('admin');
       return;
     }
@@ -1038,11 +1051,9 @@ const AppContent: React.FC = () => {
         setView('product-detail');
 
         void fetchCommentsForProduct(product.id);
-
         void (async () => {
-          const viewerKey = getOrCreateUserId();
-          const newCount = await ViewsService.recordView(product.id, viewerKey);
-          setViewCounts(prev => ({ ...prev, [product.id]: newCount }));
+          const count = await ViewsService.getViews(product.id);
+          setViewCounts(prev => ({ ...prev, [product.id]: count }));
         })();
       } else {
         navigate('/', { replace: true });
@@ -1110,15 +1121,6 @@ const AppContent: React.FC = () => {
     setView('category-results');
     navigate(`/category/${category.id}`);
     window.scrollTo(0, 0);
-  };
-
-  const getOrCreateUserId = (): string => {
-    let userId = localStorage.getItem('sonko_user_id');
-    if (!userId) {
-      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem('sonko_user_id', userId);
-    }
-    return userId;
   };
 
   const generateAnonymousUser = () => {
@@ -1265,11 +1267,9 @@ const AppContent: React.FC = () => {
     navigate(`/product/${product.id}`);
 
     void fetchCommentsForProduct(product.id);
-
     void (async () => {
-      const viewerKey = getOrCreateUserId();
-      const newCount = await ViewsService.recordView(product.id, viewerKey);
-      setViewCounts(prev => ({ ...prev, [product.id]: newCount }));
+      const count = await ViewsService.getViews(product.id);
+      setViewCounts(prev => ({ ...prev, [product.id]: count }));
     })();
   };
 
@@ -1295,18 +1295,24 @@ const AppContent: React.FC = () => {
 
   const recordSelectedProductView = useCallback(async () => {
     if (!selectedProduct?.id) return;
-    const pid = selectedProduct.id;
-    if (isRecordingView[pid]) return;
 
+    const pid = String(selectedProduct.id);
+    if (recordingViewRef.current.has(pid)) return;
+
+    recordingViewRef.current.add(pid);
     setIsRecordingView(prev => ({ ...prev, [pid]: true }));
+
     try {
       const viewerKey = getOrCreateUserId();
       const newCount = await ViewsService.recordView(pid, viewerKey);
-      setViewCounts(prev => ({ ...prev, [pid]: newCount }));
+      setViewCounts(prev => ({ ...prev, [pid]: Number(newCount || 0) }));
+    } catch (error) {
+      console.error('Failed to record view:', error);
     } finally {
+      recordingViewRef.current.delete(pid);
       setIsRecordingView(prev => ({ ...prev, [pid]: false }));
     }
-  }, [selectedProduct?.id, isRecordingView]);
+  }, [selectedProduct?.id]);
 
   const handleBannerClick = () => {
     setView('all-products');
