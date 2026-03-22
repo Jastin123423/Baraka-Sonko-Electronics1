@@ -694,8 +694,8 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <span className="text-white text-xl font-black">SS</span>
               </div>
               <div className="min-w-0">
-                <h1 className="text-xl font-black tracking-tight truncate">Sonko Sound Admin</h1>
-                <p className="text-xs text-orange-100 truncate">Alibaba-style management panel</p>
+                <h1 className="text-xl font-black tracking-tight truncate">Baraka Sonko Admin</h1>
+                <p className="text-xs text-orange-100 truncate">Sonko management panel</p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -703,7 +703,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                 {products.length} Products
               </span>
               <span className="px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-[11px] font-bold">
-                ©SonkoSound
+                ©BarakaSonko
               </span>
             </div>
           </div>
