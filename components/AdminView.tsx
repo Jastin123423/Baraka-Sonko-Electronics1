@@ -34,6 +34,10 @@ type ViewsAnalytics = {
     date: string;
     views: number;
   }>;
+  monthlySeries?: Array<{
+    month: string;
+    views: number;
+  }>;
   topProducts?: Array<{
     productId: string;
     title: string;
@@ -49,7 +53,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   onEditProduct,
   WatermarkedImage,
   VideoPlayer,
-  Banner
+  Banner,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [isAdding, setIsAdding] = useState(false);
@@ -69,21 +73,15 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState('');
 
-  const getDefaultFromDate = (range: AnalyticsRange) => {
-    const d = new Date();
-    if (range === 'week') {
-      d.setDate(d.getDate() - 6);
-    } else if (range === 'month') {
-      d.setDate(d.getDate() - 29);
-    } else if (range === 'year') {
-      d.setFullYear(d.getFullYear() - 1);
-      d.setDate(d.getDate() + 1);
-    }
-    return d.toISOString().slice(0, 10);
-  };
+  const today = new Date();
 
-  const [fromDate, setFromDate] = useState<string>(() => getDefaultFromDate('week'));
-  const [toDate, setToDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  });
+
+  const [selectedYear, setSelectedYear] = useState(() => String(today.getFullYear()));
 
   const [formData, setFormData] = useState({
     title: '',
@@ -96,17 +94,49 @@ const AdminView: React.FC<AdminViewProps> = ({
     descriptionImages: [] as string[],
   });
 
-  const todayStr = useMemo(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  }, []);
+  const formatDateInput = (d: Date) => d.toISOString().slice(0, 10);
+
+  const getWeekRange = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 6);
+
+    return {
+      from: formatDateInput(start),
+      to: formatDateInput(end),
+    };
+  };
+
+  const getMonthRange = (monthValue: string) => {
+    const [yearStr, monthStr] = monthValue.split('-');
+    const year = Number(yearStr);
+    const monthIndex = Number(monthStr) - 1;
+
+    const start = new Date(year, monthIndex, 1);
+    const end = new Date(year, monthIndex + 1, 0);
+
+    return {
+      from: formatDateInput(start),
+      to: formatDateInput(end),
+    };
+  };
+
+  const getYearRange = (yearValue: string) => {
+    const year = Number(yearValue);
+    const start = new Date(year, 0, 1);
+    const end = new Date(year, 11, 31);
+
+    return {
+      from: formatDateInput(start),
+      to: formatDateInput(end),
+    };
+  };
 
   const rangeLabel = useMemo(() => {
     if (analyticsRange === 'week') return 'Last 7 Days';
-    if (analyticsRange === 'month') return 'Last 30 Days';
-    if (analyticsRange === 'year') return 'Last 12 Months';
-    return `${fromDate} to ${toDate}`;
-  }, [analyticsRange, fromDate, toDate]);
+    if (analyticsRange === 'month') return selectedMonth;
+    return selectedYear;
+  }, [analyticsRange, selectedMonth, selectedYear]);
 
   const calculateDiscountPercentage = () => {
     const originalPrice = parseFloat(formData.originalPrice);
@@ -164,12 +194,37 @@ const AdminView: React.FC<AdminViewProps> = ({
         throw new Error(data?.error || 'Invalid analytics response');
       }
 
+      const rawSeries = Array.isArray(data.data?.series) ? data.data.series : [];
+
+      let monthlySeries: Array<{ month: string; views: number }> = [];
+
+      if (analyticsRange === 'year') {
+        const monthMap = new Map<string, number>();
+
+        for (let i = 1; i <= 12; i++) {
+          const mm = String(i).padStart(2, '0');
+          monthMap.set(`${selectedYear}-${mm}`, 0);
+        }
+
+        rawSeries.forEach((item: any) => {
+          const date = String(item.date || '');
+          const monthKey = date.slice(0, 7);
+          monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + Number(item.views || 0));
+        });
+
+        monthlySeries = Array.from(monthMap.entries()).map(([month, views]) => ({
+          month,
+          views,
+        }));
+      }
+
       setViewsAnalytics({
         totalViews: Number(data.data?.totalViews || 0),
         lifetimeViews: Number(data.data?.lifetimeViews || 0),
         from: data.data?.from,
         to: data.data?.to,
-        series: Array.isArray(data.data?.series) ? data.data.series : [],
+        series: rawSeries,
+        monthlySeries,
         topProducts: Array.isArray(data.data?.topProducts) ? data.data.topProducts : [],
       });
     } catch (error: any) {
@@ -194,7 +249,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     };
 
     fetchStats();
-    fetchViewsAnalytics(fromDate, toDate);
   }, []);
 
   useEffect(() => {
@@ -206,21 +260,25 @@ const AdminView: React.FC<AdminViewProps> = ({
   }, []);
 
   useEffect(() => {
-    if (analyticsRange === 'custom') return;
-
-    const newFrom = getDefaultFromDate(analyticsRange);
-    const newTo = todayStr;
-
-    setFromDate(newFrom);
-    setToDate(newTo);
-  }, [analyticsRange, todayStr]);
-
-  useEffect(() => {
     if (activeTab !== 'dashboard') return;
-    if (!fromDate || !toDate) return;
 
-    fetchViewsAnalytics(fromDate, toDate);
-  }, [activeTab, fromDate, toDate]);
+    if (analyticsRange === 'week') {
+      const { from, to } = getWeekRange();
+      fetchViewsAnalytics(from, to);
+      return;
+    }
+
+    if (analyticsRange === 'month') {
+      const { from, to } = getMonthRange(selectedMonth);
+      fetchViewsAnalytics(from, to);
+      return;
+    }
+
+    if (analyticsRange === 'year') {
+      const { from, to } = getYearRange(selectedYear);
+      fetchViewsAnalytics(from, to);
+    }
+  }, [activeTab, analyticsRange, selectedMonth, selectedYear]);
 
   const filteredCategories = useMemo(() => {
     const q = categorySearch.trim().toLowerCase();
@@ -241,17 +299,13 @@ const AdminView: React.FC<AdminViewProps> = ({
       const title = String(product.title || '').toLowerCase();
       const categoryName = String(
         (product as any).category_name ||
-        product.categoryName ||
-        product.category ||
-        ''
+          product.categoryName ||
+          product.category ||
+          ''
       ).toLowerCase();
       const id = String(product.id || '').toLowerCase();
 
-      return (
-        title.includes(q) ||
-        categoryName.includes(q) ||
-        id.includes(q)
-      );
+      return title.includes(q) || categoryName.includes(q) || id.includes(q);
     });
   }, [products, productSearch]);
 
@@ -317,7 +371,12 @@ const AdminView: React.FC<AdminViewProps> = ({
     setFormData({
       title: product.title || '',
       description: product.description || '',
-      originalPrice: String((product as any).originalPrice || (product as any).original_price || product.price || ''),
+      originalPrice: String(
+        (product as any).originalPrice ||
+          (product as any).original_price ||
+          product.price ||
+          ''
+      ),
       sellingPrice: String(product.sellingPrice || product.price || ''),
       categoryId: String((product as any).categoryId || (product as any).category_id || ''),
       videoUrl: (product as any).videoUrl || (product as any).video_url || '',
@@ -338,7 +397,9 @@ const AdminView: React.FC<AdminViewProps> = ({
     const uniqueFilename = `${timestamp}-${randomStr}-${safeFilename}`;
     const progressKey = `${uniqueFilename}-${timestamp}`;
 
-    addDebugLog(`Starting upload: ${file.name} (type: "${file.type}", size: ${file.size} bytes)`);
+    addDebugLog(
+      `Starting upload: ${file.name} (type: "${file.type}", size: ${file.size} bytes)`
+    );
     addDebugLog(`Generated filename: ${uniqueFilename}`);
 
     return new Promise((resolve, reject) => {
@@ -374,11 +435,17 @@ const AdminView: React.FC<AdminViewProps> = ({
         let response: any = null;
         try {
           response = JSON.parse(xhr.responseText);
-          addDebugLog(`Parsed JSON response for ${file.name}: ${JSON.stringify(response).slice(0, 100)}`);
+          addDebugLog(
+            `Parsed JSON response for ${file.name}: ${JSON.stringify(response).slice(0, 100)}`
+          );
         } catch {
-          addDebugLog(`❌ JSON parse error for ${file.name}: ${xhr.responseText?.slice(0, 100)}`);
+          addDebugLog(
+            `❌ JSON parse error for ${file.name}: ${xhr.responseText?.slice(0, 100)}`
+          );
           return reject(
-            new Error(`Upload failed: server returned non-JSON (HTTP ${xhr.status}). Check /api/upload endpoint.`)
+            new Error(
+              `Upload failed: server returned non-JSON (HTTP ${xhr.status}). Check /api/upload endpoint.`
+            )
           );
         }
 
@@ -458,7 +525,8 @@ const AdminView: React.FC<AdminViewProps> = ({
           }
         } else if (type === 'video') {
           const looksLikeVideo =
-            file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|avi|mkv|flv|wmv)$/i.test(fileName);
+            file.type.startsWith('video/') ||
+            /\.(mp4|mov|webm|m4v|avi|mkv|flv|wmv)$/i.test(fileName);
 
           if (!looksLikeVideo) {
             throw new Error(`Invalid file type: ${file.name}. Please upload videos only.`);
@@ -519,7 +587,8 @@ const AdminView: React.FC<AdminViewProps> = ({
 
       addDebugLog(`✅ Successfully updated form state for ${type}`);
     } catch (err: any) {
-      const errorMessage = err?.message || 'Upload failed. Please check your connection and try again.';
+      const errorMessage =
+        err?.message || 'Upload failed. Please check your connection and try again.';
       addDebugLog(`❌ Error: ${errorMessage}`);
       setUploadError(errorMessage);
     } finally {
@@ -554,18 +623,14 @@ const AdminView: React.FC<AdminViewProps> = ({
   const updateImagePrice = (index: number, value: string) => {
     setFormData(prev => ({
       ...prev,
-      images: prev.images.map((img, i) =>
-        i === index ? { ...img, price: value } : img
-      ),
+      images: prev.images.map((img, i) => (i === index ? { ...img, price: value } : img)),
     }));
   };
 
   const updateImageLabel = (index: number, value: string) => {
     setFormData(prev => ({
       ...prev,
-      images: prev.images.map((img, i) =>
-        i === index ? { ...img, label: value } : img
-      ),
+      images: prev.images.map((img, i) => (i === index ? { ...img, label: value } : img)),
     }));
   };
 
@@ -599,9 +664,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
 
     const mainImageObj =
-      formData.images.find(img => img.isMain) ||
-      formData.images[0] ||
-      formData.images.at(-1);
+      formData.images.find(img => img.isMain) || formData.images[0] || formData.images.at(-1);
 
     const mainImage = mainImageObj?.url || '';
 
@@ -721,7 +784,11 @@ const AdminView: React.FC<AdminViewProps> = ({
 
       if (success) {
         closeForm();
-        alert(editMode === 'edit' ? '✅ Product updated successfully!' : '✅ Product published successfully!');
+        alert(
+          editMode === 'edit'
+            ? '✅ Product updated successfully!'
+            : '✅ Product published successfully!'
+        );
       } else {
         alert(`❌ Failed to ${editMode === 'edit' ? 'update' : 'save'} product. Please try again.`);
       }
@@ -820,9 +887,7 @@ const AdminView: React.FC<AdminViewProps> = ({
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`text-[11px] font-black uppercase tracking-[0.18em] transition-all relative pb-2 whitespace-nowrap ${
-                activeTab === tab
-                  ? 'text-[#FF6A00]'
-                  : 'text-gray-400 hover:text-gray-700'
+                activeTab === tab ? 'text-[#FF6A00]' : 'text-gray-400 hover:text-gray-700'
               }`}
             >
               {tab}
@@ -840,11 +905,15 @@ const AdminView: React.FC<AdminViewProps> = ({
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <h1 className="text-xl font-black text-gray-800">Dashboard Overview</h1>
-                <p className="text-sm text-gray-500 mt-1">Track total views by selected date range</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Track total views by week, month, or year
+                </p>
               </div>
+            </div>
 
+            <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-4 md:p-5 space-y-4">
               <div className="flex flex-wrap gap-2">
-                {(['week', 'month', 'year', 'custom'] as AnalyticsRange[]).map((range) => (
+                {(['week', 'month', 'year'] as Array<'week' | 'month' | 'year'>).map((range) => (
                   <button
                     key={range}
                     onClick={() => setAnalyticsRange(range)}
@@ -858,49 +927,52 @@ const AdminView: React.FC<AdminViewProps> = ({
                   </button>
                 ))}
               </div>
-            </div>
 
-            <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-4 md:p-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div>
+              {analyticsRange === 'week' && (
+                <div className="rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-3">
+                  <p className="text-sm font-bold text-gray-700">
+                    Showing last 7 days automatically
+                  </p>
+                </div>
+              )}
+
+              {analyticsRange === 'month' && (
+                <div className="max-w-sm">
                   <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                    From Date
+                    Select Month
                   </label>
                   <input
-                    type="date"
-                    value={fromDate}
-                    onChange={(e) => {
-                      setAnalyticsRange('custom');
-                      setFromDate(e.target.value);
-                    }}
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
                     className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
                   />
                 </div>
+              )}
 
-                <div>
+              {analyticsRange === 'year' && (
+                <div className="max-w-sm">
                   <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                    To Date
+                    Select Year
                   </label>
-                  <input
-                    type="date"
-                    value={toDate}
-                    onChange={(e) => {
-                      setAnalyticsRange('custom');
-                      setToDate(e.target.value);
-                    }}
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
                     className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
-                  />
+                  >
+                    {Array.from({ length: 6 }).map((_, i) => {
+                      const year = String(new Date().getFullYear() - i);
+                      return (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
+              )}
 
-                <button
-                  onClick={() => fetchViewsAnalytics(fromDate, toDate)}
-                  className="bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-3 px-6 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] hover:shadow-[0_14px_28px_rgba(255,106,0,0.28)] active:scale-[0.98] transition-all"
-                >
-                  APPLY FILTER
-                </button>
-              </div>
-
-              <p className="text-xs text-gray-500 mt-3 font-semibold">
+              <p className="text-xs text-gray-500 font-semibold">
                 Showing: <span className="text-[#FF6A00] font-black">{rangeLabel}</span>
               </p>
             </div>
@@ -908,31 +980,53 @@ const AdminView: React.FC<AdminViewProps> = ({
             {stats ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                 <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Total Products</p>
-                  <p className="text-3xl font-black text-gray-900">{stats.totalProducts?.toLocaleString() || '0'}</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                    Total Products
+                  </p>
+                  <p className="text-3xl font-black text-gray-900">
+                    {stats.totalProducts?.toLocaleString() || '0'}
+                  </p>
                 </div>
 
                 <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Net Sales</p>
-                  <p className="text-3xl font-black text-gray-900">TSh {stats.netSales?.toLocaleString() || '0'}</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                    Net Sales
+                  </p>
+                  <p className="text-3xl font-black text-gray-900">
+                    TSh {stats.netSales?.toLocaleString() || '0'}
+                  </p>
                 </div>
 
                 <div className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,#FFF7F0_0%,#FFFFFF_100%)] shadow-[0_6px_20px_rgba(255,106,0,0.08)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Earnings</p>
-                  <p className="text-3xl font-black text-[#FF6A00]">TSh {stats.earnings?.toLocaleString() || '0'}</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                    Earnings
+                  </p>
+                  <p className="text-3xl font-black text-[#FF6A00]">
+                    TSh {stats.earnings?.toLocaleString() || '0'}
+                  </p>
                 </div>
 
                 <div className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,#FFF5F0_0%,#FFFFFF_100%)] shadow-[0_6px_20px_rgba(255,106,0,0.08)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Filtered Views</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                    {analyticsRange === 'week'
+                      ? 'Week Views'
+                      : analyticsRange === 'month'
+                        ? 'Month Views'
+                        : 'Year Views'}
+                  </p>
                   <p className="text-3xl font-black text-[#FF6A00]">
                     {analyticsLoading ? '...' : viewsAnalytics?.totalViews?.toLocaleString() || '0'}
                   </p>
                 </div>
 
                 <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Lifetime Views</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                    Lifetime Views
+                  </p>
                   <p className="text-3xl font-black text-gray-900">
-                    {analyticsLoading ? '...' : viewsAnalytics?.lifetimeViews?.toLocaleString() || '0'}
+                    {analyticsLoading
+                      ? '...'
+                      : viewsAnalytics?.lifetimeViews?.toLocaleString() || '0'}
                   </p>
                 </div>
               </div>
@@ -946,7 +1040,9 @@ const AdminView: React.FC<AdminViewProps> = ({
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-black text-gray-800">Views by Day</h2>
+                  <h2 className="text-lg font-black text-gray-800">
+                    {analyticsRange === 'year' ? 'Views by Month' : 'Views Breakdown'}
+                  </h2>
                   <span className="text-xs font-black px-3 py-1.5 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-100">
                     {rangeLabel}
                   </span>
@@ -961,23 +1057,79 @@ const AdminView: React.FC<AdminViewProps> = ({
                     <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
                     <p className="font-bold">Loading views analytics...</p>
                   </div>
-                ) : viewsAnalytics?.series?.length ? (
-                  <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
-                    {viewsAnalytics.series.map((item, index) => (
+                ) : analyticsRange === 'week' ? (
+                  viewsAnalytics?.series?.length ? (
+                    <div className="space-y-3">
+                      {viewsAnalytics.series.map((item, index) => (
+                        <div
+                          key={`${item.date}-${index}`}
+                          className="flex items-center justify-between rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-3"
+                        >
+                          <span className="text-sm font-bold text-gray-700">{item.date}</span>
+                          <span className="text-sm font-black text-[#FF6A00]">
+                            {Number(item.views || 0).toLocaleString()} views
+                          </span>
+                        </div>
+                      ))}
+
+                      <div className="mt-4 rounded-2xl bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white px-4 py-4 flex items-center justify-between">
+                        <span className="text-sm font-black uppercase tracking-wide">
+                          Total Week Views
+                        </span>
+                        <span className="text-lg font-black">
+                          {Number(viewsAnalytics?.totalViews || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center text-gray-400">
+                      <p className="font-bold">No views found in last 7 days</p>
+                    </div>
+                  )
+                ) : analyticsRange === 'month' ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-5">
+                      <p className="text-xs font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                        Selected Month
+                      </p>
+                      <p className="text-lg font-black text-gray-800">{selectedMonth}</p>
+                    </div>
+
+                    <div className="rounded-2xl bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white px-4 py-5 flex items-center justify-between">
+                      <span className="text-sm font-black uppercase tracking-wide">
+                        Total Month Views
+                      </span>
+                      <span className="text-2xl font-black">
+                        {Number(viewsAnalytics?.totalViews || 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ) : viewsAnalytics?.monthlySeries?.length ? (
+                  <div className="space-y-3">
+                    {viewsAnalytics.monthlySeries.map((item, index) => (
                       <div
-                        key={`${item.date}-${index}`}
+                        key={`${item.month}-${index}`}
                         className="flex items-center justify-between rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-3"
                       >
-                        <span className="text-sm font-bold text-gray-700">{item.date}</span>
+                        <span className="text-sm font-bold text-gray-700">{item.month}</span>
                         <span className="text-sm font-black text-[#FF6A00]">
                           {Number(item.views || 0).toLocaleString()} views
                         </span>
                       </div>
                     ))}
+
+                    <div className="mt-4 rounded-2xl bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white px-4 py-4 flex items-center justify-between">
+                      <span className="text-sm font-black uppercase tracking-wide">
+                        Total Year Views
+                      </span>
+                      <span className="text-lg font-black">
+                        {Number(viewsAnalytics?.totalViews || 0).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
                 ) : (
                   <div className="py-12 text-center text-gray-400">
-                    <p className="font-bold">No views found in selected range</p>
+                    <p className="font-bold">No monthly views found for selected year</p>
                   </div>
                 )}
               </div>
@@ -1006,7 +1158,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                           <p className="text-sm font-black text-gray-800 truncate">
                             #{index + 1} {item.title || 'Unknown Product'}
                           </p>
-                          <p className="text-xs text-gray-400 truncate">Product ID: {item.productId}</p>
+                          <p className="text-xs text-gray-400 truncate">
+                            Product ID: {item.productId}
+                          </p>
                         </div>
 
                         <span className="text-sm font-black text-[#FF6A00] shrink-0">
@@ -1033,7 +1187,14 @@ const AdminView: React.FC<AdminViewProps> = ({
               <div className="flex flex-col md:flex-row gap-3">
                 <div className="relative w-full md:w-80">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <circle cx="11" cy="11" r="8" />
                       <path d="M21 21l-4.35-4.35" />
                     </svg>
@@ -1064,25 +1225,49 @@ const AdminView: React.FC<AdminViewProps> = ({
             <div className="bg-white rounded-3xl border border-orange-100 overflow-hidden shadow-[0_8px_24px_rgba(255,106,0,0.05)]">
               {filteredProducts.length === 0 ? (
                 <div className="p-12 text-center text-gray-400">
-                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  <svg
+                    className="w-16 h-16 mx-auto mb-4 text-gray-200"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                    />
                   </svg>
-                  <p className="font-bold">{products.length === 0 ? 'No products yet' : 'No matching products'}</p>
+                  <p className="font-bold">
+                    {products.length === 0 ? 'No products yet' : 'No matching products'}
+                  </p>
                   <p className="text-sm mt-1">
-                    {products.length === 0 ? 'Start by adding your first product' : 'Try a different search'}
+                    {products.length === 0
+                      ? 'Start by adding your first product'
+                      : 'Try a different search'}
                   </p>
                 </div>
               ) : (
                 <div className="divide-y divide-orange-100">
                   {filteredProducts.map(product => {
                     const originalPriceNumber = Number((product as any).originalPrice ?? 0);
-                    const sellingPriceNumber = Number((product as any).sellingPrice ?? (product as any).price ?? 0);
-                    const displaySellingPrice = Number.isFinite(sellingPriceNumber) ? sellingPriceNumber.toLocaleString() : '0';
-                    const displayOriginalPrice = Number.isFinite(originalPriceNumber) ? originalPriceNumber.toLocaleString() : '0';
+                    const sellingPriceNumber = Number(
+                      (product as any).sellingPrice ?? (product as any).price ?? 0
+                    );
+                    const displaySellingPrice = Number.isFinite(sellingPriceNumber)
+                      ? sellingPriceNumber.toLocaleString()
+                      : '0';
+                    const displayOriginalPrice = Number.isFinite(originalPriceNumber)
+                      ? originalPriceNumber.toLocaleString()
+                      : '0';
 
-                    const discount = product.discount ||
+                    const discount =
+                      product.discount ||
                       (originalPriceNumber > sellingPriceNumber
-                        ? Math.round(((originalPriceNumber - sellingPriceNumber) / originalPriceNumber) * 100)
+                        ? Math.round(
+                            ((originalPriceNumber - sellingPriceNumber) / originalPriceNumber) *
+                              100
+                          )
                         : 0);
 
                     return (
@@ -1092,7 +1277,10 @@ const AdminView: React.FC<AdminViewProps> = ({
                       >
                         <div className="w-16 h-16 rounded-2xl overflow-hidden border border-orange-200 bg-white shadow-sm">
                           <WatermarkedImage
-                            src={product.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+'}
+                            src={
+                              product.image ||
+                              'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+'
+                            }
                             alt={product.title}
                             containerClass="w-full h-full"
                             productId={product.id}
@@ -1101,7 +1289,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                         </div>
 
                         <div className="flex-grow min-w-0">
-                          <p className="text-sm font-bold truncate text-gray-900">{product.title}</p>
+                          <p className="text-sm font-bold truncate text-gray-900">
+                            {product.title}
+                          </p>
 
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             {discount > 0 ? (
@@ -1126,26 +1316,41 @@ const AdminView: React.FC<AdminViewProps> = ({
                             )}
 
                             <div className="flex items-center space-x-1 text-gray-500">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                               </svg>
                               <span className="text-xs font-bold">
-                                {product.views?.toLocaleString() || product.viewCount?.toLocaleString() || '0'}
+                                {product.views?.toLocaleString() ||
+                                  product.viewCount?.toLocaleString() ||
+                                  '0'}
                               </span>
                             </div>
 
-                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
-                              product.status === 'online'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}>
+                            <span
+                              className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
+                                product.status === 'online'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
                               {product.status}
                             </span>
                           </div>
 
                           <p className="text-xs text-gray-500 mt-1 truncate">
-                            Category: {(product as any).category_name || product.categoryName || product.category || 'Uncategorized'}
+                            Category:{' '}
+                            {(product as any).category_name ||
+                              product.categoryName ||
+                              product.category ||
+                              'Uncategorized'}
                           </p>
                         </div>
 
@@ -1154,7 +1359,14 @@ const AdminView: React.FC<AdminViewProps> = ({
                             onClick={(e) => handleMenuClick(e, product.id)}
                             className="p-2 rounded-xl hover:bg-orange-100 transition-colors"
                           >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
                               <circle cx="12" cy="12" r="1" fill="currentColor" />
                               <circle cx="12" cy="5" r="1" fill="currentColor" />
                               <circle cx="12" cy="19" r="1" fill="currentColor" />
@@ -1167,7 +1379,14 @@ const AdminView: React.FC<AdminViewProps> = ({
                                 onClick={(e) => handleEdit(e, product)}
                                 className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-orange-50 flex items-center space-x-3"
                               >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
                                   <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                                 </svg>
                                 <span>Edit</span>
@@ -1176,7 +1395,14 @@ const AdminView: React.FC<AdminViewProps> = ({
                                 onClick={(e) => handleDelete(e, product.id)}
                                 className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center space-x-3"
                               >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
                                   <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                                 </svg>
                                 <span>Delete</span>
@@ -1200,7 +1426,12 @@ const AdminView: React.FC<AdminViewProps> = ({
         {activeTab === 'orders' && (
           <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-orange-100 shadow-sm">
             <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
             </svg>
             <p className="font-bold">Orders Management</p>
             <p className="text-sm mt-1">Coming soon...</p>
@@ -1210,7 +1441,12 @@ const AdminView: React.FC<AdminViewProps> = ({
         {activeTab === 'withdraw' && (
           <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-orange-100 shadow-sm">
             <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+              />
             </svg>
             <p className="font-bold">Withdraw Earnings</p>
             <p className="text-sm mt-1">Coming soon...</p>
@@ -1247,7 +1483,11 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </div>
                   <div className="ml-3">
@@ -1280,7 +1520,9 @@ const AdminView: React.FC<AdminViewProps> = ({
               </div>
             )}
 
-            {(formData.images.length > 0 || formData.videoUrl || formData.descriptionImages.length > 0) && (
+            {(formData.images.length > 0 ||
+              formData.videoUrl ||
+              formData.descriptionImages.length > 0) && (
               <div className="mb-6 p-4 bg-blue-50 rounded-2xl border border-blue-100">
                 <h4 className="text-sm font-black text-blue-800 uppercase tracking-wide mb-3">
                   📸 Upload Summary
@@ -1289,7 +1531,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                   {formData.images.length > 0 && (
                     <div className="flex items-center space-x-2">
                       <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <span className="text-xs font-black text-blue-600">{formData.images.length}</span>
+                        <span className="text-xs font-black text-blue-600">
+                          {formData.images.length}
+                        </span>
                       </div>
                       <span className="text-sm font-bold text-blue-700">
                         Gallery {formData.images.length > 1 ? 'Images' : 'Image'}
@@ -1355,23 +1599,29 @@ const AdminView: React.FC<AdminViewProps> = ({
                 {calculateDiscountPercentage() > 0 && (
                   <div className="mt-4 pt-4 border-t border-green-200">
                     <p className="text-xs font-bold text-green-700 text-center">
-                      💡 Discount calculated automatically: ({formData.originalPrice} - {formData.sellingPrice}) / {formData.originalPrice} × 100 = {calculateDiscountPercentage()}%
+                      💡 Discount calculated automatically: ({formData.originalPrice} -{' '}
+                      {formData.sellingPrice}) / {formData.originalPrice} × 100 ={' '}
+                      {calculateDiscountPercentage()}%
                     </p>
                   </div>
                 )}
-                {formData.originalPrice && formData.sellingPrice && calculateDiscountPercentage() === 0 && (
-                  <div className="mt-4 pt-4 border-t border-green-200">
-                    <p className="text-xs font-bold text-gray-500 text-center">
-                      ℹ️ No discount applied - selling price equals original price
-                    </p>
-                  </div>
-                )}
+                {formData.originalPrice &&
+                  formData.sellingPrice &&
+                  calculateDiscountPercentage() === 0 && (
+                    <div className="mt-4 pt-4 border-t border-green-200">
+                      <p className="text-xs font-bold text-gray-500 text-center">
+                        ℹ️ No discount applied - selling price equals original price
+                      </p>
+                    </div>
+                  )}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6 pb-20">
               <div className="space-y-4">
-                <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">Basic Information</h3>
+                <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">
+                  Basic Information
+                </h3>
 
                 <div>
                   <label className={labelClass}>Product Title *</label>
@@ -1415,12 +1665,16 @@ Package includes:
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">Professional Pricing</h3>
+                <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">
+                  Professional Pricing
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Original Price (TSh) *</label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">TSh</span>
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">
+                        TSh
+                      </span>
                       <input
                         type="number"
                         className={`${inputClass} pl-12`}
@@ -1441,7 +1695,9 @@ Package includes:
                   <div>
                     <label className={labelClass}>Selling Price (TSh) *</label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">TSh</span>
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">
+                        TSh
+                      </span>
                       <input
                         type="number"
                         className={`${inputClass} pl-12`}
@@ -1454,23 +1710,29 @@ Package includes:
                         disabled={isActuallyUploading}
                       />
                     </div>
-                    {formData.originalPrice && formData.sellingPrice && calculateDiscountPercentage() > 0 && (
-                      <p className="mt-2 text-xs font-bold text-green-600">
-                        Discount: -{calculateDiscountPercentage()}% (Save TSh {calculateDiscountAmount().toLocaleString()})
-                      </p>
-                    )}
-                    {formData.originalPrice && formData.sellingPrice && calculateDiscountPercentage() === 0 && (
-                      <p className="mt-2 text-xs font-bold text-gray-500">
-                        No discount applied
-                      </p>
-                    )}
+                    {formData.originalPrice &&
+                      formData.sellingPrice &&
+                      calculateDiscountPercentage() > 0 && (
+                        <p className="mt-2 text-xs font-bold text-green-600">
+                          Discount: -{calculateDiscountPercentage()}% (Save TSh{' '}
+                          {calculateDiscountAmount().toLocaleString()})
+                        </p>
+                      )}
+                    {formData.originalPrice &&
+                      formData.sellingPrice &&
+                      calculateDiscountPercentage() === 0 && (
+                        <p className="mt-2 text-xs font-bold text-gray-500">
+                          No discount applied
+                        </p>
+                      )}
                   </div>
                 </div>
 
                 <div className="bg-[#FFF7F0] p-3 rounded-xl border border-orange-100">
                   <p className="text-xs font-bold text-gray-600">
-                    💡 <span className="text-[#FF6A00]">Professional Tip:</span> Enter the original price first, then the selling price.
-                    The discount percentage is calculated automatically:
+                    💡 <span className="text-[#FF6A00]">Professional Tip:</span> Enter the
+                    original price first, then the selling price. The discount percentage is
+                    calculated automatically:
                     <span className="font-black"> ((Original - Selling) / Original) × 100</span>
                   </p>
                 </div>
@@ -1481,7 +1743,14 @@ Package includes:
                   <label className={labelClass}>Category *</label>
                   <div className="relative w-full max-w-sm">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <circle cx="11" cy="11" r="8" />
                         <path d="M21 21l-4.35-4.35" />
                       </svg>
@@ -1628,20 +1897,31 @@ Package includes:
                   ))}
 
                   {formData.images.length < 10 && (
-                    <label className={`aspect-square border-2 border-dashed ${
-                      isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-[#FF6A00] cursor-pointer'
-                    } rounded-2xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
+                    <label
+                      className={`aspect-square border-2 border-dashed ${
+                        isActuallyUploading
+                          ? 'border-gray-200 cursor-not-allowed'
+                          : 'border-gray-300 hover:border-[#FF6A00] cursor-pointer'
+                      } rounded-2xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}
+                    >
                       <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 5v14M5 12h14"/>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M12 5v14M5 12h14" />
                         </svg>
                       </div>
                       <span className="text-xs font-bold text-gray-400 text-center px-2">
                         {isActuallyUploading
                           ? 'Uploading...'
                           : formData.images.length === 0
-                          ? 'Click to upload images'
-                          : `Add more (${10 - formData.images.length} left)`}
+                            ? 'Click to upload images'
+                            : `Add more (${10 - formData.images.length} left)`}
                       </span>
                       <input
                         type="file"
@@ -1659,7 +1939,8 @@ Package includes:
                 {formData.images.length > 0 && (
                   <div className="bg-orange-50 border border-orange-100 rounded-2xl p-3">
                     <p className="text-xs font-bold text-orange-700">
-                      Each image can have its own price and label for different sizes, colors, storage, or variants.
+                      Each image can have its own price and label for different sizes, colors,
+                      storage, or variants.
                     </p>
                   </div>
                 )}
@@ -1691,11 +1972,22 @@ Package includes:
                     </div>
                   </div>
                 ) : (
-                  <label className={`w-full aspect-video border-2 border-dashed ${
-                    isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-[#FF6A00] cursor-pointer'
-                  } rounded-2xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
+                  <label
+                    className={`w-full aspect-video border-2 border-dashed ${
+                      isActuallyUploading
+                        ? 'border-gray-200 cursor-not-allowed'
+                        : 'border-gray-300 hover:border-[#FF6A00] cursor-pointer'
+                    } rounded-2xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}
+                  >
                     <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-[#FF6A00] mb-3 border border-gray-100">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      >
                         <polygon points="23 7 16 12 23 17 23 7" />
                         <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
                       </svg>
@@ -1774,20 +2066,31 @@ Package includes:
                   ))}
 
                   {formData.descriptionImages.length < 20 && (
-                    <label className={`aspect-square border-2 border-dashed ${
-                      isActuallyUploading ? 'border-gray-200 cursor-not-allowed' : 'border-gray-300 hover:border-purple-500 cursor-pointer'
-                    } rounded-2xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}>
+                    <label
+                      className={`aspect-square border-2 border-dashed ${
+                        isActuallyUploading
+                          ? 'border-gray-200 cursor-not-allowed'
+                          : 'border-gray-300 hover:border-purple-500 cursor-pointer'
+                      } rounded-2xl flex flex-col items-center justify-center transition-all bg-gray-50/50`}
+                    >
                       <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-400 mb-2 border border-gray-100">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 5v14M5 12h14"/>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M12 5v14M5 12h14" />
                         </svg>
                       </div>
                       <span className="text-xs font-bold text-gray-400 text-center px-2">
                         {isActuallyUploading
                           ? 'Uploading...'
                           : formData.descriptionImages.length === 0
-                          ? 'Click to add description images'
-                          : `Add more (${20 - formData.descriptionImages.length} left)`}
+                            ? 'Click to add description images'
+                            : `Add more (${20 - formData.descriptionImages.length} left)`}
                       </span>
                       <input
                         type="file"
@@ -1820,7 +2123,7 @@ Package includes:
                     <div key={title} className="flex items-start space-x-2">
                       <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="green">
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                         </svg>
                       </div>
                       <div>
@@ -1854,7 +2157,14 @@ Package includes:
                       </>
                     ) : (
                       <>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
                           <path d="M8 17l4 4 4-4m-4-5v9"></path>
                           <path d="M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"></path>
                         </svg>
