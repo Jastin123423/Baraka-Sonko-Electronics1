@@ -16,12 +16,29 @@ interface AdminViewProps {
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'withdraw';
 type UploadType = 'image' | 'video' | 'desc_image';
 type EditMode = 'create' | 'edit';
+type AnalyticsRange = 'week' | 'month' | 'year' | 'custom';
 
 type ProductImageItem = {
   url: string;
   price: string;
   label?: string;
   isMain?: boolean;
+};
+
+type ViewsAnalytics = {
+  totalViews: number;
+  lifetimeViews: number;
+  from?: string;
+  to?: string;
+  series?: Array<{
+    date: string;
+    views: number;
+  }>;
+  topProducts?: Array<{
+    productId: string;
+    title: string;
+    views: number;
+  }>;
 };
 
 const AdminView: React.FC<AdminViewProps> = ({
@@ -47,6 +64,27 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [categorySearch, setCategorySearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
 
+  const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRange>('week');
+  const [viewsAnalytics, setViewsAnalytics] = useState<ViewsAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState('');
+
+  const getDefaultFromDate = (range: AnalyticsRange) => {
+    const d = new Date();
+    if (range === 'week') {
+      d.setDate(d.getDate() - 6);
+    } else if (range === 'month') {
+      d.setDate(d.getDate() - 29);
+    } else if (range === 'year') {
+      d.setFullYear(d.getFullYear() - 1);
+      d.setDate(d.getDate() + 1);
+    }
+    return d.toISOString().slice(0, 10);
+  };
+
+  const [fromDate, setFromDate] = useState<string>(() => getDefaultFromDate('week'));
+  const [toDate, setToDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -57,6 +95,18 @@ const AdminView: React.FC<AdminViewProps> = ({
     images: [] as ProductImageItem[],
     descriptionImages: [] as string[],
   });
+
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const rangeLabel = useMemo(() => {
+    if (analyticsRange === 'week') return 'Last 7 Days';
+    if (analyticsRange === 'month') return 'Last 30 Days';
+    if (analyticsRange === 'year') return 'Last 12 Months';
+    return `${fromDate} to ${toDate}`;
+  }, [analyticsRange, fromDate, toDate]);
 
   const calculateDiscountPercentage = () => {
     const originalPrice = parseFloat(formData.originalPrice);
@@ -96,6 +146,41 @@ const AdminView: React.FC<AdminViewProps> = ({
     setDebugLogs(prev => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${message}`]);
   };
 
+  const fetchViewsAnalytics = async (from: string, to: string) => {
+    try {
+      setAnalyticsLoading(true);
+      setAnalyticsError('');
+
+      const params = new URLSearchParams({ from, to });
+      const response = await fetch(`/api/admin/views-analytics?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch views analytics');
+      }
+
+      const data = await response.json();
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Invalid analytics response');
+      }
+
+      setViewsAnalytics({
+        totalViews: Number(data.data?.totalViews || 0),
+        lifetimeViews: Number(data.data?.lifetimeViews || 0),
+        from: data.data?.from,
+        to: data.data?.to,
+        series: Array.isArray(data.data?.series) ? data.data.series : [],
+        topProducts: Array.isArray(data.data?.topProducts) ? data.data.topProducts : [],
+      });
+    } catch (error: any) {
+      console.error('Error fetching views analytics:', error);
+      setAnalyticsError(error?.message || 'Failed to load views analytics');
+      setViewsAnalytics(null);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -109,6 +194,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     };
 
     fetchStats();
+    fetchViewsAnalytics(fromDate, toDate);
   }, []);
 
   useEffect(() => {
@@ -118,6 +204,23 @@ const AdminView: React.FC<AdminViewProps> = ({
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (analyticsRange === 'custom') return;
+
+    const newFrom = getDefaultFromDate(analyticsRange);
+    const newTo = todayStr;
+
+    setFromDate(newFrom);
+    setToDate(newTo);
+  }, [analyticsRange, todayStr]);
+
+  useEffect(() => {
+    if (activeTab !== 'dashboard') return;
+    if (!fromDate || !toDate) return;
+
+    fetchViewsAnalytics(fromDate, toDate);
+  }, [activeTab, fromDate, toDate]);
 
   const filteredCategories = useMemo(() => {
     const q = categorySearch.trim().toLowerCase();
@@ -734,21 +837,103 @@ const AdminView: React.FC<AdminViewProps> = ({
       <div className="p-4 pb-12 max-w-5xl mx-auto">
         {activeTab === 'dashboard' && (
           <div className="space-y-5">
-            <h1 className="text-xl font-black text-gray-800">Dashboard Overview</h1>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-xl font-black text-gray-800">Dashboard Overview</h1>
+                <p className="text-sm text-gray-500 mt-1">Track total views by selected date range</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {(['week', 'month', 'year', 'custom'] as AnalyticsRange[]).map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setAnalyticsRange(range)}
+                    className={`px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-[0.12em] transition-all ${
+                      analyticsRange === range
+                        ? 'bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white shadow-[0_10px_24px_rgba(255,106,0,0.22)]'
+                        : 'bg-white text-gray-600 border border-orange-100 hover:border-orange-300'
+                    }`}
+                  >
+                    {range}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-4 md:p-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                    From Date
+                  </label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => {
+                      setAnalyticsRange('custom');
+                      setFromDate(e.target.value);
+                    }}
+                    className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                    To Date
+                  </label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => {
+                      setAnalyticsRange('custom');
+                      setToDate(e.target.value);
+                    }}
+                    className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
+                  />
+                </div>
+
+                <button
+                  onClick={() => fetchViewsAnalytics(fromDate, toDate)}
+                  className="bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-3 px-6 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] hover:shadow-[0_14px_28px_rgba(255,106,0,0.28)] active:scale-[0.98] transition-all"
+                >
+                  APPLY FILTER
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-3 font-semibold">
+                Showing: <span className="text-[#FF6A00] font-black">{rangeLabel}</span>
+              </p>
+            </div>
 
             {stats ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                 <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
                   <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Total Products</p>
                   <p className="text-3xl font-black text-gray-900">{stats.totalProducts?.toLocaleString() || '0'}</p>
                 </div>
+
                 <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
                   <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Net Sales</p>
                   <p className="text-3xl font-black text-gray-900">TSh {stats.netSales?.toLocaleString() || '0'}</p>
                 </div>
+
                 <div className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,#FFF7F0_0%,#FFFFFF_100%)] shadow-[0_6px_20px_rgba(255,106,0,0.08)] p-6">
                   <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Earnings</p>
                   <p className="text-3xl font-black text-[#FF6A00]">TSh {stats.earnings?.toLocaleString() || '0'}</p>
+                </div>
+
+                <div className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,#FFF5F0_0%,#FFFFFF_100%)] shadow-[0_6px_20px_rgba(255,106,0,0.08)] p-6">
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Filtered Views</p>
+                  <p className="text-3xl font-black text-[#FF6A00]">
+                    {analyticsLoading ? '...' : viewsAnalytics?.totalViews?.toLocaleString() || '0'}
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">Lifetime Views</p>
+                  <p className="text-3xl font-black text-gray-900">
+                    {analyticsLoading ? '...' : viewsAnalytics?.lifetimeViews?.toLocaleString() || '0'}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -757,6 +942,86 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <p className="text-gray-500">Loading dashboard data...</p>
               </div>
             )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-black text-gray-800">Views by Day</h2>
+                  <span className="text-xs font-black px-3 py-1.5 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-100">
+                    {rangeLabel}
+                  </span>
+                </div>
+
+                {analyticsError ? (
+                  <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-sm font-bold text-red-700">
+                    {analyticsError}
+                  </div>
+                ) : analyticsLoading ? (
+                  <div className="py-12 text-center text-gray-400">
+                    <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
+                    <p className="font-bold">Loading views analytics...</p>
+                  </div>
+                ) : viewsAnalytics?.series?.length ? (
+                  <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
+                    {viewsAnalytics.series.map((item, index) => (
+                      <div
+                        key={`${item.date}-${index}`}
+                        className="flex items-center justify-between rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-3"
+                      >
+                        <span className="text-sm font-bold text-gray-700">{item.date}</span>
+                        <span className="text-sm font-black text-[#FF6A00]">
+                          {Number(item.views || 0).toLocaleString()} views
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-gray-400">
+                    <p className="font-bold">No views found in selected range</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-black text-gray-800">Top Viewed Products</h2>
+                  <span className="text-xs font-black px-3 py-1.5 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-100">
+                    Top 10
+                  </span>
+                </div>
+
+                {analyticsLoading ? (
+                  <div className="py-12 text-center text-gray-400">
+                    <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
+                    <p className="font-bold">Loading top products...</p>
+                  </div>
+                ) : viewsAnalytics?.topProducts?.length ? (
+                  <div className="space-y-3">
+                    {viewsAnalytics.topProducts.map((item, index) => (
+                      <div
+                        key={`${item.productId}-${index}`}
+                        className="flex items-center justify-between rounded-2xl border border-orange-100 bg-white px-4 py-3"
+                      >
+                        <div className="min-w-0 pr-4">
+                          <p className="text-sm font-black text-gray-800 truncate">
+                            #{index + 1} {item.title || 'Unknown Product'}
+                          </p>
+                          <p className="text-xs text-gray-400 truncate">Product ID: {item.productId}</p>
+                        </div>
+
+                        <span className="text-sm font-black text-[#FF6A00] shrink-0">
+                          {Number(item.views || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-gray-400">
+                    <p className="font-bold">No top products yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
