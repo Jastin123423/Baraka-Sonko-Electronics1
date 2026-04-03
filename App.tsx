@@ -84,6 +84,45 @@ const clearStoreCache = () => {
   localStorage.removeItem(CACHE_META_KEY);
 };
 
+// ============ APP PROMOTION CONSTANTS ============
+
+const PLAYSTORE_URL = 'https://play.google.com/store/apps/details?id=co.median.android.zebeen';
+const APP_PROMPT_DISMISSED_KEY = 'barakasonko_open_app_prompt_dismissed_until';
+
+const isAndroidDevice = () => {
+  return typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+};
+
+const isStandalonePwa = () => {
+  return typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true
+  );
+};
+
+const isInsideNativeApp = () => {
+  if (typeof window === 'undefined') return false;
+  
+  const params = new URLSearchParams(window.location.search);
+  return (
+    params.get('fromApp') === '1' ||
+    localStorage.getItem('fromApp') === '1' ||
+    document.referrer.startsWith('android-app://') ||
+    /barakasonkoapp|zebeenapp|wv/i.test(navigator.userAgent)
+  );
+};
+
+const shouldHideOpenAppPrompt = () => {
+  if (!isAndroidDevice()) return true;
+  if (isStandalonePwa()) return true;
+  if (isInsideNativeApp()) return true;
+  
+  const dismissedUntil = Number(localStorage.getItem(APP_PROMPT_DISMISSED_KEY) || 0);
+  if (dismissedUntil && Date.now() < dismissedUntil) return true;
+  
+  return false;
+};
+
 // ============ UTILITY FUNCTIONS ============
 
 const getInitialViewFromPath = (pathname: string) => {
@@ -693,6 +732,10 @@ const AppContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // ============ APP PROMOTION STATES ============
+  const [showOpenAppPrompt, setShowOpenAppPrompt] = useState(false);
+  const [openAppPromptReady, setOpenAppPromptReady] = useState(false);
+
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -716,6 +759,18 @@ const AppContent: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [activeBannerIndex, view]);
+
+  // ============ APP PROMOTION TIMER ============
+  useEffect(() => {
+    if (shouldHideOpenAppPrompt()) return;
+    
+    const timer = window.setTimeout(() => {
+      setOpenAppPromptReady(true);
+      setShowOpenAppPrompt(true);
+    }, 60000); // 1 minute
+    
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const normalizeProduct = (p: any, categoriesList: Category[]): Product => {
     const id = String(p?.id ?? p?._id ?? '');
@@ -1453,6 +1508,18 @@ const AppContent: React.FC = () => {
     window.location.reload();
   };
 
+  // ============ APP PROMOTION HANDLERS ============
+  const handleOpenNativeApp = () => {
+    window.location.href = PLAYSTORE_URL;
+  };
+
+  const handleDismissOpenAppPrompt = () => {
+    // hide for 24 hours after close
+    const oneDayLater = Date.now() + 24 * 60 * 60 * 1000;
+    localStorage.setItem(APP_PROMPT_DISMISSED_KEY, String(oneDayLater));
+    setShowOpenAppPrompt(false);
+  };
+
   const navView =
     view === 'admin'
       ? 'admin'
@@ -1711,6 +1778,40 @@ const AppContent: React.FC = () => {
             }
           }}
         />
+      )}
+
+      {/* ============ APP PROMOTION POPUP ============ */}
+      {showOpenAppPrompt && openAppPromptReady && (
+        <div className="fixed inset-x-0 bottom-16 z-[60] px-4">
+          <div className="w-full max-w-[560px] mx-auto rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="flex items-start justify-between px-4 py-4">
+              <div className="pr-3">
+                <p className="text-[11px] font-black uppercase tracking-wide text-orange-600 mb-1">
+                  Baraka Sonko App
+                </p>
+                <h3 className="text-base font-bold text-gray-900">Endelea kwenye Baraka Sonko App</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Fungua app upate matumizi rahisi zaidi ya mfumo wetu
+                </p>
+              </div>
+              <button
+                onClick={handleDismissOpenAppPrompt}
+                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+                aria-label="Funga"
+              >
+                ×
+              </button>
+            </div>
+            <div className="border-t border-gray-100 p-3">
+              <button
+                onClick={handleOpenNativeApp}
+                className="w-full rounded-xl bg-orange-600 text-white font-black py-3 hover:bg-orange-700 transition-colors"
+              >
+                Fungua App
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="fixed bottom-0 left-0 right-0 bg-black text-white text-center py-2 text-xs z-40">
