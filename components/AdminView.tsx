@@ -1,6 +1,7 @@
 // AdminView.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Category, AdminStats } from '../types';
+import Messages from './Messages';
 
 interface AdminViewProps {
   products: Product[];
@@ -13,7 +14,7 @@ interface AdminViewProps {
   Banner: React.ComponentType<any>;
 }
 
-type AdminTab = 'dashboard' | 'products' | 'orders' | 'withdraw';
+type AdminTab = 'dashboard' | 'products' | 'messages' | 'withdraw';
 type UploadType = 'image' | 'video' | 'desc_image';
 type EditMode = 'create' | 'edit';
 type AnalyticsRange = 'week' | 'month' | 'year' | 'custom';
@@ -882,7 +883,7 @@ const AdminView: React.FC<AdminViewProps> = ({
 
       <div className="sticky top-[74px] z-10 bg-white/90 backdrop-blur-md border-b border-orange-100 shadow-sm px-3">
         <div className="flex space-x-6 py-4 overflow-x-auto no-scrollbar">
-          {(['dashboard', 'products', 'orders', 'withdraw'] as AdminTab[]).map(tab => (
+          {(['dashboard', 'products', 'messages', 'withdraw'] as AdminTab[]).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -899,7 +900,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       </div>
 
-      <div className="p-4 pb-12 max-w-5xl mx-auto">
+      <div className="p-4 pb-12 max-w-7xl mx-auto">
         {activeTab === 'dashboard' && (
           <div className="space-y-5">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -1199,7 +1200,7 @@ const AdminView: React.FC<AdminViewProps> = ({
               </div>
             </div>
 
-            {/* Prominent Search Section - Moved below ADD NEW PRODUCT button */}
+            {/* Prominent Search Section */}
             <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-5 border-2 border-orange-200 shadow-lg">
               <div className="flex items-center gap-3 mb-3">
                 <svg className="w-6 h-6 text-[#FF6A00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1221,7 +1222,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                   onChange={(e) => setProductSearch(e.target.value)}
                   placeholder="Search by product title, category name, or product ID..."
                   className="w-full rounded-2xl border-2 border-orange-200 bg-white pl-12 pr-4 py-4 text-base font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-md transition-all"
-                  autoFocus={false}
                 />
                 {productSearch && (
                   <button
@@ -1442,18 +1442,9 @@ const AdminView: React.FC<AdminViewProps> = ({
           </div>
         )}
 
-        {activeTab === 'orders' && (
-          <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-orange-100 shadow-sm">
-            <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              />
-            </svg>
-            <p className="font-bold">Orders Management</p>
-            <p className="text-sm mt-1">Coming soon...</p>
+        {activeTab === 'messages' && (
+          <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-6">
+            <Messages />
           </div>
         )}
 
