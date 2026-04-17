@@ -1185,29 +1185,6 @@ const AdminView: React.FC<AdminViewProps> = ({
               <h1 className="text-xl font-black text-gray-800">Products Management</h1>
 
               <div className="flex flex-col md:flex-row gap-3">
-                <div className="relative w-full md:w-80">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="M21 21l-4.35-4.35" />
-                    </svg>
-                  </span>
-                  <input
-                    type="text"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="Search product, category, or ID..."
-                    className="w-full rounded-2xl border border-orange-200 bg-white pl-11 pr-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
-                  />
-                </div>
-
                 <button
                   onClick={() => {
                     setEditMode('create');
@@ -1220,6 +1197,48 @@ const AdminView: React.FC<AdminViewProps> = ({
                   + ADD NEW PRODUCT
                 </button>
               </div>
+            </div>
+
+            {/* Prominent Search Section - Moved below ADD NEW PRODUCT button */}
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-5 border-2 border-orange-200 shadow-lg">
+              <div className="flex items-center gap-3 mb-3">
+                <svg className="w-6 h-6 text-[#FF6A00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" strokeWidth="2" />
+                  <path d="M21 21l-4.35-4.35" strokeWidth="2" />
+                </svg>
+                <span className="text-sm font-black text-gray-700 uppercase tracking-wide">Search Products</span>
+              </div>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Search by product title, category name, or product ID..."
+                  className="w-full rounded-2xl border-2 border-orange-200 bg-white pl-12 pr-4 py-4 text-base font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-md transition-all"
+                  autoFocus={false}
+                />
+                {productSearch && (
+                  <button
+                    onClick={() => setProductSearch('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {productSearch && (
+                <div className="mt-3 text-sm font-semibold text-[#FF6A00]">
+                  Found {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''} for "{productSearch}"
+                </div>
+              )}
             </div>
 
             <div className="bg-white rounded-3xl border border-orange-100 overflow-hidden shadow-[0_8px_24px_rgba(255,106,0,0.05)]">
@@ -1244,7 +1263,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                   <p className="text-sm mt-1">
                     {products.length === 0
                       ? 'Start by adding your first product'
-                      : 'Try a different search'}
+                      : 'Try a different search term'}
                   </p>
                 </div>
               ) : (
