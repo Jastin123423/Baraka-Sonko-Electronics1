@@ -1,4 +1,3 @@
-// functions/api/views.ts
 import type { PagesFunction } from '@cloudflare/workers-types';
 
 type Env = { DB: D1Database };
@@ -33,6 +32,21 @@ const readJson = async (request: Request) => {
     return {};
   }
 };
+
+const getIp = (request: Request) =>
+  str(
+    request.headers.get('CF-Connecting-IP') ||
+      request.headers.get('x-forwarded-for') ||
+      ''
+  );
+
+const getUA = (request: Request) =>
+  str(request.headers.get('user-agent')).toLowerCase();
+
+const isBotUA = (ua: string) =>
+  /bot|crawler|spider|crawl|facebookexternalhit|whatsapp|telegrambot|slurp|bingbot|googlebot|preview|meta-externalagent|python-requests|curl|wget/i.test(
+    ua
+  );
 
 const ensureTables = async (env: Env) => {
   await env.DB.prepare(
@@ -73,7 +87,9 @@ const ensureTables = async (env: Env) => {
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    if (!env?.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
+    if (!env?.DB) {
+      return json({ success: false, error: 'DB binding missing (DB)' }, 500);
+    }
 
     await ensureTables(env);
 
@@ -112,22 +128,38 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    if (!env?.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
+    if (!env?.DB) {
+      return json({ success: false, error: 'DB binding missing (DB)' }, 500);
+    }
 
     await ensureTables(env);
 
     const body = await readJson(request);
     const productId = str((body as any).productId);
-    const viewerKey = str((body as any).viewerKey) || 'guest';
     const now = Date.now();
 
     if (!productId) {
       return json({ success: false, error: 'productId required' }, 400);
     }
 
-    // Prevent accidental duplicate calls fired almost at the same moment
-    // while still allowing refreshes and repeat visits later.
-    const duplicateWindowMs = 1200;
+    const ua = getUA(request);
+    const ip = getIp(request);
+    const bot = isBotUA(ua);
+
+    // If frontend sends viewerKey, use it.
+    // Otherwise derive one from request info.
+    // Bots are mixed into the same count too.
+    const rawViewerKey = str((body as any).viewerKey);
+    const viewerKey =
+      rawViewerKey ||
+      (bot
+        ? `bot:${ip || 'unknown'}:${ua.slice(0, 120)}`
+        : `guest:${ip || 'unknown'}`);
+
+    // Prevent immediate accidental duplicates.
+    // Keep a small window for humans; give bots a longer window so one crawler
+    // does not inflate too fast from repeated hits.
+    const duplicateWindowMs = bot ? 60_000 : 1_200;
 
     const recent = await env.DB.prepare(
       `
@@ -146,7 +178,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     let skippedDuplicate = false;
 
     if (!recent) {
-      // 1) Log raw view event
       await env.DB.prepare(
         `
         INSERT INTO product_views (product_id, viewer_key, created_at)
@@ -156,7 +187,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         .bind(productId, viewerKey, now)
         .run();
 
-      // 2) Increment aggregate counter once
       await env.DB.prepare(
         `
         INSERT INTO product_view_counts (product_id, views, updated_at)
@@ -172,7 +202,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       skippedDuplicate = true;
     }
 
-    // 3) Read final count
     const row = await env.DB.prepare(
       `
       SELECT views, updated_at
@@ -190,6 +219,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         views: Number(row?.views ?? 0),
         updatedAt: Number(row?.updated_at ?? 0),
         skippedDuplicate,
+        bot,
       },
     });
   } catch (e: any) {
