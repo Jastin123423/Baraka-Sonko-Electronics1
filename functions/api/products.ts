@@ -1,4 +1,3 @@
-
 // functions/api/products.ts
 import type { PagesFunction } from '@cloudflare/workers-types';
 
@@ -88,7 +87,6 @@ const normalizeIsSoundProduct = (value: any, fallback = 0): number => {
   if (value === undefined || value === null || value === '') return fallback;
 
   if (typeof value === 'boolean') return value ? 1 : 0;
-
   if (typeof value === 'number') return value === 1 ? 1 : 0;
 
   const s = String(value).trim().toLowerCase();
@@ -96,6 +94,103 @@ const normalizeIsSoundProduct = (value: any, fallback = 0): number => {
   if (['0', 'false', 'no', 'off'].includes(s)) return 0;
 
   return fallback;
+};
+
+const ensureViewTables = async (env: Env) => {
+  await env.DB.prepare(
+    `
+    CREATE TABLE IF NOT EXISTS product_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id TEXT NOT NULL,
+      viewer_key TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+    `
+  ).run();
+
+  await env.DB.prepare(
+    `
+    CREATE TABLE IF NOT EXISTS product_view_counts (
+      product_id TEXT PRIMARY KEY,
+      views INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
+    )
+    `
+  ).run();
+
+  await env.DB.prepare(
+    `
+    CREATE INDEX IF NOT EXISTS idx_product_views_lookup
+    ON product_views (product_id, viewer_key, created_at)
+    `
+  ).run();
+
+  await env.DB.prepare(
+    `
+    CREATE INDEX IF NOT EXISTS idx_product_views_product_created
+    ON product_views (product_id, created_at)
+    `
+  ).run();
+};
+
+const recordProductDetailView = async (env: Env, request: Request, productId: string) => {
+  const now = Date.now();
+
+  const ip = String(
+    request.headers.get('CF-Connecting-IP') ||
+      request.headers.get('x-forwarded-for') ||
+      ''
+  ).trim();
+
+  const ua = String(request.headers.get('user-agent') || '')
+    .trim()
+    .toLowerCase();
+
+  const viewerKey = `${ip || 'unknown'}:${ua.slice(0, 120) || 'unknown'}`;
+
+  // Keep this longer than frontend so repeat bot/API hits don't inflate too fast.
+  const duplicateWindowMs = 60_000;
+
+  const recent = await env.DB.prepare(
+    `
+    SELECT id
+    FROM product_views
+    WHERE product_id = ?
+      AND viewer_key = ?
+      AND created_at >= ?
+    ORDER BY created_at DESC
+    LIMIT 1
+    `
+  )
+    .bind(productId, viewerKey, now - duplicateWindowMs)
+    .first<any>();
+
+  if (recent) {
+    return { skippedDuplicate: true };
+  }
+
+  await env.DB.prepare(
+    `
+    INSERT INTO product_views (product_id, viewer_key, created_at)
+    VALUES (?, ?, ?)
+    `
+  )
+    .bind(productId, viewerKey, now)
+    .run();
+
+  await env.DB.prepare(
+    `
+    INSERT INTO product_view_counts (product_id, views, updated_at)
+    VALUES (?, 1, ?)
+    ON CONFLICT(product_id) DO UPDATE SET
+      views = product_view_counts.views + 1,
+      updated_at = excluded.updated_at
+    `
+  )
+    .bind(productId, now)
+    .run();
+
+  return { skippedDuplicate: false };
 };
 
 const buildProductResponse = (row: any) => {
@@ -147,7 +242,7 @@ const buildProductResponse = (row: any) => {
     imageVariants,
 
     is_sound_product: isSoundProduct,
-    isSoundProduct: isSoundProduct,
+    isSoundProduct,
 
     status: String(row.status || 'online'),
     created_at: String(row.created_at || ''),
@@ -222,15 +317,15 @@ const normalizeIncomingProduct = (body: any, existing?: any) => {
 
   const rawImageVariants =
     body.imageVariants !== undefined || body.image_variants !== undefined
-      ? (Array.isArray(body.imageVariants)
-          ? body.imageVariants
-          : Array.isArray(body.image_variants)
-            ? body.image_variants
-            : typeof body.imageVariants === 'string'
-              ? body.imageVariants
-              : typeof body.image_variants === 'string'
-                ? body.image_variants
-                : [])
+      ? Array.isArray(body.imageVariants)
+        ? body.imageVariants
+        : Array.isArray(body.image_variants)
+          ? body.image_variants
+          : typeof body.imageVariants === 'string'
+            ? body.imageVariants
+            : typeof body.image_variants === 'string'
+              ? body.image_variants
+              : []
       : existing?.image_variants;
 
   const imageVariants = safeJsonParseImageVariants(rawImageVariants);
@@ -241,7 +336,7 @@ const normalizeIncomingProduct = (body: any, existing?: any) => {
       : String(existing?.video_url || '').trim() || DEFAULT_VIDEO_URL;
 
   const mainImageFromVariants =
-    imageVariants.find(v => v.isMain)?.url ||
+    imageVariants.find((v) => v.isMain)?.url ||
     imageVariants[0]?.url ||
     '';
 
@@ -319,12 +414,19 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
     if (!env.DB) return json({ success: false, error: 'DB binding missing (DB)' }, 500);
 
     const url = new URL(request.url);
-    const id = url.searchParams.get('id');
+    const id = String(url.searchParams.get('id') || '').trim();
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 200), 1), 500);
 
     if (id) {
       const row = await getProductById(env, id);
       if (!row) return json({ success: false, error: 'Not found' }, 404);
+
+      try {
+        await ensureViewTables(env);
+        await recordProductDetailView(env, request, id);
+      } catch (viewErr) {
+        console.error('Product detail view increment failed', viewErr);
+      }
 
       return json({ success: true, data: buildProductResponse(row) });
     }
