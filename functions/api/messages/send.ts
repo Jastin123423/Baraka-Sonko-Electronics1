@@ -137,7 +137,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     // Hardcoded for testing as requested
     const atUsername = 'sandbox';
     const atApiKey =
-      'atsk_0746a8adfbdd9c27c52217af8563e826e6fd30db16de5cba318fd73fef3870b29eaa758e';
+      'atsk_eaf76e68c412d8ec543a71f13a5f483ba014aabad31b9729379e5b6831527c58e147a638';
 
     const settingsRow = await env.DB.prepare(`
       SELECT
