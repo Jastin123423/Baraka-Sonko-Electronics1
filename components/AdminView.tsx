@@ -858,7 +858,7 @@ const AdminView: React.FC<AdminViewProps> = ({
       )}
 
       <div className="sticky top-0 z-20 bg-[linear-gradient(90deg,#FF6A00_0%,#FF7C1F_45%,#FF9A3D_100%)] text-white shadow-[0_10px_30px_rgba(255,106,0,0.22)] border-b border-orange-300/30">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="w-full px-0 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center space-x-3 min-w-0">
               <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md border border-white/25 flex items-center justify-center shadow-lg">
@@ -881,7 +881,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       </div>
 
-      <div className="sticky top-[74px] z-10 bg-white/90 backdrop-blur-md border-b border-orange-100 shadow-sm px-3">
+      <div className="sticky top-[74px] z-10 bg-white/90 backdrop-blur-md border-b border-orange-100 shadow-sm px-0">
         <div className="flex space-x-6 py-4 overflow-x-auto no-scrollbar">
           {(['dashboard', 'products', 'messages', 'withdraw'] as AdminTab[]).map(tab => (
             <button
@@ -900,173 +900,225 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       </div>
 
-      <div className="p-4 pb-12 max-w-7xl mx-auto">
-        {activeTab === 'dashboard' && (
-          <div className="space-y-5">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h1 className="text-xl font-black text-gray-800">Dashboard Overview</h1>
-                <p className="text-sm text-gray-500 mt-1">
-                  Track total views by week, month, or year
+      {/* Main Content Area - Conditional rendering based on tab */}
+      {activeTab === 'messages' ? (
+        <div className="w-full p-0 m-0">
+          <Messages />
+        </div>
+      ) : (
+        <div className="p-4 pb-12 max-w-7xl mx-auto">
+          {activeTab === 'dashboard' && (
+            <div className="space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-black text-gray-800">Dashboard Overview</h1>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Track total views by week, month, or year
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-4 md:p-5 space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {(['week', 'month', 'year'] as Array<'week' | 'month' | 'year'>).map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => setAnalyticsRange(range)}
+                      className={`px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-[0.12em] transition-all ${
+                        analyticsRange === range
+                          ? 'bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white shadow-[0_10px_24px_rgba(255,106,0,0.22)]'
+                          : 'bg-white text-gray-600 border border-orange-100 hover:border-orange-300'
+                      }`}
+                    >
+                      {range}
+                    </button>
+                  ))}
+                </div>
+
+                {analyticsRange === 'week' && (
+                  <div className="rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-3">
+                    <p className="text-sm font-bold text-gray-700">
+                      Showing last 7 days automatically
+                    </p>
+                  </div>
+                )}
+
+                {analyticsRange === 'month' && (
+                  <div className="max-w-sm">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                      Select Month
+                    </label>
+                    <input
+                      type="month"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
+                    />
+                  </div>
+                )}
+
+                {analyticsRange === 'year' && (
+                  <div className="max-w-sm">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                      Select Year
+                    </label>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(e.target.value)}
+                      className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
+                    >
+                      {Array.from({ length: 6 }).map((_, i) => {
+                        const year = String(new Date().getFullYear() - i);
+                        return (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-500 font-semibold">
+                  Showing: <span className="text-[#FF6A00] font-black">{rangeLabel}</span>
                 </p>
               </div>
-            </div>
 
-            <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-4 md:p-5 space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {(['week', 'month', 'year'] as Array<'week' | 'month' | 'year'>).map((range) => (
-                  <button
-                    key={range}
-                    onClick={() => setAnalyticsRange(range)}
-                    className={`px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-[0.12em] transition-all ${
-                      analyticsRange === range
-                        ? 'bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white shadow-[0_10px_24px_rgba(255,106,0,0.22)]'
-                        : 'bg-white text-gray-600 border border-orange-100 hover:border-orange-300'
-                    }`}
-                  >
-                    {range}
-                  </button>
-                ))}
-              </div>
-
-              {analyticsRange === 'week' && (
-                <div className="rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-3">
-                  <p className="text-sm font-bold text-gray-700">
-                    Showing last 7 days automatically
-                  </p>
-                </div>
-              )}
-
-              {analyticsRange === 'month' && (
-                <div className="max-w-sm">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                    Select Month
-                  </label>
-                  <input
-                    type="month"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
-                  />
-                </div>
-              )}
-
-              {analyticsRange === 'year' && (
-                <div className="max-w-sm">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                    Select Year
-                  </label>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-sm"
-                  >
-                    {Array.from({ length: 6 }).map((_, i) => {
-                      const year = String(new Date().getFullYear() - i);
-                      return (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              )}
-
-              <p className="text-xs text-gray-500 font-semibold">
-                Showing: <span className="text-[#FF6A00] font-black">{rangeLabel}</span>
-              </p>
-            </div>
-
-            {stats ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-                <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                    Total Products
-                  </p>
-                  <p className="text-3xl font-black text-gray-900">
-                    {stats.totalProducts?.toLocaleString() || '0'}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                    Net Sales
-                  </p>
-                  <p className="text-3xl font-black text-gray-900">
-                    TSh {stats.netSales?.toLocaleString() || '0'}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,#FFF7F0_0%,#FFFFFF_100%)] shadow-[0_6px_20px_rgba(255,106,0,0.08)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                    Earnings
-                  </p>
-                  <p className="text-3xl font-black text-[#FF6A00]">
-                    TSh {stats.earnings?.toLocaleString() || '0'}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,#FFF5F0_0%,#FFFFFF_100%)] shadow-[0_6px_20px_rgba(255,106,0,0.08)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                    {analyticsRange === 'week'
-                      ? 'Week Views'
-                      : analyticsRange === 'month'
-                        ? 'Month Views'
-                        : 'Year Views'}
-                  </p>
-                  <p className="text-3xl font-black text-[#FF6A00]">
-                    {analyticsLoading ? '...' : viewsAnalytics?.totalViews?.toLocaleString() || '0'}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                    Lifetime Views
-                  </p>
-                  <p className="text-3xl font-black text-gray-900">
-                    {analyticsLoading
-                      ? '...'
-                      : viewsAnalytics?.lifetimeViews?.toLocaleString() || '0'}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-3xl p-8 text-center border border-orange-100 shadow-sm">
-                <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
-                <p className="text-gray-500">Loading dashboard data...</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-black text-gray-800">
-                    {analyticsRange === 'year' ? 'Views by Month' : 'Views Breakdown'}
-                  </h2>
-                  <span className="text-xs font-black px-3 py-1.5 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-100">
-                    {rangeLabel}
-                  </span>
-                </div>
-
-                {analyticsError ? (
-                  <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-sm font-bold text-red-700">
-                    {analyticsError}
+              {stats ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+                  <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                      Total Products
+                    </p>
+                    <p className="text-3xl font-black text-gray-900">
+                      {stats.totalProducts?.toLocaleString() || '0'}
+                    </p>
                   </div>
-                ) : analyticsLoading ? (
-                  <div className="py-12 text-center text-gray-400">
-                    <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
-                    <p className="font-bold">Loading views analytics...</p>
+
+                  <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                      Net Sales
+                    </p>
+                    <p className="text-3xl font-black text-gray-900">
+                      TSh {stats.netSales?.toLocaleString() || '0'}
+                    </p>
                   </div>
-                ) : analyticsRange === 'week' ? (
-                  viewsAnalytics?.series?.length ? (
+
+                  <div className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,#FFF7F0_0%,#FFFFFF_100%)] shadow-[0_6px_20px_rgba(255,106,0,0.08)] p-6">
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                      Earnings
+                    </p>
+                    <p className="text-3xl font-black text-[#FF6A00]">
+                      TSh {stats.earnings?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+
+                  <div className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,#FFF5F0_0%,#FFFFFF_100%)] shadow-[0_6px_20px_rgba(255,106,0,0.08)] p-6">
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                      {analyticsRange === 'week'
+                        ? 'Week Views'
+                        : analyticsRange === 'month'
+                          ? 'Month Views'
+                          : 'Year Views'}
+                    </p>
+                    <p className="text-3xl font-black text-[#FF6A00]">
+                      {analyticsLoading ? '...' : viewsAnalytics?.totalViews?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+
+                  <div className="rounded-3xl border border-orange-100 bg-white shadow-[0_6px_20px_rgba(255,106,0,0.06)] p-6">
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                      Lifetime Views
+                    </p>
+                    <p className="text-3xl font-black text-gray-900">
+                      {analyticsLoading
+                        ? '...'
+                        : viewsAnalytics?.lifetimeViews?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-3xl p-8 text-center border border-orange-100 shadow-sm">
+                  <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
+                  <p className="text-gray-500">Loading dashboard data...</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-black text-gray-800">
+                      {analyticsRange === 'year' ? 'Views by Month' : 'Views Breakdown'}
+                    </h2>
+                    <span className="text-xs font-black px-3 py-1.5 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-100">
+                      {rangeLabel}
+                    </span>
+                  </div>
+
+                  {analyticsError ? (
+                    <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-sm font-bold text-red-700">
+                      {analyticsError}
+                    </div>
+                  ) : analyticsLoading ? (
+                    <div className="py-12 text-center text-gray-400">
+                      <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
+                      <p className="font-bold">Loading views analytics...</p>
+                    </div>
+                  ) : analyticsRange === 'week' ? (
+                    viewsAnalytics?.series?.length ? (
+                      <div className="space-y-3">
+                        {viewsAnalytics.series.map((item, index) => (
+                          <div
+                            key={`${item.date}-${index}`}
+                            className="flex items-center justify-between rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-3"
+                          >
+                            <span className="text-sm font-bold text-gray-700">{item.date}</span>
+                            <span className="text-sm font-black text-[#FF6A00]">
+                              {Number(item.views || 0).toLocaleString()} views
+                            </span>
+                          </div>
+                        ))}
+
+                        <div className="mt-4 rounded-2xl bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white px-4 py-4 flex items-center justify-between">
+                          <span className="text-sm font-black uppercase tracking-wide">
+                            Total Week Views
+                          </span>
+                          <span className="text-lg font-black">
+                            {Number(viewsAnalytics?.totalViews || 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-12 text-center text-gray-400">
+                        <p className="font-bold">No views found in last 7 days</p>
+                      </div>
+                    )
+                  ) : analyticsRange === 'month' ? (
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-5">
+                        <p className="text-xs font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
+                          Selected Month
+                        </p>
+                        <p className="text-lg font-black text-gray-800">{selectedMonth}</p>
+                      </div>
+
+                      <div className="rounded-2xl bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white px-4 py-5 flex items-center justify-between">
+                        <span className="text-sm font-black uppercase tracking-wide">
+                          Total Month Views
+                        </span>
+                        <span className="text-2xl font-black">
+                          {Number(viewsAnalytics?.totalViews || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ) : viewsAnalytics?.monthlySeries?.length ? (
                     <div className="space-y-3">
-                      {viewsAnalytics.series.map((item, index) => (
+                      {viewsAnalytics.monthlySeries.map((item, index) => (
                         <div
-                          key={`${item.date}-${index}`}
+                          key={`${item.month}-${index}`}
                           className="flex items-center justify-between rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-3"
                         >
-                          <span className="text-sm font-bold text-gray-700">{item.date}</span>
+                          <span className="text-sm font-bold text-gray-700">{item.month}</span>
                           <span className="text-sm font-black text-[#FF6A00]">
                             {Number(item.views || 0).toLocaleString()} views
                           </span>
@@ -1075,7 +1127,7 @@ const AdminView: React.FC<AdminViewProps> = ({
 
                       <div className="mt-4 rounded-2xl bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white px-4 py-4 flex items-center justify-between">
                         <span className="text-sm font-black uppercase tracking-wide">
-                          Total Week Views
+                          Total Year Views
                         </span>
                         <span className="text-lg font-black">
                           {Number(viewsAnalytics?.totalViews || 0).toLocaleString()}
@@ -1084,385 +1136,334 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </div>
                   ) : (
                     <div className="py-12 text-center text-gray-400">
-                      <p className="font-bold">No views found in last 7 days</p>
+                      <p className="font-bold">No monthly views found for selected year</p>
                     </div>
-                  )
-                ) : analyticsRange === 'month' ? (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-5">
-                      <p className="text-xs font-black text-gray-400 uppercase mb-2 tracking-[0.16em]">
-                        Selected Month
-                      </p>
-                      <p className="text-lg font-black text-gray-800">{selectedMonth}</p>
-                    </div>
-
-                    <div className="rounded-2xl bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white px-4 py-5 flex items-center justify-between">
-                      <span className="text-sm font-black uppercase tracking-wide">
-                        Total Month Views
-                      </span>
-                      <span className="text-2xl font-black">
-                        {Number(viewsAnalytics?.totalViews || 0).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                ) : viewsAnalytics?.monthlySeries?.length ? (
-                  <div className="space-y-3">
-                    {viewsAnalytics.monthlySeries.map((item, index) => (
-                      <div
-                        key={`${item.month}-${index}`}
-                        className="flex items-center justify-between rounded-2xl border border-orange-100 bg-[#FFF9F5] px-4 py-3"
-                      >
-                        <span className="text-sm font-bold text-gray-700">{item.month}</span>
-                        <span className="text-sm font-black text-[#FF6A00]">
-                          {Number(item.views || 0).toLocaleString()} views
-                        </span>
-                      </div>
-                    ))}
-
-                    <div className="mt-4 rounded-2xl bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white px-4 py-4 flex items-center justify-between">
-                      <span className="text-sm font-black uppercase tracking-wide">
-                        Total Year Views
-                      </span>
-                      <span className="text-lg font-black">
-                        {Number(viewsAnalytics?.totalViews || 0).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-12 text-center text-gray-400">
-                    <p className="font-bold">No monthly views found for selected year</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-black text-gray-800">Top Viewed Products</h2>
-                  <span className="text-xs font-black px-3 py-1.5 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-100">
-                    Top 10
-                  </span>
+                  )}
                 </div>
 
-                {analyticsLoading ? (
-                  <div className="py-12 text-center text-gray-400">
-                    <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
-                    <p className="font-bold">Loading top products...</p>
+                <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-black text-gray-800">Top Viewed Products</h2>
+                    <span className="text-xs font-black px-3 py-1.5 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-100">
+                      Top 10
+                    </span>
                   </div>
-                ) : viewsAnalytics?.topProducts?.length ? (
-                  <div className="space-y-3">
-                    {viewsAnalytics.topProducts.map((item, index) => (
-                      <div
-                        key={`${item.productId}-${index}`}
-                        className="flex items-center justify-between rounded-2xl border border-orange-100 bg-white px-4 py-3"
-                      >
-                        <div className="min-w-0 pr-4">
-                          <p className="text-sm font-black text-gray-800 truncate">
-                            #{index + 1} {item.title || 'Unknown Product'}
-                          </p>
-                          <p className="text-xs text-gray-400 truncate">
-                            Product ID: {item.productId}
-                          </p>
+
+                  {analyticsLoading ? (
+                    <div className="py-12 text-center text-gray-400">
+                      <div className="inline-block w-8 h-8 border-[3px] border-gray-300 border-t-[#FF6A00] rounded-full animate-spin mb-4" />
+                      <p className="font-bold">Loading top products...</p>
+                    </div>
+                  ) : viewsAnalytics?.topProducts?.length ? (
+                    <div className="space-y-3">
+                      {viewsAnalytics.topProducts.map((item, index) => (
+                        <div
+                          key={`${item.productId}-${index}`}
+                          className="flex items-center justify-between rounded-2xl border border-orange-100 bg-white px-4 py-3"
+                        >
+                          <div className="min-w-0 pr-4">
+                            <p className="text-sm font-black text-gray-800 truncate">
+                              #{index + 1} {item.title || 'Unknown Product'}
+                            </p>
+                            <p className="text-xs text-gray-400 truncate">
+                              Product ID: {item.productId}
+                            </p>
+                          </div>
+
+                          <span className="text-sm font-black text-[#FF6A00] shrink-0">
+                            {Number(item.views || 0).toLocaleString()}
+                          </span>
                         </div>
-
-                        <span className="text-sm font-black text-[#FF6A00] shrink-0">
-                          {Number(item.views || 0).toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-12 text-center text-gray-400">
-                    <p className="font-bold">No top products yet</p>
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center text-gray-400">
+                      <p className="font-bold">No top products yet</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'products' && (
-          <div className="space-y-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <h1 className="text-xl font-black text-gray-800">Products Management</h1>
+          {activeTab === 'products' && (
+            <div className="space-y-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <h1 className="text-xl font-black text-gray-800">Products Management</h1>
 
-              <div className="flex flex-col md:flex-row gap-3">
-                <button
-                  onClick={() => {
-                    setEditMode('create');
-                    setEditingProductId(null);
-                    setIsAdding(true);
-                    setCategorySearch('');
-                  }}
-                  className="bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-3 px-6 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] hover:shadow-[0_14px_28px_rgba(255,106,0,0.28)] active:scale-[0.98] transition-all"
-                >
-                  + ADD NEW PRODUCT
-                </button>
-              </div>
-            </div>
-
-            {/* Prominent Search Section */}
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-5 border-2 border-orange-200 shadow-lg">
-              <div className="flex items-center gap-3 mb-3">
-                <svg className="w-6 h-6 text-[#FF6A00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8" strokeWidth="2" />
-                  <path d="M21 21l-4.35-4.35" strokeWidth="2" />
-                </svg>
-                <span className="text-sm font-black text-gray-700 uppercase tracking-wide">Search Products</span>
-              </div>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="M21 21l-4.35-4.35" />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="Search by product title, category name, or product ID..."
-                  className="w-full rounded-2xl border-2 border-orange-200 bg-white pl-12 pr-4 py-4 text-base font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-md transition-all"
-                />
-                {productSearch && (
+                <div className="flex flex-col md:flex-row gap-3">
                   <button
-                    onClick={() => setProductSearch('')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => {
+                      setEditMode('create');
+                      setEditingProductId(null);
+                      setIsAdding(true);
+                      setCategorySearch('');
+                    }}
+                    className="bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-3 px-6 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] hover:shadow-[0_14px_28px_rgba(255,106,0,0.28)] active:scale-[0.98] transition-all"
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
+                    + ADD NEW PRODUCT
                   </button>
+                </div>
+              </div>
+
+              {/* Prominent Search Section */}
+              <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-5 border-2 border-orange-200 shadow-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <svg className="w-6 h-6 text-[#FF6A00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8" strokeWidth="2" />
+                    <path d="M21 21l-4.35-4.35" strokeWidth="2" />
+                  </svg>
+                  <span className="text-sm font-black text-gray-700 uppercase tracking-wide">Search Products</span>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="M21 21l-4.35-4.35" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Search by product title, category name, or product ID..."
+                    className="w-full rounded-2xl border-2 border-orange-200 bg-white pl-12 pr-4 py-4 text-base font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 shadow-md transition-all"
+                  />
+                  {productSearch && (
+                    <button
+                      onClick={() => setProductSearch('')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {productSearch && (
+                  <div className="mt-3 text-sm font-semibold text-[#FF6A00]">
+                    Found {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''} for "{productSearch}"
+                  </div>
                 )}
               </div>
-              {productSearch && (
-                <div className="mt-3 text-sm font-semibold text-[#FF6A00]">
-                  Found {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''} for "{productSearch}"
-                </div>
-              )}
-            </div>
 
-            <div className="bg-white rounded-3xl border border-orange-100 overflow-hidden shadow-[0_8px_24px_rgba(255,106,0,0.05)]">
-              {filteredProducts.length === 0 ? (
-                <div className="p-12 text-center text-gray-400">
-                  <svg
-                    className="w-16 h-16 mx-auto mb-4 text-gray-200"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                    />
-                  </svg>
-                  <p className="font-bold">
-                    {products.length === 0 ? 'No products yet' : 'No matching products'}
-                  </p>
-                  <p className="text-sm mt-1">
-                    {products.length === 0
-                      ? 'Start by adding your first product'
-                      : 'Try a different search term'}
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-orange-100">
-                  {filteredProducts.map(product => {
-                    const originalPriceNumber = Number((product as any).originalPrice ?? 0);
-                    const sellingPriceNumber = Number(
-                      (product as any).sellingPrice ?? (product as any).price ?? 0
-                    );
-                    const displaySellingPrice = Number.isFinite(sellingPriceNumber)
-                      ? sellingPriceNumber.toLocaleString()
-                      : '0';
-                    const displayOriginalPrice = Number.isFinite(originalPriceNumber)
-                      ? originalPriceNumber.toLocaleString()
-                      : '0';
+              <div className="bg-white rounded-3xl border border-orange-100 overflow-hidden shadow-[0_8px_24px_rgba(255,106,0,0.05)]">
+                {filteredProducts.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400">
+                    <svg
+                      className="w-16 h-16 mx-auto mb-4 text-gray-200"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1}
+                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                      />
+                    </svg>
+                    <p className="font-bold">
+                      {products.length === 0 ? 'No products yet' : 'No matching products'}
+                    </p>
+                    <p className="text-sm mt-1">
+                      {products.length === 0
+                        ? 'Start by adding your first product'
+                        : 'Try a different search term'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-orange-100">
+                    {filteredProducts.map(product => {
+                      const originalPriceNumber = Number((product as any).originalPrice ?? 0);
+                      const sellingPriceNumber = Number(
+                        (product as any).sellingPrice ?? (product as any).price ?? 0
+                      );
+                      const displaySellingPrice = Number.isFinite(sellingPriceNumber)
+                        ? sellingPriceNumber.toLocaleString()
+                        : '0';
+                      const displayOriginalPrice = Number.isFinite(originalPriceNumber)
+                        ? originalPriceNumber.toLocaleString()
+                        : '0';
 
-                    const discount =
-                      product.discount ||
-                      (originalPriceNumber > sellingPriceNumber
-                        ? Math.round(
-                            ((originalPriceNumber - sellingPriceNumber) / originalPriceNumber) *
-                              100
-                          )
-                        : 0);
+                      const discount =
+                        product.discount ||
+                        (originalPriceNumber > sellingPriceNumber
+                          ? Math.round(
+                              ((originalPriceNumber - sellingPriceNumber) / originalPriceNumber) *
+                                100
+                            )
+                          : 0);
 
-                    return (
-                      <div
-                        key={product.id}
-                        className="p-4 flex items-center space-x-4 hover:bg-[#FFF9F5] transition-colors relative"
-                      >
-                        <div className="w-16 h-16 rounded-2xl overflow-hidden border border-orange-200 bg-white shadow-sm">
-                          <WatermarkedImage
-                            src={
-                              product.image ||
-                              'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+'
-                            }
-                            alt={product.title}
-                            containerClass="w-full h-full"
-                            productId={product.id}
-                            isProduct={true}
-                          />
-                        </div>
+                      return (
+                        <div
+                          key={product.id}
+                          className="p-4 flex items-center space-x-4 hover:bg-[#FFF9F5] transition-colors relative"
+                        >
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden border border-orange-200 bg-white shadow-sm">
+                            <WatermarkedImage
+                              src={
+                                product.image ||
+                                'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNGM0YzRjMiLz48cGF0aCBkPSJNMzUgNDVINTVWNjVINzVMNTAgODBMNTUgNzVMMzUgNTVWNDVaIiBmaWxsPSIjQ0NDIi8+PC9zdmc+'
+                              }
+                              alt={product.title}
+                              containerClass="w-full h-full"
+                              productId={product.id}
+                              isProduct={true}
+                            />
+                          </div>
 
-                        <div className="flex-grow min-w-0">
-                          <p className="text-sm font-bold truncate text-gray-900">
-                            {product.title}
-                          </p>
+                          <div className="flex-grow min-w-0">
+                            <p className="text-sm font-bold truncate text-gray-900">
+                              {product.title}
+                            </p>
 
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                            {discount > 0 ? (
-                              <>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {discount > 0 ? (
+                                <>
+                                  <p className="text-xs font-black text-[#FF6A00]">
+                                    TSh {displaySellingPrice}
+                                  </p>
+                                  <p className="text-xs font-black text-gray-400 line-through">
+                                    TSh {displayOriginalPrice}
+                                  </p>
+                                </>
+                              ) : (
                                 <p className="text-xs font-black text-[#FF6A00]">
                                   TSh {displaySellingPrice}
                                 </p>
-                                <p className="text-xs font-black text-gray-400 line-through">
-                                  TSh {displayOriginalPrice}
-                                </p>
-                              </>
-                            ) : (
-                              <p className="text-xs font-black text-[#FF6A00]">
-                                TSh {displaySellingPrice}
-                              </p>
-                            )}
+                              )}
 
-                            {discount > 0 && (
-                              <span className="text-[10px] font-black bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
-                                -{discount}%
+                              {discount > 0 && (
+                                <span className="text-[10px] font-black bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
+                                  -{discount}%
+                                </span>
+                              )}
+
+                              <div className="flex items-center space-x-1 text-gray-500">
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                  <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <span className="text-xs font-bold">
+                                  {product.views?.toLocaleString() ||
+                                    product.viewCount?.toLocaleString() ||
+                                    '0'}
+                                </span>
+                              </div>
+
+                              <span
+                                className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
+                                  product.status === 'online'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-700'
+                                }`}
+                              >
+                                {product.status}
                               </span>
-                            )}
+                            </div>
 
-                            <div className="flex items-center space-x-1 text-gray-500">
+                            <p className="text-xs text-gray-500 mt-1 truncate">
+                              Category:{' '}
+                              {(product as any).category_name ||
+                                product.categoryName ||
+                                product.category ||
+                                'Uncategorized'}
+                            </p>
+                          </div>
+
+                          <div className="relative">
+                            <button
+                              onClick={(e) => handleMenuClick(e, product.id)}
+                              className="p-2 rounded-xl hover:bg-orange-100 transition-colors"
+                            >
                               <svg
-                                width="14"
-                                height="14"
+                                width="20"
+                                height="20"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="2"
                               >
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
+                                <circle cx="12" cy="12" r="1" fill="currentColor" />
+                                <circle cx="12" cy="5" r="1" fill="currentColor" />
+                                <circle cx="12" cy="19" r="1" fill="currentColor" />
                               </svg>
-                              <span className="text-xs font-bold">
-                                {product.views?.toLocaleString() ||
-                                  product.viewCount?.toLocaleString() ||
-                                  '0'}
-                              </span>
-                            </div>
+                            </button>
 
-                            <span
-                              className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
-                                product.status === 'online'
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              {product.status}
-                            </span>
+                            {activeMenuId === product.id && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-orange-100 py-2 z-50 overflow-hidden">
+                                <button
+                                  onClick={(e) => handleEdit(e, product)}
+                                  className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-orange-50 flex items-center space-x-3"
+                                >
+                                  <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                  >
+                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                  </svg>
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  onClick={(e) => handleDelete(e, product.id)}
+                                  className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center space-x-3"
+                                >
+                                  <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                  >
+                                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                  </svg>
+                                  <span>Delete</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
-
-                          <p className="text-xs text-gray-500 mt-1 truncate">
-                            Category:{' '}
-                            {(product as any).category_name ||
-                              product.categoryName ||
-                              product.category ||
-                              'Uncategorized'}
-                          </p>
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-                        <div className="relative">
-                          <button
-                            onClick={(e) => handleMenuClick(e, product.id)}
-                            className="p-2 rounded-xl hover:bg-orange-100 transition-colors"
-                          >
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <circle cx="12" cy="12" r="1" fill="currentColor" />
-                              <circle cx="12" cy="5" r="1" fill="currentColor" />
-                              <circle cx="12" cy="19" r="1" fill="currentColor" />
-                            </svg>
-                          </button>
-
-                          {activeMenuId === product.id && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-orange-100 py-2 z-50 overflow-hidden">
-                              <button
-                                onClick={(e) => handleEdit(e, product)}
-                                className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-orange-50 flex items-center space-x-3"
-                              >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                >
-                                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                                </svg>
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                onClick={(e) => handleDelete(e, product.id)}
-                                className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center space-x-3"
-                              >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                >
-                                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                                </svg>
-                                <span>Delete</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="mt-4 text-center py-2">
+                <span className="text-xs text-gray-400">©SonkoSound - Product images protected</span>
+              </div>
             </div>
+          )}
 
-            <div className="mt-4 text-center py-2">
-              <span className="text-xs text-gray-400">©SonkoSound - Product images protected</span>
+          {activeTab === 'withdraw' && (
+            <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-orange-100 shadow-sm">
+              <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1}
+                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+              <p className="font-bold">Withdraw Earnings</p>
+              <p className="text-sm mt-1">Coming soon...</p>
             </div>
-          </div>
-        )}
-
-        {activeTab === 'messages' && (
-          <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-6">
-            <Messages />
-          </div>
-        )}
-
-        {activeTab === 'withdraw' && (
-          <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-orange-100 shadow-sm">
-            <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
-            <p className="font-bold">Withdraw Earnings</p>
-            <p className="text-sm mt-1">Coming soon...</p>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {isAdding && (
         <div className="fixed inset-0 bg-black/75 z-[110] flex flex-col">
