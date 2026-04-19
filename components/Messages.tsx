@@ -515,57 +515,62 @@ const Messages: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#FFF7F0_0%,#FFF3EA_40%,#FFF8F4_100%)]">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="min-h-screen w-full bg-[#FFF6EF]">
+      <div className="w-full m-0 p-0">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-gray-800">SMS Messages Center</h1>
-          <p className="text-sm text-gray-500 mt-2">
-            Professional customer messaging for offers, arrivals, and promotions
-          </p>
+        <div className="w-full px-0 pt-4 pb-2 border-b border-orange-200 bg-[#FFF6EF]">
+          <div className="px-0">
+            <h1 className="text-[28px] leading-[1.1] font-black text-gray-900">
+              SMS Messages Center
+            </h1>
+            <p className="text-sm text-gray-500 mt-2">
+              Professional customer messaging for offers, arrivals, and promotions
+            </p>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-2xl border border-orange-100 p-4 shadow-sm">
-            <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Total Contacts</p>
-            <p className="text-2xl font-black text-gray-900">{contacts.length.toLocaleString()}</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-orange-100 p-4 shadow-sm">
-            <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Subscribed</p>
-            <p className="text-2xl font-black text-[#FF6A00]">{contacts.filter(c => c.subscribed).length.toLocaleString()}</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-orange-100 p-4 shadow-sm">
-            <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Selected</p>
-            <p className="text-2xl font-black text-gray-900">{selectedIds.size.toLocaleString()}</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-orange-100 p-4 shadow-sm">
-            <p className="text-[10px] font-black text-gray-400 uppercase mb-1">SMS Units</p>
-            <p className="text-2xl font-black text-[#FF6A00]">{estimatedMessages.toLocaleString()}</p>
+        {/* Stats Strip */}
+        <div className="w-full px-0 py-3 border-b border-orange-200 bg-[#FFF6EF]">
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-black uppercase tracking-[0.12em]">
+            <span className="text-gray-500">
+              Total Contacts: <span className="text-gray-900">{contacts.length.toLocaleString()}</span>
+            </span>
+            <span className="text-gray-500">
+              Subscribed: <span className="text-[#FF6A00]">{contacts.filter(c => c.subscribed).length.toLocaleString()}</span>
+            </span>
+            <span className="text-gray-500">
+              Selected: <span className="text-gray-900">{selectedIds.size.toLocaleString()}</span>
+            </span>
+            <span className="text-gray-500">
+              SMS Units: <span className="text-[#FF6A00]">{estimatedMessages.toLocaleString()}</span>
+            </span>
           </div>
         </div>
 
         {/* Horizontal Menu */}
-        <div className="border-b border-orange-200 mb-8">
-          <div className="flex flex-wrap gap-1">
+        <div className="w-full sticky top-0 z-10 bg-[#FFF6EF] border-b border-orange-200">
+          <div className="flex overflow-x-auto no-scrollbar">
             {[
-              ['compose', '✏️ Compose'],
-              ['contacts', '📇 Contacts'],
-              ['import', '📥 Import'],
-              ['campaigns', '📊 Campaigns'],
-              ['templates', '📋 Templates'],
-              ['settings', '⚙️ Settings'],
+              ['compose', 'Compose'],
+              ['contacts', 'Contacts'],
+              ['import', 'Import'],
+              ['campaigns', 'Campaigns'],
+              ['templates', 'Templates'],
+              ['settings', 'Settings'],
             ].map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => setActiveSection(key as MessageSection)}
-                className={`px-6 py-3 text-sm font-black rounded-t-2xl transition-all ${
+                className={`relative shrink-0 px-5 py-4 text-[13px] font-black transition-all ${
                   activeSection === key
-                    ? 'bg-white text-[#FF6A00] border-t-2 border-l-2 border-r-2 border-orange-200 shadow-sm'
-                    : 'bg-transparent text-gray-500 hover:text-gray-700'
+                    ? 'text-[#FF6A00]'
+                    : 'text-gray-500 hover:text-gray-800'
                 }`}
               >
                 {label}
+                {activeSection === key && (
+                  <span className="absolute left-0 bottom-0 h-[3px] w-full bg-[#FF6A00]" />
+                )}
               </button>
             ))}
           </div>
@@ -573,242 +578,220 @@ const Messages: React.FC = () => {
 
         {/* Messages */}
         {(error || success || importInfo) && (
-          <div className="space-y-3 mb-6">
+          <div className="w-full">
             {error && (
-              <div className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-sm font-bold text-red-700">
+              <div className="w-full border-b border-red-200 bg-red-50 px-0 py-3 text-sm font-bold text-red-700">
                 {error}
               </div>
             )}
             {success && (
-              <div className="rounded-2xl bg-green-50 border border-green-200 px-4 py-3 text-sm font-bold text-green-700">
+              <div className="w-full border-b border-green-200 bg-green-50 px-0 py-3 text-sm font-bold text-green-700">
                 {success}
               </div>
             )}
             {importInfo && (
-              <div className="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm font-bold text-blue-700">
+              <div className="w-full border-b border-blue-200 bg-blue-50 px-0 py-3 text-sm font-bold text-blue-700">
                 {importInfo}
               </div>
             )}
           </div>
         )}
 
-        {/* Compose Section */}
-        {activeSection === 'compose' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2">
-                <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                  Campaign Title
-                </label>
-                <input
-                  className="w-full bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-base font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all"
-                  placeholder="Example: Weekend Offers April"
-                  value={campaignTitle}
-                  onChange={(e) => setCampaignTitle(e.target.value)}
-                />
+        {/* Content Wrapper */}
+        <div className="w-full px-0 py-4">
+          {/* Compose Section */}
+          {activeSection === 'compose' && (
+            <div className="w-full space-y-5 px-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                    Campaign Title
+                  </label>
+                  <input
+                    className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-base font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                    placeholder="Example: Weekend Offers April"
+                    value={campaignTitle}
+                    onChange={(e) => setCampaignTitle(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                    Recipients
+                  </label>
+                  <select
+                    value={recipientMode}
+                    onChange={(e) => setRecipientMode(e.target.value as RecipientMode)}
+                    className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-black outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                  >
+                    <option value="subscribed">Subscribed ({contacts.filter(c => c.subscribed).length})</option>
+                    <option value="selected">Selected ({selectedIds.size})</option>
+                    <option value="all">All ({contacts.length})</option>
+                  </select>
+                </div>
               </div>
+
+              <div className="flex flex-wrap gap-2 py-2">
+                <button
+                  onClick={() => appendToMessage('{name}')}
+                  className="px-3 py-2 rounded-full bg-transparent border border-orange-200 text-[11px] font-black text-[#FF6A00] hover:bg-orange-50 transition"
+                >
+                  + Customer Name
+                </button>
+                <button
+                  onClick={() => appendToMessage('{shop_name}')}
+                  className="px-3 py-2 rounded-full bg-transparent border border-orange-200 text-[11px] font-black text-[#FF6A00] hover:bg-orange-50 transition"
+                >
+                  + Shop Name
+                </button>
+                <button
+                  onClick={() => appendToMessage('{link}')}
+                  className="px-3 py-2 rounded-full bg-transparent border border-orange-200 text-[11px] font-black text-[#FF6A00] hover:bg-orange-50 transition"
+                >
+                  + Product Link
+                </button>
+                <button
+                  onClick={() => appendToMessage(settings.unsubscribe_text || 'Reply STOP to unsubscribe')}
+                  className="px-3 py-2 rounded-full bg-transparent border border-orange-200 text-[11px] font-black text-[#FF6A00] hover:bg-orange-50 transition"
+                >
+                  + Unsubscribe Text
+                </button>
+                <button
+                  onClick={() => setMessage('')}
+                  className="px-3 py-2 rounded-full bg-transparent border border-red-200 text-[11px] font-black text-red-600 hover:bg-red-50 transition"
+                >
+                  Clear Message
+                </button>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                  Recipients
+                  SMS Message
                 </label>
-                <select
-                  value={recipientMode}
-                  onChange={(e) => setRecipientMode(e.target.value as RecipientMode)}
-                  className="w-full bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all"
-                >
-                  <option value="subscribed">Subscribed ({contacts.filter(c => c.subscribed).length})</option>
-                  <option value="selected">Selected ({selectedIds.size})</option>
-                  <option value="all">All ({contacts.length})</option>
-                </select>
+                <textarea
+                  className="w-full min-h-[420px] bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-base text-gray-800 font-semibold leading-8 outline-none focus:border-[#FF6A00] focus:ring-0 transition-all resize-y"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder={`Hello {name}, new products are now available at Baraka Sonko Electronics. Some items are on offer today. Visit our shop now.`}
+                />
               </div>
-            </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => appendToMessage('{name}')}
-                className="px-4 py-2 rounded-xl bg-orange-50 border border-orange-200 text-xs font-black text-[#FF6A00] hover:bg-orange-100 transition"
-              >
-                + Customer Name
-              </button>
-              <button
-                onClick={() => appendToMessage('{shop_name}')}
-                className="px-4 py-2 rounded-xl bg-orange-50 border border-orange-200 text-xs font-black text-[#FF6A00] hover:bg-orange-100 transition"
-              >
-                + Shop Name
-              </button>
-              <button
-                onClick={() => appendToMessage('{link}')}
-                className="px-4 py-2 rounded-xl bg-orange-50 border border-orange-200 text-xs font-black text-[#FF6A00] hover:bg-orange-100 transition"
-              >
-                + Product Link
-              </button>
-              <button
-                onClick={() => appendToMessage(settings.unsubscribe_text || 'Reply STOP to unsubscribe')}
-                className="px-4 py-2 rounded-xl bg-orange-50 border border-orange-200 text-xs font-black text-[#FF6A00] hover:bg-orange-100 transition"
-              >
-                + Unsubscribe Text
-              </button>
-              <button
-                onClick={() => setMessage('')}
-                className="px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-xs font-black text-red-600 hover:bg-red-100 transition"
-              >
-                Clear Message
-              </button>
-            </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-gray-500">
+                <span>Characters: <span className="text-gray-900">{smsLength}</span></span>
+                <span>Segments: <span className="text-[#FF6A00]">{smsSegments}</span></span>
+                <span>Recipients: <span className="text-gray-900">{estimatedRecipients.toLocaleString()}</span></span>
+                <span>Total SMS: <span className="text-[#FF6A00]">{estimatedMessages.toLocaleString()}</span></span>
+              </div>
 
-            <div>
-              <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                SMS Message
-              </label>
-              <textarea
-                className="w-full min-h-[400px] bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-base text-gray-800 font-semibold leading-7 outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all resize-y"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder={`Hello {name}, new products are now available at Baraka Sonko Electronics. Some items are on offer today. Visit our shop now.`}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-2xl border border-orange-100 p-4 text-center">
-                <p className="text-[10px] font-black text-gray-400 uppercase">Characters</p>
-                <p className="text-2xl font-black text-gray-900">{smsLength}</p>
-              </div>
-              <div className="bg-white rounded-2xl border border-orange-100 p-4 text-center">
-                <p className="text-[10px] font-black text-gray-400 uppercase">Segments</p>
-                <p className="text-2xl font-black text-[#FF6A00]">{smsSegments}</p>
-              </div>
-              <div className="bg-white rounded-2xl border border-orange-100 p-4 text-center">
-                <p className="text-[10px] font-black text-gray-400 uppercase">Recipients</p>
-                <p className="text-2xl font-black text-gray-900">{estimatedRecipients.toLocaleString()}</p>
-              </div>
-              <div className="bg-white rounded-2xl border border-orange-100 p-4 text-center">
-                <p className="text-[10px] font-black text-gray-400 uppercase">Total SMS</p>
-                <p className="text-2xl font-black text-[#FF6A00]">{estimatedMessages.toLocaleString()}</p>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl border border-orange-200 p-5">
-              <h3 className="text-sm font-black text-gray-800 mb-3">📱 Live Preview</h3>
-              <div className="bg-white rounded-2xl border border-orange-100 p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6A00] to-[#FF9A3D] flex items-center justify-center text-white font-bold shadow-md">
-                    BS
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-gray-900">Baraka Sonko</p>
-                    <p className="text-xs text-gray-400">SMS Preview</p>
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-xl px-4 py-4 text-sm text-gray-700 leading-7 whitespace-pre-wrap">
+              <div className="border-t border-orange-200 pt-4">
+                <h3 className="text-sm font-black text-gray-800 mb-3">Live Preview</h3>
+                <div className="whitespace-pre-wrap text-sm text-gray-700 leading-7">
                   {message.trim() ? message.replace(/\{name\}/gi, 'Customer') : 'Your SMS preview will appear here...'}
                 </div>
               </div>
-            </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <button
-                onClick={handleSend}
-                disabled={sending}
-                className="flex-1 bg-gradient-to-r from-[#FF6A00] to-[#FF8A2B] text-white font-black py-4 rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50"
-              >
-                {sending ? 'SENDING CAMPAIGN...' : '📨 SEND SMS CAMPAIGN'}
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    setError('');
-                    setSuccess('');
-                    const res = await fetch('/api/messages/campaigns', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        title: campaignTitle || 'Untitled Draft',
-                        message,
-                        recipient_mode: recipientMode,
-                        selected_ids: Array.from(selectedIds),
-                        status: 'draft',
-                      }),
-                    });
-                    const data = await res.json().catch(() => null);
-                    if (!res.ok || !data?.success) {
-                      throw new Error(data?.error || 'Failed to save draft');
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-orange-200">
+                <button
+                  onClick={handleSend}
+                  disabled={sending}
+                  className="flex-1 bg-[#FF6A00] text-white font-black py-4 rounded-xl active:scale-[0.99] transition-all disabled:opacity-50"
+                >
+                  {sending ? 'SENDING CAMPAIGN...' : '📨 SEND SMS CAMPAIGN'}
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      setError('');
+                      setSuccess('');
+                      const res = await fetch('/api/messages/campaigns', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          title: campaignTitle || 'Untitled Draft',
+                          message,
+                          recipient_mode: recipientMode,
+                          selected_ids: Array.from(selectedIds),
+                          status: 'draft',
+                        }),
+                      });
+                      const data = await res.json().catch(() => null);
+                      if (!res.ok || !data?.success) {
+                        throw new Error(data?.error || 'Failed to save draft');
+                      }
+                      await fetchCampaigns();
+                      setSuccess('Draft saved successfully');
+                    } catch (err: any) {
+                      setError(err?.message || 'Failed to save draft');
                     }
-                    await fetchCampaigns();
-                    setSuccess('Draft saved successfully');
-                  } catch (err: any) {
-                    setError(err?.message || 'Failed to save draft');
-                  }
-                }}
-                className="sm:w-48 bg-white border-2 border-orange-200 text-gray-700 font-black py-4 rounded-2xl hover:bg-orange-50 transition-all"
-              >
-                💾 SAVE DRAFT
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Contacts Section */}
-        {activeSection === 'contacts' && (
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <h2 className="text-xl font-black text-gray-800">Contact Management</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={selectAllFiltered}
-                  className="px-4 py-2 rounded-xl text-[11px] font-black bg-orange-50 text-[#FF6A00] border border-orange-200 hover:bg-orange-100 transition"
+                  }}
+                  className="sm:w-48 bg-transparent border border-orange-200 text-gray-700 font-black py-4 rounded-xl hover:bg-orange-50 transition-all"
                 >
-                  Select Visible
-                </button>
-                <button
-                  onClick={clearSelected}
-                  className="px-4 py-2 rounded-xl text-[11px] font-black bg-white text-gray-600 border border-orange-200 hover:bg-gray-50 transition"
-                >
-                  Clear Selected
-                </button>
-                <button
-                  onClick={removeAllContacts}
-                  className="px-4 py-2 rounded-xl text-[11px] font-black bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition"
-                >
-                  Remove All
+                  💾 SAVE DRAFT
                 </button>
               </div>
             </div>
+          )}
 
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, phone, or source..."
-                  className="w-full bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all"
-                />
+          {/* Contacts Section */}
+          {activeSection === 'contacts' && (
+            <div className="w-full space-y-5 px-0">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h2 className="text-xl font-black text-gray-800">Contact Management</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={selectAllFiltered}
+                    className="px-4 py-2 rounded-xl text-[11px] font-black bg-orange-50 text-[#FF6A00] border border-orange-200 hover:bg-orange-100 transition"
+                  >
+                    Select Visible
+                  </button>
+                  <button
+                    onClick={clearSelected}
+                    className="px-4 py-2 rounded-xl text-[11px] font-black bg-transparent text-gray-600 border border-orange-200 hover:bg-gray-50 transition"
+                  >
+                    Clear Selected
+                  </button>
+                  <button
+                    onClick={removeAllContacts}
+                    className="px-4 py-2 rounded-xl text-[11px] font-black bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition"
+                  >
+                    Remove All
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => setShowOnlySelected(v => !v)}
-                className={`px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-wide transition-all ${
-                  showOnlySelected
-                    ? 'bg-gradient-to-r from-[#FF6A00] to-[#FF8A2B] text-white shadow-md'
-                    : 'bg-white text-gray-600 border-2 border-orange-200 hover:bg-orange-50'
-                }`}
-              >
-                {showOnlySelected ? 'Selected Only' : 'Show All'}
-              </button>
-            </div>
-<div className="bg-white rounded-2xl border border-orange-100 overflow-hidden">
-  <div className="overflow-x-auto">
-    <table className="w-full text-sm">
-      <thead className="bg-orange-50 border-b border-orange-100">
-        <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
-          <th className="py-4 px-4">Select</th>
-          <th className="py-4 px-4">Name</th>
-          <th className="py-4 px-4">Phone</th>
-          <th className="py-4 px-4">Source</th>
-          <th className="py-4 px-4">Status</th>
-          <th className="py-4 px-4">Actions</th>
-        </tr>
-      </thead>
-            
+
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by name, phone, or source..."
+                    className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                  />
+                </div>
+                <button
+                  onClick={() => setShowOnlySelected(v => !v)}
+                  className={`px-5 py-3 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all ${
+                    showOnlySelected
+                      ? 'bg-[#FF6A00] text-white'
+                      : 'bg-transparent text-gray-600 border border-orange-200 hover:bg-orange-50'
+                  }`}
+                >
+                  {showOnlySelected ? 'Selected Only' : 'Show All'}
+                </button>
+              </div>
+
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-orange-200 bg-transparent">
+                    <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
+                      <th className="py-4 px-4">Select</th>
+                      <th className="py-4 px-4">Name</th>
+                      <th className="py-4 px-4">Phone</th>
+                      <th className="py-4 px-4">Source</th>
+                      <th className="py-4 px-4">Status</th>
+                      <th className="py-4 px-4">Actions</th>
+                    </td>
+                  </thead>
                   <tbody>
                     {contactsLoading ? (
                       <tr>
@@ -824,7 +807,7 @@ const Messages: React.FC = () => {
                       </tr>
                     ) : (
                       filteredContacts.map((contact) => (
-                        <tr key={contact.id} className="border-b border-orange-50 hover:bg-orange-50/30 transition">
+                        <tr key={contact.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
                           <td className="py-4 px-4">
                             <input
                               type="checkbox"
@@ -835,13 +818,13 @@ const Messages: React.FC = () => {
                           </td>
                           <td className="py-4 px-4 font-black text-gray-800">
                             {contact.name?.trim() || 'Unnamed Customer'}
-                          </td>
+                           </td>
                           <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
                           <td className="py-4 px-4">
                             <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
                               {contact.source || 'manual'}
                             </span>
-                          </td>
+                           </td>
                           <td className="py-4 px-4">
                             <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
                               contact.subscribed
@@ -850,7 +833,7 @@ const Messages: React.FC = () => {
                             }`}>
                               {contact.subscribed ? 'Subscribed' : 'Opted Out'}
                             </span>
-                          </td>
+                           </td>
                           <td className="py-4 px-4">
                             <div className="flex gap-2">
                               <button
@@ -866,7 +849,7 @@ const Messages: React.FC = () => {
                                 Remove
                               </button>
                             </div>
-                          </td>
+                           </td>
                         </tr>
                       ))
                     )}
@@ -874,105 +857,103 @@ const Messages: React.FC = () => {
                 </table>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Import Section */}
-        {activeSection === 'import' && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-black text-gray-800">Import Contacts</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-white rounded-2xl border border-orange-100 p-6">
-                <h3 className="text-lg font-black text-gray-800 mb-4">Manual Add</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                      Customer Name
-                    </label>
-                    <input
-                      className="w-full bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all"
-                      placeholder="Optional name"
-                      value={manualName}
-                      onChange={(e) => setManualName(e.target.value)}
-                    />
+          {/* Import Section */}
+          {activeSection === 'import' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-black text-gray-800">Import Contacts</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
+                <div className="w-full border-b border-orange-200 pb-6">
+                  <h3 className="text-lg font-black text-gray-800 mb-4">Manual Add</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                        Customer Name
+                      </label>
+                      <input
+                        className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                        placeholder="Optional name"
+                        value={manualName}
+                        onChange={(e) => setManualName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                        Phone Number
+                      </label>
+                      <input
+                        className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                        placeholder="+255712345678"
+                        value={manualPhone}
+                        onChange={(e) => setManualPhone(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      onClick={handleAddManual}
+                      className="w-full bg-[#FF6A00] text-white font-black py-4 rounded-xl transition-all"
+                    >
+                      + ADD NUMBER
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                      Phone Number
-                    </label>
-                    <input
-                      className="w-full bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all"
-                      placeholder="+255712345678"
-                      value={manualPhone}
-                      onChange={(e) => setManualPhone(e.target.value)}
-                    />
-                  </div>
-                  <button
-                    onClick={handleAddManual}
-                    className="w-full bg-gradient-to-r from-[#FF6A00] to-[#FF8A2B] text-white font-black py-4 rounded-2xl shadow-md hover:shadow-lg transition-all"
-                  >
-                    + ADD NUMBER
-                  </button>
                 </div>
-              </div>
 
-              <div className="bg-white rounded-2xl border border-orange-100 p-6">
-                <h3 className="text-lg font-black text-gray-800 mb-4">Bulk Import</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                      Bulk Paste Numbers
-                    </label>
-                    <textarea
-                      className="w-full min-h-[180px] bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all resize-y"
-                      placeholder={`+255712345678\n0712345678\n+255754123456`}
-                      value={bulkNumbers}
-                      onChange={(e) => setBulkNumbers(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={parseBulkNumbers}
-                      className="flex-1 bg-gradient-to-r from-[#FF6A00] to-[#FF8A2B] text-white font-black py-4 rounded-2xl shadow-md hover:shadow-lg transition-all"
-                    >
-                      IMPORT NUMBERS
-                    </button>
-                    <button
-                      onClick={() => fileRef.current?.click()}
-                      className="flex-1 bg-white border-2 border-orange-200 text-gray-700 font-black py-4 rounded-2xl hover:bg-orange-50 transition-all"
-                    >
-                      UPLOAD CSV
-                    </button>
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept=".csv,text/csv"
-                      className="hidden"
-                      onChange={onCsvPicked}
-                    />
+                <div className="w-full border-b border-orange-200 pb-6">
+                  <h3 className="text-lg font-black text-gray-800 mb-4">Bulk Import</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                        Bulk Paste Numbers
+                      </label>
+                      <textarea
+                        className="w-full min-h-[180px] bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all resize-y"
+                        placeholder={`+255712345678\n0712345678\n+255754123456`}
+                        value={bulkNumbers}
+                        onChange={(e) => setBulkNumbers(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={parseBulkNumbers}
+                        className="flex-1 bg-[#FF6A00] text-white font-black py-4 rounded-xl transition-all"
+                      >
+                        IMPORT NUMBERS
+                      </button>
+                      <button
+                        onClick={() => fileRef.current?.click()}
+                        className="flex-1 bg-transparent border border-orange-200 text-gray-700 font-black py-4 rounded-xl hover:bg-orange-50 transition-all"
+                      >
+                        UPLOAD CSV
+                      </button>
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        accept=".csv,text/csv"
+                        className="hidden"
+                        onChange={onCsvPicked}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Campaigns Section */}
-        {activeSection === 'campaigns' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black text-gray-800">Campaign History</h2>
-              <button
-                onClick={fetchCampaigns}
-                className="px-4 py-2 rounded-xl text-[11px] font-black bg-orange-50 text-[#FF6A00] border border-orange-200 hover:bg-orange-100 transition"
-              >
-                🔄 Refresh
-              </button>
-            </div>
-            <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden">
-              <div className="overflow-x-auto">
+          {/* Campaigns Section */}
+          {activeSection === 'campaigns' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-black text-gray-800">Campaign History</h2>
+                <button
+                  onClick={fetchCampaigns}
+                  className="px-4 py-2 rounded-xl text-[11px] font-black bg-orange-50 text-[#FF6A00] border border-orange-200 hover:bg-orange-100 transition"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+              <div className="w-full overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-orange-50 border-b border-orange-100">
+                  <thead className="border-b border-orange-200 bg-transparent">
                     <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
                       <th className="py-4 px-4">Title</th>
                       <th className="py-4 px-4">Status</th>
@@ -995,7 +976,7 @@ const Messages: React.FC = () => {
                       </tr>
                     ) : (
                       campaigns.map((campaign) => (
-                        <tr key={campaign.id} className="border-b border-orange-50 hover:bg-orange-50/30 transition">
+                        <tr key={campaign.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
                           <td className="py-4 px-4 font-black text-gray-800">{campaign.title}</td>
                           <td className="py-4 px-4">
                             <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
@@ -1011,13 +992,13 @@ const Messages: React.FC = () => {
                             }`}>
                               {campaign.status}
                             </span>
-                          </td>
+                           </td>
                           <td className="py-4 px-4 font-semibold text-gray-600">
                             {campaign.recipients?.toLocaleString?.() || 0}
-                          </td>
+                           </td>
                           <td className="py-4 px-4 text-gray-500">
                             {campaign.created_at ? new Date(campaign.created_at).toLocaleString() : '-'}
-                          </td>
+                           </td>
                         </tr>
                       ))
                     )}
@@ -1025,153 +1006,153 @@ const Messages: React.FC = () => {
                 </table>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Templates Section */}
-        {activeSection === 'templates' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black text-gray-800">Message Templates</h2>
-              <button
-                onClick={fetchTemplates}
-                className="px-4 py-2 rounded-xl text-[11px] font-black bg-orange-50 text-[#FF6A00] border border-orange-200 hover:bg-orange-100 transition"
-              >
-                🔄 Refresh
-              </button>
-            </div>
-            {templatesLoading ? (
-              <div className="bg-white rounded-2xl border border-orange-100 p-12 text-center text-gray-400 font-bold">
-                Loading templates...
-              </div>
-            ) : templates.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-orange-100 p-12 text-center text-gray-400 font-bold">
-                No templates yet
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {templates.map((tpl) => (
-                  <div key={tpl.id} className="bg-white rounded-2xl border border-orange-100 p-6 hover:shadow-md transition">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-black text-gray-800">{tpl.title}</h3>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {tpl.created_at ? new Date(tpl.created_at).toLocaleString() : ''}
-                        </p>
-                        <div className="mt-3 bg-gray-50 rounded-xl p-4 text-sm text-gray-600 leading-7 whitespace-pre-wrap">
-                          {tpl.content}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setCampaignTitle(tpl.title);
-                          setMessage(tpl.content);
-                          setActiveSection('compose');
-                        }}
-                        className="px-4 py-2 rounded-xl text-[11px] font-black bg-white border-2 border-orange-200 text-[#FF6A00] hover:bg-orange-50 transition whitespace-nowrap"
-                      >
-                        Use Template
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Settings Section */}
-        {activeSection === 'settings' && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-black text-gray-800">SMS Settings</h2>
-            <div className="bg-white rounded-2xl border border-orange-100 p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                    Sender ID
-                  </label>
-                  <input
-                    value={settings.sender_id || ''}
-                    onChange={(e) => setSettings(prev => ({ ...prev, sender_id: e.target.value }))}
-                    className="w-full bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all"
-                    placeholder="BARAKA"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                    Default Country Code
-                  </label>
-                  <input
-                    value={settings.default_country_code || '+255'}
-                    onChange={(e) => setSettings(prev => ({ ...prev, default_country_code: e.target.value }))}
-                    className="w-full bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all"
-                    placeholder="+255"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                    Provider
-                  </label>
-                  <input
-                    value={settings.provider || 'africastalking'}
-                    onChange={(e) => setSettings(prev => ({ ...prev, provider: e.target.value }))}
-                    className="w-full bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all"
-                    placeholder="africastalking"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                    Batch Size
-                  </label>
-                  <input
-                    type="number"
-                    value={settings.batch_size || 200}
-                    onChange={(e) => setSettings(prev => ({ ...prev, batch_size: Number(e.target.value || 200) }))}
-                    className="w-full bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all"
-                    placeholder="200"
-                  />
-                </div>
-              </div>
-              <div className="mt-6">
-                <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                  Unsubscribe Text
-                </label>
-                <textarea
-                  value={settings.unsubscribe_text || ''}
-                  onChange={(e) => setSettings(prev => ({ ...prev, unsubscribe_text: e.target.value }))}
-                  className="w-full min-h-[100px] bg-white border-2 border-orange-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all resize-y"
-                  placeholder="Reply STOP to unsubscribe"
-                />
-              </div>
-              <div className="mt-6">
+          {/* Templates Section */}
+          {activeSection === 'templates' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-black text-gray-800">Message Templates</h2>
                 <button
-                  onClick={async () => {
-                    try {
-                      setError('');
-                      setSuccess('');
-                      const res = await fetch('/api/messages/settings', {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(settings),
-                      });
-                      const data = await res.json().catch(() => null);
-                      if (!res.ok || !data?.success) {
-                        throw new Error(data?.error || 'Failed to save settings');
-                      }
-                      setSuccess('Settings saved successfully');
-                      await fetchSettings();
-                    } catch (err: any) {
-                      setError(err?.message || 'Failed to save settings');
-                    }
-                  }}
-                  className="bg-gradient-to-r from-[#FF6A00] to-[#FF8A2B] text-white font-black py-4 px-8 rounded-2xl shadow-md hover:shadow-lg transition-all"
+                  onClick={fetchTemplates}
+                  className="px-4 py-2 rounded-xl text-[11px] font-black bg-orange-50 text-[#FF6A00] border border-orange-200 hover:bg-orange-100 transition"
                 >
-                  💾 SAVE SETTINGS
+                  🔄 Refresh
                 </button>
               </div>
+              {templatesLoading ? (
+                <div className="w-full py-12 text-center text-gray-400 font-bold border-b border-orange-200">
+                  Loading templates...
+                </div>
+              ) : templates.length === 0 ? (
+                <div className="w-full py-12 text-center text-gray-400 font-bold border-b border-orange-200">
+                  No templates yet
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {templates.map((tpl) => (
+                    <div key={tpl.id} className="w-full border-b border-orange-200 py-5 transition">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-black text-gray-800">{tpl.title}</h3>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {tpl.created_at ? new Date(tpl.created_at).toLocaleString() : ''}
+                          </p>
+                          <div className="mt-3 text-sm text-gray-600 leading-7 whitespace-pre-wrap">
+                            {tpl.content}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setCampaignTitle(tpl.title);
+                            setMessage(tpl.content);
+                            setActiveSection('compose');
+                          }}
+                          className="px-4 py-2 rounded-full text-[11px] font-black bg-transparent border border-orange-200 text-[#FF6A00] hover:bg-orange-50 transition whitespace-nowrap"
+                        >
+                          Use Template
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Settings Section */}
+          {activeSection === 'settings' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-black text-gray-800">SMS Settings</h2>
+              <div className="w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                      Sender ID
+                    </label>
+                    <input
+                      value={settings.sender_id || ''}
+                      onChange={(e) => setSettings(prev => ({ ...prev, sender_id: e.target.value }))}
+                      className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                      placeholder="BARAKA"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                      Default Country Code
+                    </label>
+                    <input
+                      value={settings.default_country_code || '+255'}
+                      onChange={(e) => setSettings(prev => ({ ...prev, default_country_code: e.target.value }))}
+                      className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                      placeholder="+255"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                      Provider
+                    </label>
+                    <input
+                      value={settings.provider || 'africastalking'}
+                      onChange={(e) => setSettings(prev => ({ ...prev, provider: e.target.value }))}
+                      className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                      placeholder="africastalking"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                      Batch Size
+                    </label>
+                    <input
+                      type="number"
+                      value={settings.batch_size || 200}
+                      onChange={(e) => setSettings(prev => ({ ...prev, batch_size: Number(e.target.value || 200) }))}
+                      className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                      placeholder="200"
+                    />
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                    Unsubscribe Text
+                  </label>
+                  <textarea
+                    value={settings.unsubscribe_text || ''}
+                    onChange={(e) => setSettings(prev => ({ ...prev, unsubscribe_text: e.target.value }))}
+                    className="w-full min-h-[100px] bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all resize-y"
+                    placeholder="Reply STOP to unsubscribe"
+                  />
+                </div>
+                <div className="mt-6">
+                  <button
+                    onClick={async () => {
+                      try {
+                        setError('');
+                        setSuccess('');
+                        const res = await fetch('/api/messages/settings', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(settings),
+                        });
+                        const data = await res.json().catch(() => null);
+                        if (!res.ok || !data?.success) {
+                          throw new Error(data?.error || 'Failed to save settings');
+                        }
+                        setSuccess('Settings saved successfully');
+                        await fetchSettings();
+                      } catch (err: any) {
+                        setError(err?.message || 'Failed to save settings');
+                      }
+                    }}
+                    className="bg-[#FF6A00] text-white font-black py-4 px-8 rounded-xl transition-all"
+                  >
+                    💾 SAVE SETTINGS
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
