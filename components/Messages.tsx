@@ -779,19 +779,19 @@ const Messages: React.FC = () => {
                   {showOnlySelected ? 'Selected Only' : 'Show All'}
                 </button>
               </div>
-
-              <div className="w-full overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-orange-200 bg-transparent">
-                    <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
-                      <th className="py-4 px-4">Select</th>
-                      <th className="py-4 px-4">Name</th>
-                      <th className="py-4 px-4">Phone</th>
-                      <th className="py-4 px-4">Source</th>
-                      <th className="py-4 px-4">Status</th>
-                      <th className="py-4 px-4">Actions</th>
-                    </td>
-                  </thead>
+<div className="w-full overflow-x-auto">
+  <table className="w-full text-sm">
+    <thead className="border-b border-orange-200 bg-transparent">
+      <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
+        <th className="py-4 px-4">Select</th>
+        <th className="py-4 px-4">Name</th>
+        <th className="py-4 px-4">Phone</th>
+        <th className="py-4 px-4">Source</th>
+        <th className="py-4 px-4">Status</th>
+        <th className="py-4 px-4">Actions</th>
+      </tr>
+    </thead>
+              
                   <tbody>
                     {contactsLoading ? (
                       <tr>
