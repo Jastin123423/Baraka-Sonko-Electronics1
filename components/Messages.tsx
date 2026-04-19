@@ -45,6 +45,13 @@ type MessageTemplate = {
   created_at?: string;
 };
 
+// SMS Footer Constants
+const SMS_FOOTER_LINES = [
+  'Tel: 0656738253',
+  'Pakua App:https://bit.ly/4cufLcJ',
+];
+const SMS_FOOTER_TEXT = SMS_FOOTER_LINES.join('\n');
+
 const Messages: React.FC = () => {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -69,7 +76,7 @@ const Messages: React.FC = () => {
   const [settings, setSettings] = useState<MessageSettings>({
     sender_id: '',
     default_country_code: '+255',
-    unsubscribe_text: 'Reply STOP to unsubscribe',
+    unsubscribe_text: '', // Removed unsubscribe default
     batch_size: 200,
     provider: 'africastalking',
   });
@@ -133,7 +140,7 @@ const Messages: React.FC = () => {
       setSettings({
         sender_id: data.data?.sender_id || '',
         default_country_code: data.data?.default_country_code || '+255',
-        unsubscribe_text: data.data?.unsubscribe_text || 'Reply STOP to unsubscribe',
+        unsubscribe_text: data.data?.unsubscribe_text || '', // Removed fallback
         batch_size: Number(data.data?.batch_size || 200),
         provider: data.data?.provider || 'africastalking',
       });
@@ -457,6 +464,13 @@ const Messages: React.FC = () => {
     }
   };
 
+  // Helper function to build final SMS message with footer
+  const buildFinalSmsMessage = (rawMessage: string) => {
+    const body = String(rawMessage || '').trim();
+    if (!body) return SMS_FOOTER_TEXT;
+    return `${body}\n\n-----------------------\n${SMS_FOOTER_TEXT}`;
+  };
+
   const handleSend = async () => {
     setError('');
     setSuccess('');
@@ -484,7 +498,7 @@ const Messages: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: campaignTitle.trim(),
-          message: message.trim(),
+          message: buildFinalSmsMessage(message),
           recipient_mode: recipientMode,
           selected_ids: Array.from(selectedIds),
           provider: settings.provider || 'africastalking',
@@ -650,12 +664,6 @@ const Messages: React.FC = () => {
                   + Product Link
                 </button>
                 <button
-                  onClick={() => appendToMessage(settings.unsubscribe_text || 'Reply STOP to unsubscribe')}
-                  className="px-3 py-2 rounded-full bg-transparent border border-orange-200 text-[11px] font-black text-[#FF6A00] hover:bg-orange-50 transition"
-                >
-                  + Unsubscribe Text
-                </button>
-                <button
                   onClick={() => setMessage('')}
                   className="px-3 py-2 rounded-full bg-transparent border border-red-200 text-[11px] font-black text-red-600 hover:bg-red-50 transition"
                 >
@@ -685,7 +693,9 @@ const Messages: React.FC = () => {
               <div className="border-t border-orange-200 pt-4">
                 <h3 className="text-sm font-black text-gray-800 mb-3">Live Preview</h3>
                 <div className="whitespace-pre-wrap text-sm text-gray-700 leading-7">
-                  {message.trim() ? message.replace(/\{name\}/gi, 'Customer') : 'Your SMS preview will appear here...'}
+                  {message.trim() 
+                    ? buildFinalSmsMessage(message).replace(/\{name\}/gi, 'Customer') 
+                    : buildFinalSmsMessage('Your message content...')}
                 </div>
               </div>
 
@@ -707,7 +717,7 @@ const Messages: React.FC = () => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           title: campaignTitle || 'Untitled Draft',
-                          message,
+                          message: buildFinalSmsMessage(message),
                           recipient_mode: recipientMode,
                           selected_ids: Array.from(selectedIds),
                           status: 'draft',
@@ -779,19 +789,19 @@ const Messages: React.FC = () => {
                   {showOnlySelected ? 'Selected Only' : 'Show All'}
                 </button>
               </div>
-<div className="w-full overflow-x-auto">
-  <table className="w-full text-sm">
-    <thead className="border-b border-orange-200 bg-transparent">
-      <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
-        <th className="py-4 px-4">Select</th>
-        <th className="py-4 px-4">Name</th>
-        <th className="py-4 px-4">Phone</th>
-        <th className="py-4 px-4">Source</th>
-        <th className="py-4 px-4">Status</th>
-        <th className="py-4 px-4">Actions</th>
-      </tr>
-    </thead>
-              
+
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-orange-200 bg-transparent">
+                    <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
+                      <th className="py-4 px-4">Select</th>
+                      <th className="py-4 px-4">Name</th>
+                      <th className="py-4 px-4">Phone</th>
+                      <th className="py-4 px-4">Source</th>
+                      <th className="py-4 px-4">Status</th>
+                      <th className="py-4 px-4">Actions</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {contactsLoading ? (
                       <tr>
@@ -818,13 +828,13 @@ const Messages: React.FC = () => {
                           </td>
                           <td className="py-4 px-4 font-black text-gray-800">
                             {contact.name?.trim() || 'Unnamed Customer'}
-                           </td>
+                          </td>
                           <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
                           <td className="py-4 px-4">
                             <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
                               {contact.source || 'manual'}
                             </span>
-                           </td>
+                          </td>
                           <td className="py-4 px-4">
                             <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
                               contact.subscribed
@@ -833,7 +843,7 @@ const Messages: React.FC = () => {
                             }`}>
                               {contact.subscribed ? 'Subscribed' : 'Opted Out'}
                             </span>
-                           </td>
+                          </td>
                           <td className="py-4 px-4">
                             <div className="flex gap-2">
                               <button
@@ -849,7 +859,7 @@ const Messages: React.FC = () => {
                                 Remove
                               </button>
                             </div>
-                           </td>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -992,13 +1002,13 @@ const Messages: React.FC = () => {
                             }`}>
                               {campaign.status}
                             </span>
-                           </td>
+                          </td>
                           <td className="py-4 px-4 font-semibold text-gray-600">
                             {campaign.recipients?.toLocaleString?.() || 0}
-                           </td>
+                          </td>
                           <td className="py-4 px-4 text-gray-500">
                             {campaign.created_at ? new Date(campaign.created_at).toLocaleString() : '-'}
-                           </td>
+                          </td>
                         </tr>
                       ))
                     )}
