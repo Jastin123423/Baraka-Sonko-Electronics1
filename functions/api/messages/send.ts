@@ -75,11 +75,14 @@ async function sendViaAfricasTalking(params: {
   message: string;
   from?: string;
 }) {
-  const body = new URLSearchParams();
-  body.set('username', params.username);
-  body.set('to', params.to.join(','));
-  body.set('message', params.message);
-  if (params.from) body.set('from', params.from);
+  const form = new URLSearchParams();
+  form.set('username', params.username);
+  form.set('to', params.to.join(','));
+  form.set('message', params.message);
+
+  if (params.from) {
+    form.set('from', params.from);
+  }
 
   const response = await fetch('https://api.africastalking.com/version1/messaging', {
     method: 'POST',
@@ -88,16 +91,16 @@ async function sendViaAfricasTalking(params: {
       apiKey: params.apiKey,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: body.toString(),
+    body: form.toString(),
   });
 
-  const text = await response.text();
+  const rawText = await response.text();
 
   let parsed: any = null;
   try {
-    parsed = JSON.parse(text);
+    parsed = JSON.parse(rawText);
   } catch {
-    parsed = { raw: text };
+    parsed = { raw: rawText };
   }
 
   if (!response.ok) {
@@ -149,6 +152,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const senderId = String((settingsRow as any)?.sender_id || '').trim();
     const provider = String((settingsRow as any)?.provider || 'africastalking').trim();
     const batchSizeRaw = Number((settingsRow as any)?.batch_size || 50);
+
     const batchSize =
       Number.isFinite(batchSizeRaw) && batchSizeRaw > 0
         ? Math.min(Math.floor(batchSizeRaw), 100)
@@ -200,11 +204,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
 
     const deduped = new Map<string, { id: string; name: string; phone: string }>();
+
     for (const row of recipientRows) {
       const id = String(row.id || '').trim();
       const name = String(row.name || '').trim();
       const phone = normalizePhone(row.phone);
+
       if (!id || !phone) continue;
+
       if (!deduped.has(phone)) {
         deduped.set(phone, { id, name, phone });
       }
@@ -257,7 +264,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           apiKey: atApiKey,
           to: phones,
           message: finalMessage,
-          from: senderId || undefined,
+          // IMPORTANT: do not send custom senderId in sandbox
+          from: atUsername === 'sandbox' ? undefined : senderId || undefined,
         });
 
         const recipientsData = Array.isArray(atResponse?.SMSMessageData?.Recipients)
@@ -329,6 +337,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         }
       } catch (err: any) {
         const errorText = err?.message || 'Batch send failed';
+        console.error('AfricaTalking batch error:', errorText);
 
         for (const r of group) {
           await env.DB.prepare(`
@@ -355,7 +364,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
               created_at
             ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
           `)
-            .bind(makeId(), campaignId, r.phone, finalMessage, 'failed', errorText)
+            .bind(
+              makeId(),
+              campaignId,
+              r.phone,
+              finalMessage,
+              'failed',
+              errorText
+            )
             .run();
 
           failed += 1;
