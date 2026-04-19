@@ -135,7 +135,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
 
     // Hardcoded for testing as requested
-    const atUsername = 'BarakaSonko';
+    const atUsername = 'BarakaSonkoElectronics';
     const atApiKey =
       'atsk_eaf76e68c412d8ec543a71f13a5f483ba014aabad31b9729379e5b6831527c58e147a638';
 
