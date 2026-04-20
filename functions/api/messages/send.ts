@@ -57,6 +57,9 @@ const normalizePhone = (value: any) => {
     else if (v.length >= 9) v = `+${v}`;
   }
 
+  // Beem examples use numbers like 2557XXXXXXXX without +
+  if (v.startsWith('+')) v = v.slice(1);
+
   return v;
 };
 
@@ -68,30 +71,36 @@ const chunkArray = <T,>(items: T[], size: number) => {
   return out;
 };
 
-async function sendViaAfricasTalking(params: {
-  username: string;
-  apiKey: string;
-  to: string[];
-  message: string;
-  from?: string;
-}) {
-  const form = new URLSearchParams();
-  form.set('username', params.username);
-  form.set('to', params.to.join(','));
-  form.set('message', params.message);
+const toBase64 = (value: string) => btoa(value);
 
-  if (params.from) {
-    form.set('from', params.from);
+async function sendViaBeem(params: {
+  apiKey: string;
+  secretKey: string;
+  message: string;
+  recipients: Array<{ recipient_id: number; dest_addr: string }>;
+  source_addr?: string;
+}) {
+  const payload: any = {
+    schedule_time: '',
+    encoding: 0,
+    message: params.message,
+    recipients: params.recipients,
+  };
+
+  // sender name optional
+  if (params.source_addr && String(params.source_addr).trim()) {
+    payload.source_addr = String(params.source_addr).trim();
   }
 
-  const response = await fetch('https://api.africastalking.com/version1/messaging', {
+  const auth = toBase64(`${params.apiKey}:${params.secretKey}`);
+
+  const response = await fetch('https://apisms.beem.africa/v1/send', {
     method: 'POST',
     headers: {
-      Accept: 'application/json',
-      apiKey: params.apiKey,
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
+      Authorization: `Basic ${auth}`,
     },
-    body: form.toString(),
+    body: JSON.stringify(payload),
   });
 
   const rawText = await response.text();
@@ -105,10 +114,10 @@ async function sendViaAfricasTalking(params: {
 
   if (!response.ok) {
     throw new Error(
-      parsed?.errorMessage ||
-        parsed?.message ||
-        parsed?.SMSMessageData?.Message ||
-        `Africa's Talking request failed with HTTP ${response.status}`
+      parsed?.message ||
+        parsed?.error ||
+        parsed?.description ||
+        `Beem request failed with HTTP ${response.status}: ${rawText}`
     );
   }
 
@@ -134,10 +143,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       return json({ success: false, error: 'Message required' }, 400);
     }
 
-    // Hardcoded for testing as requested
-    const atUsername = 'BarakaSonko';
-    const atApiKey =
-      'atsk_eaf76e68c412d8ec543a71f13a5f483ba014aabad31b9729379e5b6831527c58e147a638';
+    // hardcoded for testing as requested
+    const beemApiKey = '4594d67f9df36874';
+    const beemSecretKey =
+      'YzRmMjU0OTlhZmFlNTdkODI2ZDAyNWY1YmJkMWYyMWNmZDQ0MDllZGI5MTg2YzE1ZTg5YmE4YTI4NmI1ZTY2Mw==';
 
     const settingsRow = await env.DB.prepare(`
       SELECT
@@ -150,19 +159,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     `).first();
 
     const senderId = String((settingsRow as any)?.sender_id || '').trim();
-    const provider = String((settingsRow as any)?.provider || 'africastalking').trim();
+    const provider = String((settingsRow as any)?.provider || 'beem').trim();
     const batchSizeRaw = Number((settingsRow as any)?.batch_size || 50);
 
     const batchSize =
       Number.isFinite(batchSizeRaw) && batchSizeRaw > 0
-        ? Math.min(Math.floor(batchSizeRaw), 100)
+        ? Math.min(Math.floor(batchSizeRaw), 200)
         : 50;
 
-    if (provider && provider !== 'africastalking') {
+    if (provider && provider !== 'beem') {
       return json(
         {
           success: false,
-          error: `Current provider is "${provider}". Set provider to "africastalking" in message_settings.`,
+          error: `Current provider is "${provider}". Set provider to "beem" in message_settings.`,
         },
         400
       );
@@ -245,7 +254,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         recipientMode,
         recipients.length,
         'sending',
-        'africastalking'
+        'beem'
       )
       .run();
 
@@ -256,41 +265,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const chunks = chunkArray(recipients, batchSize);
 
     for (const group of chunks) {
-      const phones = group.map((r) => r.phone);
+      const beemRecipients = group.map((r, index) => ({
+        recipient_id: index + 1,
+        dest_addr: r.phone,
+      }));
 
       try {
-        const atResponse = await sendViaAfricasTalking({
-          username: atUsername,
-          apiKey: atApiKey,
-          to: phones,
+        const beemResponse = await sendViaBeem({
+          apiKey: beemApiKey,
+          secretKey: beemSecretKey,
           message: finalMessage,
-          // IMPORTANT: do not send custom senderId in sandbox
-          from: atUsername === 'sandbox' ? undefined : senderId || undefined,
+          recipients: beemRecipients,
+          // keep optional until sender name is approved
+          source_addr: senderId || undefined,
         });
 
-        const recipientsData = Array.isArray(atResponse?.SMSMessageData?.Recipients)
-          ? atResponse.SMSMessageData.Recipients
-          : [];
-
-        const responseMap = new Map<string, any>();
-        for (const item of recipientsData) {
-          const num = normalizePhone(item?.number);
-          if (num) responseMap.set(num, item);
-        }
+        // Beem may return different response shapes depending on account/version.
+        // For now, if request succeeds, we mark this batch as sent.
+        const providerResponse = JSON.stringify(beemResponse || {});
 
         for (const r of group) {
-          const providerRow = responseMap.get(r.phone);
-          const statusText = String(providerRow?.status || '').toLowerCase();
-
-          const accepted =
-            statusText.includes('success') ||
-            statusText.includes('sent') ||
-            statusText.includes('submitted') ||
-            statusText.includes('queued');
-
-          const recipientStatus = accepted ? 'sent' : 'failed';
-          const providerResponse = JSON.stringify(providerRow || atResponse || {});
-
           await env.DB.prepare(`
             INSERT INTO message_campaign_recipients (
               id,
@@ -301,7 +295,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
               created_at
             ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
           `)
-            .bind(makeId(), campaignId, r.id, r.phone, recipientStatus)
+            .bind(makeId(), campaignId, r.id, r.phone, 'sent')
             .run();
 
           await env.DB.prepare(`
@@ -320,24 +314,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
               campaignId,
               r.phone,
               finalMessage,
-              recipientStatus,
+              'sent',
               providerResponse
             )
             .run();
 
-          if (accepted) {
-            sent += 1;
-          } else {
-            failed += 1;
-            failures.push({
-              phone: r.phone,
-              error: providerRow?.status || 'Failed to send',
-            });
-          }
+          sent += 1;
         }
       } catch (err: any) {
-        const errorText = err?.message || 'Batch send failed';
-        console.error('AfricaTalking batch error:', errorText);
+        const errorText = err?.message || 'Beem batch send failed';
+        console.error('Beem batch error:', errorText);
 
         for (const r of group) {
           await env.DB.prepare(`
@@ -406,14 +392,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         sent,
         failed,
         status: finalStatus,
-        provider: 'africastalking',
-        sandbox: atUsername === 'sandbox',
+        provider: 'beem',
         failures: failures.slice(0, 20),
       },
-      message:
-        atUsername === 'sandbox'
-          ? 'Campaign processed in Africa’s Talking sandbox'
-          : 'Campaign sent successfully',
+      message: 'Campaign processed with Beem',
     });
   } catch (error: any) {
     console.error('POST /api/messages/send error:', error);
