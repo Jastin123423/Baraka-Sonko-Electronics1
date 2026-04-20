@@ -277,7 +277,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           message: finalMessage,
           recipients: beemRecipients,
           // keep optional until sender name is approved
-          source_addr: "INFO",
+          source_addr: "BEEM",
         });
         
         // Beem may return different response shapes depending on account/version.
