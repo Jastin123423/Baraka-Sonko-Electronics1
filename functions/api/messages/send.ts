@@ -277,9 +277,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           message: finalMessage,
           recipients: beemRecipients,
           // keep optional until sender name is approved
-          source_addr: senderId || undefined,
+          source_addr: undefined,
         });
-
+        
         // Beem may return different response shapes depending on account/version.
         // For now, if request succeeds, we mark this batch as sent.
         const providerResponse = JSON.stringify(beemResponse || {});
