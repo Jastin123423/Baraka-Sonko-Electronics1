@@ -45,7 +45,7 @@ type MessageTemplate = {
   created_at?: string;
 };
 
-// SMS Footer Constants
+// SMS Footer Constants (Preview Only)
 const SMS_FOOTER_LINES = [
   'Tel: 0656738253',
   'Pakua App:https://bit.ly/4cufLcJ',
@@ -76,7 +76,7 @@ const Messages: React.FC = () => {
   const [settings, setSettings] = useState<MessageSettings>({
     sender_id: '',
     default_country_code: '+255',
-    unsubscribe_text: '', // Removed unsubscribe default
+    unsubscribe_text: '',
     batch_size: 200,
     provider: 'africastalking',
   });
@@ -84,6 +84,10 @@ const Messages: React.FC = () => {
   const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
+  
+  // New state for campaign view/edit
+  const [viewCampaign, setViewCampaign] = useState<CampaignLog | null>(null);
+  const [editingCampaign, setEditingCampaign] = useState<CampaignLog | null>(null);
 
   const fetchContacts = async () => {
     try {
@@ -140,7 +144,7 @@ const Messages: React.FC = () => {
       setSettings({
         sender_id: data.data?.sender_id || '',
         default_country_code: data.data?.default_country_code || '+255',
-        unsubscribe_text: data.data?.unsubscribe_text || '', // Removed fallback
+        unsubscribe_text: data.data?.unsubscribe_text || '',
         batch_size: Number(data.data?.batch_size || 200),
         provider: data.data?.provider || 'africastalking',
       });
@@ -464,8 +468,28 @@ const Messages: React.FC = () => {
     }
   };
 
-  // Helper function to build final SMS message with footer
-  const buildFinalSmsMessage = (rawMessage: string) => {
+  const deleteCampaign = async (id: string) => {
+    const ok = window.confirm('Delete this campaign?');
+    if (!ok) return;
+    try {
+      setError('');
+      setSuccess('');
+      const res = await fetch(`/api/messages/campaigns/${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to delete campaign');
+      }
+      await fetchCampaigns();
+      setSuccess('Campaign deleted successfully');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to delete campaign');
+    }
+  };
+
+  // Helper function for preview only - footer shown but not sent twice
+  const previewSmsMessage = (rawMessage: string) => {
     const body = String(rawMessage || '').trim();
     if (!body) return SMS_FOOTER_TEXT;
     return `${body}\n\n-----------------------\n${SMS_FOOTER_TEXT}`;
@@ -498,7 +522,7 @@ const Messages: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: campaignTitle.trim(),
-          message: buildFinalSmsMessage(message),
+          message: message.trim(), // No footer here - backend adds it
           recipient_mode: recipientMode,
           selected_ids: Array.from(selectedIds),
           provider: settings.provider || 'africastalking',
@@ -616,26 +640,26 @@ const Messages: React.FC = () => {
           {/* Compose Section */}
           {activeSection === 'compose' && (
             <div className="w-full space-y-5 px-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                <div className="md:col-span-2">
-                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-5 w-full">
+                <div className="rounded-2xl bg-white border border-orange-100 px-4 py-3 shadow-sm">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.16em] mb-2">
                     Campaign Title
                   </label>
                   <input
-                    className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-base font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                    className="w-full bg-transparent text-lg font-black text-gray-900 outline-none placeholder:text-gray-300"
                     placeholder="Example: Weekend Offers April"
                     value={campaignTitle}
                     onChange={(e) => setCampaignTitle(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
+                <div className="rounded-2xl bg-white border border-orange-100 px-4 py-3 shadow-sm">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.16em] mb-2">
                     Recipients
                   </label>
                   <select
                     value={recipientMode}
                     onChange={(e) => setRecipientMode(e.target.value as RecipientMode)}
-                    className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-black outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
+                    className="w-full bg-transparent text-sm font-black text-gray-800 outline-none"
                   >
                     <option value="subscribed">Subscribed ({contacts.filter(c => c.subscribed).length})</option>
                     <option value="selected">Selected ({selectedIds.size})</option>
@@ -671,15 +695,23 @@ const Messages: React.FC = () => {
                 </button>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-black text-gray-500 uppercase mb-2 tracking-wide">
-                  SMS Message
-                </label>
+              <div className="rounded-3xl bg-white border border-orange-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-orange-100">
+                  <div>
+                    <p className="text-sm font-black text-gray-900">Message Body</p>
+                    <p className="text-xs text-gray-400">
+                      Use {'{name}'} for customer name. Footer is added automatically.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-black text-[#FF6A00]">
+                    {smsSegments} segment{smsSegments === 1 ? '' : 's'}
+                  </span>
+                </div>
                 <textarea
-                  className="w-full min-h-[420px] bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-base text-gray-800 font-semibold leading-8 outline-none focus:border-[#FF6A00] focus:ring-0 transition-all resize-y"
+                  className="w-full min-h-[420px] bg-white px-4 py-4 text-[15px] text-gray-800 font-semibold leading-8 outline-none resize-y"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder={`Hello {name}, new products are now available at Baraka Sonko Electronics. Some items are on offer today. Visit our shop now.`}
+                  placeholder={`Hello {name}, new products are now available at Baraka Sonko Electronics. Some items are on offer today.`}
                 />
               </div>
 
@@ -694,8 +726,8 @@ const Messages: React.FC = () => {
                 <h3 className="text-sm font-black text-gray-800 mb-3">Live Preview</h3>
                 <div className="whitespace-pre-wrap text-sm text-gray-700 leading-7">
                   {message.trim() 
-                    ? buildFinalSmsMessage(message).replace(/\{name\}/gi, 'Customer') 
-                    : buildFinalSmsMessage('Your message content...')}
+                    ? previewSmsMessage(message).replace(/\{name\}/gi, 'Customer') 
+                    : previewSmsMessage('Your message content...')}
                 </div>
               </div>
 
@@ -717,7 +749,7 @@ const Messages: React.FC = () => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           title: campaignTitle || 'Untitled Draft',
-                          message: buildFinalSmsMessage(message),
+                          message: message.trim(), // No footer for drafts
                           recipient_mode: recipientMode,
                           selected_ids: Array.from(selectedIds),
                           status: 'draft',
@@ -969,18 +1001,19 @@ const Messages: React.FC = () => {
                       <th className="py-4 px-4">Status</th>
                       <th className="py-4 px-4">Recipients</th>
                       <th className="py-4 px-4">Created</th>
+                      <th className="py-4 px-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {campaignsLoading ? (
                       <tr>
-                        <td colSpan={4} className="py-12 text-center text-gray-400 font-bold">
+                        <td colSpan={5} className="py-12 text-center text-gray-400 font-bold">
                           Loading campaigns...
                         </td>
                       </tr>
                     ) : campaigns.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-12 text-center text-gray-400 font-bold">
+                        <td colSpan={5} className="py-12 text-center text-gray-400 font-bold">
                           No campaigns yet
                         </td>
                       </tr>
@@ -1008,8 +1041,35 @@ const Messages: React.FC = () => {
                           </td>
                           <td className="py-4 px-4 text-gray-500">
                             {campaign.created_at ? new Date(campaign.created_at).toLocaleString() : '-'}
-                          </td>
-                        </tr>
+                           </td>
+                          <td className="py-4 px-4">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setViewCampaign(campaign)}
+                                className="px-3 py-2 rounded-xl text-[10px] font-black bg-orange-50 text-[#FF6A00] border border-orange-100"
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingCampaign(campaign);
+                                  setCampaignTitle(campaign.title);
+                                  setMessage(campaign.message || '');
+                                  setActiveSection('compose');
+                                }}
+                                className="px-3 py-2 rounded-xl text-[10px] font-black bg-gray-100 text-gray-700"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => deleteCampaign(campaign.id)}
+                                className="px-3 py-2 rounded-xl text-[10px] font-black bg-red-50 text-red-600"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                           </td>
+                         </tr>
                       ))
                     )}
                   </tbody>
@@ -1164,6 +1224,28 @@ const Messages: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* View Campaign Modal */}
+      {viewCampaign && (
+        <div className="fixed inset-0 z-[120] bg-black/60 flex items-end md:items-center justify-center">
+          <div className="w-full md:max-w-2xl bg-white rounded-t-3xl md:rounded-3xl p-5 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-orange-100 pb-3 mb-4">
+              <div>
+                <h3 className="text-lg font-black text-gray-900">{viewCampaign.title}</h3>
+                <p className="text-xs text-gray-400">
+                  {viewCampaign.created_at ? new Date(viewCampaign.created_at).toLocaleString() : ''}
+                </p>
+              </div>
+              <button onClick={() => setViewCampaign(null)} className="text-2xl text-gray-400">
+                ×
+              </button>
+            </div>
+            <div className="whitespace-pre-wrap text-sm text-gray-700 leading-7">
+              {viewCampaign.message}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
