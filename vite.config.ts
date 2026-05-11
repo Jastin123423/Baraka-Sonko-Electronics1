@@ -21,9 +21,9 @@ export default defineConfig(({ mode }) => {
         includeAssets: [],
 
         manifest: {
-          name: 'Baraka Sonko Electronics',
+          name: 'Sonko Sound',
           short_name: 'Sonko',
-          description: 'Baraka Sonko Electronics online store',
+          description: 'Sonko Sound online store',
           start_url: '/',
           scope: '/',
           display: 'standalone',
