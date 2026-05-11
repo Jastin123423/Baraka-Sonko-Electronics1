@@ -1,16 +1,16 @@
 //
 {
-  "name": "Baraka Sonko Electronics",
+  "name": "Sonko Sound",
   "short_name": "Sonko",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ea580c",
-  "description": "Baraka Sonko Electronics online store",
+  "description": " Sonko Sound online store",
   "icons": [
     {
-      "src": "https://media.barakasonko.store/app_icon_android_1722843822884__4_-removebg-preview_1_192x192.png",
+      "src": "https://media.barakasonko.store/sonko_sound_192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
