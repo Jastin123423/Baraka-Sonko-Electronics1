@@ -5,7 +5,6 @@ import Header from './components/Header';
 import QuickActions from './components/QuickActions';
 import CategorySection from './components/CategorySection';
 import FlashSale from './components/FlashSale';
-import AdBanner from './components/AdBanner';
 import ProductGrid from './components/ProductGrid';
 import BottomNav from './components/BottomNav';
 import Sidebar from './components/Sidebar';
@@ -16,12 +15,66 @@ import CategoriesView from './components/CategoriesView';
 import AllProductsView from './components/AllProductsView';
 import { Product, User, Category, Comment } from './types';
 
-// ============ CACHE HELPERS ============
+// Cache helpers
+const PRODUCTS_CACHE_KEY = 'sonko_sound_products_cache_v2';
+const CATEGORIES_CACHE_KEY = 'sonko_sound_categories_cache_v2';
+const CACHE_META_KEY = 'sonko_sound_cache_meta_v2';
+const CACHE_MAX_AGE = 1000 * 60 * 60 * 24 * 365;
 
-const PRODUCTS_CACHE_KEY = 'barakasonko_products_cache_v2';
-const CATEGORIES_CACHE_KEY = 'barakasonko_categories_cache_v2';
-const CACHE_META_KEY = 'barakasonko_cache_meta_v2';
-const CACHE_MAX_AGE = 1000 * 60 * 60 * 24 * 30; // 30 days
+// ============ APP PROMOTION CONSTANTS ============
+const PLAYSTORE_URL = 'https://play.google.com/store/apps/details?id=co.median.android.zebeen';
+const APP_PROMPT_DISMISSED_KEY = 'barakasonko_open_app_prompt_dismissed_until';
+
+const isAndroidDevice = () => {
+  return typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+};
+
+const isStandalonePwa = () => {
+  return typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true
+  );
+};
+
+const isInsideNativeApp = () => {
+  if (typeof window === 'undefined') return false;
+  
+  const params = new URLSearchParams(window.location.search);
+  return (
+    params.get('fromApp') === '1' ||
+    localStorage.getItem('fromApp') === '1' ||
+    document.referrer.startsWith('android-app://') ||
+    /barakasonkoapp|zebeenapp|wv/i.test(navigator.userAgent)
+  );
+};
+
+const shouldHideOpenAppPrompt = () => {
+  if (!isAndroidDevice()) return true;
+  if (isStandalonePwa()) return true;
+  if (isInsideNativeApp()) return true;
+  
+  const dismissedUntil = Number(localStorage.getItem(APP_PROMPT_DISMISSED_KEY) || 0);
+  if (dismissedUntil && Date.now() < dismissedUntil) return true;
+  
+  return false;
+};
+
+// Sonko route base
+const SONKO_BASE = '/sonkosound';
+
+const isSonkoPath = (pathname: string) =>
+  pathname === SONKO_BASE || pathname.startsWith(`${SONKO_BASE}/`);
+
+const stripSonkoBase = (pathname: string) => {
+  if (!isSonkoPath(pathname)) return pathname;
+  const stripped = pathname.slice(SONKO_BASE.length);
+  return stripped || '/';
+};
+
+const withSonkoBase = (path: string) => {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return normalized === '/' ? SONKO_BASE : `${SONKO_BASE}${normalized}`;
+};
 
 type CachePayload<T> = {
   timestamp: number;
@@ -69,68 +122,20 @@ const saveCacheMeta = (meta: Record<string, any>) => {
   }
 };
 
-const loadCacheMeta = (): Record<string, any> | null => {
-  try {
-    const raw = localStorage.getItem(CACHE_META_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
-
 const clearStoreCache = () => {
   localStorage.removeItem(PRODUCTS_CACHE_KEY);
   localStorage.removeItem(CATEGORIES_CACHE_KEY);
   localStorage.removeItem(CACHE_META_KEY);
 };
 
-// ============ APP PROMOTION CONSTANTS ============
-
-const PLAYSTORE_URL = 'https://play.google.com/store/apps/details?id=co.median.android.zebeen';
-const APP_PROMPT_DISMISSED_KEY = 'barakasonko_open_app_prompt_dismissed_until';
-
-const isAndroidDevice = () => {
-  return typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
-};
-
-const isStandalonePwa = () => {
-  return typeof window !== 'undefined' && (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as any).standalone === true
-  );
-};
-
-const isInsideNativeApp = () => {
-  if (typeof window === 'undefined') return false;
-  
-  const params = new URLSearchParams(window.location.search);
-  return (
-    params.get('fromApp') === '1' ||
-    localStorage.getItem('fromApp') === '1' ||
-    document.referrer.startsWith('android-app://') ||
-    /barakasonkoapp|zebeenapp|wv/i.test(navigator.userAgent)
-  );
-};
-
-const shouldHideOpenAppPrompt = () => {
-  if (!isAndroidDevice()) return true;
-  if (isStandalonePwa()) return true;
-  if (isInsideNativeApp()) return true;
-  
-  const dismissedUntil = Number(localStorage.getItem(APP_PROMPT_DISMISSED_KEY) || 0);
-  if (dismissedUntil && Date.now() < dismissedUntil) return true;
-  
-  return false;
-};
-
-// ============ UTILITY FUNCTIONS ============
-
 const getInitialViewFromPath = (pathname: string) => {
-  if (pathname.startsWith('/product/')) return 'product-detail';
-  if (pathname.startsWith('/category/')) return 'category-results';
-  if (pathname === '/categories') return 'categories';
-  if (pathname === '/all-products') return 'all-products';
-  if (pathname === '/admin') return 'admin';
+  const normalizedPath = stripSonkoBase(pathname);
+
+  if (normalizedPath.startsWith('/product/')) return 'product-detail';
+  if (normalizedPath.startsWith('/category/')) return 'category-results';
+  if (normalizedPath === '/categories') return 'categories';
+  if (normalizedPath === '/all-products') return 'all-products';
+  if (normalizedPath === '/admin') return 'admin';
   return 'home';
 };
 
@@ -157,19 +162,7 @@ const getDefaultCategoryIcon = (categoryName: string): string => {
   return '🛒';
 };
 
-const normalizeCategory = (cat: any): Category => {
-  const backendIcon = cat.icon || cat.icon_name || cat.icon_emoji || cat.icon_url;
-
-  return {
-    id: String(cat.id || cat._id || `cat_${Date.now()}_${Math.random()}`),
-    name: String(cat.name || cat.category_name || cat.title || 'Unnamed Category'),
-    icon: backendIcon || getDefaultCategoryIcon(cat.name || ''),
-    ...cat
-  };
-};
-
-// ============ COMPONENTS ============
-
+/** Watermarked Image Component - For PRODUCT IMAGES only */
 const WatermarkedImage: React.FC<{
   src: string;
   alt?: string;
@@ -185,7 +178,7 @@ const WatermarkedImage: React.FC<{
   productId = '',
   isProduct = true
 }) => {
-  const logoUrl = "https://media.barakasonko.store/download__82_-removebg-preview.png";
+  const logoUrl = "https://media.barakasonko.store/Screenshot_2026-03-18_221011-removebg-preview.png";
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -195,9 +188,9 @@ const WatermarkedImage: React.FC<{
     if (!shouldWatermark) return { positions: [], opacities: [], sizes: [] };
 
     const patterns = [
-      { positions: ['bottom-right', 'top-left'], opacities: [0.6, 0.4], sizes: [30, 25] },
-      { positions: ['bottom-left', 'top-right'], opacities: [0.5, 0.5], sizes: [28, 28] },
-      { positions: ['center', 'bottom-right'], opacities: [0.4, 0.3], sizes: [35, 22] },
+      { positions: ['bottom-right', 'top-left'], opacities: [0.6, 0.4], sizes: [40, 35] },
+      { positions: ['bottom-left', 'top-right'], opacities: [0.5, 0.5], sizes: [38, 38] },
+      { positions: ['center', 'bottom-right'], opacities: [0.4, 0.3], sizes: [45, 32] },
     ];
 
     const patternIndex = productId
@@ -302,7 +295,7 @@ const WatermarkedImage: React.FC<{
               zIndex: 21,
             }}
           >
-            ©barakasonko
+            ©SonkoSound
           </div>
         </div>
       )}
@@ -310,6 +303,7 @@ const WatermarkedImage: React.FC<{
   );
 };
 
+/** Video Player Component - For VIDEOS only */
 const VideoPlayer: React.FC<{
   src: string;
   containerClass?: string;
@@ -409,6 +403,7 @@ const VideoPlayer: React.FC<{
   );
 };
 
+/** Banner Component - For GIF banners (no watermark) */
 const Banner: React.FC<{
   src: string;
   alt?: string;
@@ -524,6 +519,25 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+const normalizeCategory = (cat: any): Category => {
+  const backendIcon = cat.icon || cat.icon_name || cat.icon_emoji || cat.icon_url;
+
+  return {
+    id: String(cat.id || cat._id || `cat_${Date.now()}_${Math.random()}`),
+    name: String(cat.name || cat.category_name || cat.title || 'Unnamed Category'),
+    icon: backendIcon || getDefaultCategoryIcon(cat.name || ''),
+    appFlag: Number(
+      cat?.app_flag ??
+      cat?.appFlag ??
+      cat?.app ??
+      cat?.is_sonko_sound ??
+      1
+    ),
+    ...cat
+  } as Category;
+};
+
+// Comments API Service
 class CommentsService {
   private static API_BASE = '/api/comments';
 
@@ -661,46 +675,26 @@ class ViewsService {
   }
 }
 
-const banners = [
-  {
-    id: 1,
-    src: "https://media.barakasonko.store/Jipatie%20kwa%20bei%20poa.gif",
-    alt: "Get products at affordable prices",
-    duration: 5000,
-    isGif: true
-  },
-  {
-    id: 2,
-    src: "https://media.barakasonko.store/uploads/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail.gif",
-    alt: "Product unboxing and review",
-    duration: 5000,
-    isGif: true
-  },
-  {
-    id: 3,
-    src: "https://media.barakasonko.store/Untitled%20design.gif",
-    alt: "Special promotions banner",
-    duration: 5000,
-    isGif: true
-  },
-  {
-    id: 4,
-    src: "https://media.barakasonko.store/Yellow%20And%20Red%20Unboxing%20And%20Review%20YouTube%20Thumbnail%20(1).gif",
-    alt: "Product boxing and review",
-    duration: 5000,
-    isGif: true
-  }
-];
-
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { productId, categoryId } = useParams<{ productId: string; categoryId: string }>();
 
-  const isDirectProductRoute = location.pathname.startsWith('/product/');
+  const normalizedPath = stripSonkoBase(location.pathname);
+  const inSonkoSection = isSonkoPath(location.pathname);
+
+  const goToScopedPath = useCallback((path: string) => {
+    navigate(inSonkoSection ? withSonkoBase(path) : path);
+  }, [navigate, inSonkoSection]);
+
+  const currentHost =
+    typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+
+  const isOnSonkoSubdomain = currentHost === 'sonkosound.barakasonko.store';
+  const isOnMainDomain =
+    currentHost === 'barakasonko.store' || currentHost === 'www.barakasonko.store';
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
   const [view, setView] = useState<
     | 'home'
@@ -731,6 +725,7 @@ const AppContent: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [routeReady, setRouteReady] = useState(false);
 
   // ============ APP PROMOTION STATES ============
   const [showOpenAppPrompt, setShowOpenAppPrompt] = useState(false);
@@ -740,25 +735,12 @@ const AppContent: React.FC = () => {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const isProductImage = target.closest('.product-image-container') !== null;
-      if (isProductImage) {
-        e.preventDefault();
-      }
+      if (isProductImage) e.preventDefault();
     };
 
     document.addEventListener('contextmenu', handleContextMenu);
     return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, []);
-
-  useEffect(() => {
-    if (view !== 'home' || banners.length <= 1) return;
-
-    const currentBanner = banners[activeBannerIndex];
-    const interval = setInterval(() => {
-      setActiveBannerIndex((prev) => (prev + 1) % banners.length);
-    }, currentBanner.duration);
-
-    return () => clearInterval(interval);
-  }, [activeBannerIndex, view]);
 
   // ============ APP PROMOTION TIMER ============
   useEffect(() => {
@@ -790,9 +772,9 @@ const AppContent: React.FC = () => {
     } else {
       categoryName = String(
         p?.category_name ??
-          p?.categoryName ??
-          p?.category ??
-          ''
+        p?.categoryName ??
+        p?.category ??
+        ''
       ).trim();
 
       const maybe = String(p?.category ?? '').trim();
@@ -803,7 +785,7 @@ const AppContent: React.FC = () => {
       const found = categoriesList.find(c => String(c.id) === String(categoryId));
       if (found) {
         categoryName = found.name;
-        categoryIcon = categoryIcon || found.icon || '';
+        categoryIcon = found.icon || '';
       }
     }
 
@@ -831,21 +813,28 @@ const AppContent: React.FC = () => {
       category_id: categoryId || undefined,
       category_name: categoryName,
       categoryIcon: getProductCategoryIcon(),
+      appFlag: Number(
+        p?.app_flag ??
+        p?.appFlag ??
+        p?.app ??
+        p?.is_sonko_sound ??
+        1
+      ),
       image: p?.image || p?.image_url || (Array.isArray(p?.images) ? p.images[0] : '') || '',
       images: Array.isArray(p?.images)
         ? p.images
         : Array.isArray(p?.image_urls)
-        ? p.image_urls
-        : Array.isArray(p?.image_urls_json)
-        ? p.image_urls_json
-        : [],
+          ? p.image_urls
+          : Array.isArray(p?.image_urls_json)
+            ? p.image_urls_json
+            : [],
       descriptionImages: Array.isArray(p?.descriptionImages)
         ? p.descriptionImages
         : Array.isArray(p?.description_images)
-        ? p.description_images
-        : [],
+          ? p.description_images
+          : [],
       videoUrl: String(p?.videoUrl ?? p?.video_url ?? ''),
-    } as any;
+    } as Product & { appFlag: number };
   };
 
   const buildCategoryProductMap = useCallback((productList: Product[], categoryList: Category[]) => {
@@ -901,20 +890,20 @@ const AppContent: React.FC = () => {
         } else if (title.includes('tv') || title.includes('television')) {
           matchedCategoryId = "6";
         } else if (title.includes('charger') || title.includes('adapter') ||
-                 title.includes('cable') || title.includes('wire')) {
+                   title.includes('cable') || title.includes('wire')) {
           matchedCategoryId = "7";
         } else if (title.includes('tv stand') || title.includes('tv bracket') ||
-                 title.includes('tv stendi')) {
+                   title.includes('tv stendi')) {
           matchedCategoryId = "8";
         } else if (title.includes('gitaa') || title.includes('guitar')) {
           matchedCategoryId = "9";
         } else if (title.includes('tumba') || title.includes('drum') ||
-                 title.includes('manyanga') || title.includes('dufu')) {
+                   title.includes('manyanga') || title.includes('dufu')) {
           matchedCategoryId = "11";
         } else if (title.includes('mixer') || title.includes('mixing')) {
           matchedCategoryId = "12";
         } else if (title.includes('battery') || title.includes('betri') ||
-                 title.includes('jack') || title.includes('spare')) {
+                   title.includes('jack') || title.includes('spare')) {
           matchedCategoryId = "13";
         }
       }
@@ -938,14 +927,6 @@ const AppContent: React.FC = () => {
     return map;
   }, []);
 
-  useEffect(() => {
-    if (products.length > 0 && categories.length > 0) {
-      const map = buildCategoryProductMap(products, categories);
-      setCategoryProductMap(map);
-      console.log('✅ Category product map built');
-    }
-  }, [products, categories, buildCategoryProductMap]);
-
   const getOrCreateUserId = (): string => {
     let userId = localStorage.getItem('sonko_user_id');
     if (!userId) {
@@ -960,13 +941,15 @@ const AppContent: React.FC = () => {
       try {
         setIsLoading(true);
         setFetchError(null);
+        setRouteReady(false);
 
-        const cachedProducts = loadFromCache<Product[]>(PRODUCTS_CACHE_KEY);
         const cachedCategories = loadFromCache<Category[]>(CATEGORIES_CACHE_KEY);
+        const cachedProducts = loadFromCache<Product[]>(PRODUCTS_CACHE_KEY);
 
         if (cachedCategories && cachedProducts) {
           setCategories(cachedCategories);
           setProducts(cachedProducts);
+          setCategoryProductMap(buildCategoryProductMap(cachedProducts, cachedCategories));
 
           const initialCounts: Record<string, number> = {};
           const initialViewCounts: Record<string, number> = {};
@@ -978,8 +961,8 @@ const AppContent: React.FC = () => {
 
           setCommentCounts(initialCounts);
           setViewCounts(initialViewCounts);
-          setCategoryProductMap(buildCategoryProductMap(cachedProducts, cachedCategories));
           setIsLoading(false);
+          setRouteReady(true);
 
           void fetchFreshData();
           return;
@@ -990,6 +973,7 @@ const AppContent: React.FC = () => {
         console.error('❌ App: Failed to initialize app', error);
         setFetchError(error.message || 'Network or server error');
         setIsLoading(false);
+        setRouteReady(true);
       }
     };
 
@@ -997,10 +981,16 @@ const AppContent: React.FC = () => {
       try {
         const [prodRes, catRes] = await Promise.all([
           fetch('/api/products', {
-            headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' }
+            headers: {
+              Accept: 'application/json',
+              'Cache-Control': 'no-cache'
+            }
           }),
           fetch('/api/categories', {
-            headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' }
+            headers: {
+              Accept: 'application/json',
+              'Cache-Control': 'no-cache'
+            }
           }),
         ]);
 
@@ -1022,7 +1012,11 @@ const AppContent: React.FC = () => {
           setCategories(normalizedCats);
           saveToCache(CATEGORIES_CACHE_KEY, normalizedCats);
         } else {
-          setFetchError(prev => prev ? `${prev}; Categories: ${catData?.error}` : `Categories: ${catData?.error || 'Unknown error'}`);
+          setFetchError(prev =>
+            prev
+              ? `${prev}; Categories: ${catData?.error}`
+              : `Categories: ${catData?.error || 'Unknown error'}`
+          );
         }
 
         if (prodData?.success) {
@@ -1030,6 +1024,7 @@ const AppContent: React.FC = () => {
           const normalized = raw.map((p: any) => normalizeProduct(p, normalizedCats));
 
           setProducts(normalized);
+          setCategoryProductMap(buildCategoryProductMap(normalized, normalizedCats));
           saveToCache(PRODUCTS_CACHE_KEY, normalized);
           saveCacheMeta({
             lastFetchAt: Date.now(),
@@ -1040,102 +1035,33 @@ const AppContent: React.FC = () => {
           const initialCounts: Record<string, number> = {};
           const initialViewCounts: Record<string, number> = {};
 
-          normalized.forEach((product: Product) => {
+          normalized.forEach(product => {
             initialCounts[product.id] = 0;
             initialViewCounts[product.id] = 0;
           });
 
           setCommentCounts(initialCounts);
           setViewCounts(initialViewCounts);
-          setCategoryProductMap(buildCategoryProductMap(normalized, normalizedCats));
         } else {
-          setFetchError(prev => prev ? `${prev}; Products: ${prodData?.error}` : `Products: ${prodData?.error || 'Unknown error'}`);
+          setFetchError(prev =>
+            prev
+              ? `${prev}; Products: ${prodData?.error}`
+              : `Products: ${prodData?.error || 'Unknown error'}`
+          );
         }
       } catch (error: any) {
-        console.error('❌ App: Failed to refresh data', error);
+        console.error('❌ Failed to fetch fresh data:', error);
         if (!products.length) {
-          setFetchError(error.message || 'Network or server error');
+          setFetchError(error.message || 'Network error while fetching fresh data');
         }
       } finally {
         setIsLoading(false);
+        setRouteReady(true);
       }
     };
 
     void initApp();
   }, [buildCategoryProductMap]);
-
-  useEffect(() => {
-    if (isLoading) return;
-
-    const pathView = getInitialViewFromPath(location.pathname) as any;
-
-    if (location.pathname === '/') {
-      setSelectedProduct(null);
-      setView(searchQuery ? 'search-results' : 'home');
-      return;
-    }
-
-    if (location.pathname.startsWith('/all-products')) {
-      setSelectedProduct(null);
-      setView('all-products');
-      return;
-    }
-
-    if (location.pathname.startsWith('/categories')) {
-      setSelectedProduct(null);
-      setView('categories');
-      return;
-    }
-
-    if (location.pathname.startsWith('/admin')) {
-      setSelectedProduct(null);
-      setView('admin');
-      return;
-    }
-
-    if (location.pathname.startsWith('/product/')) {
-      if (!productId) {
-        navigate('/', { replace: true });
-        return;
-      }
-
-      const product = products.find(p => String(p.id) === String(productId));
-
-      if (product) {
-        setSelectedProduct(product);
-        setView('product-detail');
-
-        void fetchCommentsForProduct(product.id);
-        void (async () => {
-          const count = await ViewsService.getViews(product.id);
-          setViewCounts(prev => ({ ...prev, [product.id]: count }));
-        })();
-      } else {
-        navigate('/', { replace: true });
-      }
-      return;
-    }
-
-    if (location.pathname.startsWith('/category/')) {
-      if (!categoryId) {
-        navigate('/', { replace: true });
-        return;
-      }
-
-      const foundCategory = categories.find(c => String(c.id) === String(categoryId));
-      if (foundCategory) {
-        const productsForCategory = categoryProductMap[foundCategory.id] || [];
-        setSelectedCategory(foundCategory);
-        setCategoryProducts(productsForCategory);
-        setView('category-results');
-      } else {
-        navigate('/', { replace: true });
-      }
-      return;
-    }
-
-    setView(pathView);
-  }, [isLoading, location.pathname, productId, categoryId, products, categories, categoryProductMap, navigate, searchQuery]);
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -1154,27 +1080,54 @@ const AppContent: React.FC = () => {
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setView('search-results');
-    navigate('/');
+    goToScopedPath('/');
   };
 
   const handleCategorySelect = (category: Category) => {
     setIsSidebarOpen(false);
 
+    const categoryFlag = Number((category as any).appFlag ?? (category as any).app_flag ?? 1);
+
     if (category.id === '14' || category.name === 'Bidhaa Zote') {
       setView('all-products');
-      navigate('/all-products');
+
+      if (categoryFlag === 0) {
+        if (isOnSonkoSubdomain) {
+          window.location.href = 'https://barakasonko.store/all-products';
+          return;
+        }
+        navigate('/all-products');
+      } else {
+        if (isOnMainDomain) {
+          navigate('/sonkosound/all-products');
+        } else {
+          navigate('/all-products');
+        }
+      }
+
       window.scrollTo(0, 0);
       return;
     }
 
     const productsForCategory = categoryProductMap[category.id] || [];
-
-    console.log(`📌 Category "${category.name}" has ${productsForCategory.length} products`);
-
     setCategoryProducts(productsForCategory);
     setSelectedCategory(category);
     setView('category-results');
-    navigate(`/category/${category.id}`);
+
+    if (categoryFlag === 0) {
+      if (isOnSonkoSubdomain) {
+        window.location.href = `https://barakasonko.store/category/${category.id}`;
+        return;
+      }
+      navigate(`/category/${category.id}`);
+    } else {
+      if (isOnMainDomain) {
+        navigate(`/sonkosound/category/${category.id}`);
+      } else {
+        navigate(`/category/${category.id}`);
+      }
+    }
+
     window.scrollTo(0, 0);
   };
 
@@ -1228,10 +1181,8 @@ const AppContent: React.FC = () => {
   const handleAddComment = async (productId: string, content: string) => {
     try {
       const isLoggedIn = !!user;
-
       const displayName = isLoggedIn ? 'Baraka Sonko Electronics' : 'Mteja';
       const initials = isLoggedIn ? 'BS' : 'MT';
-
       const anon = generateAnonymousUser();
       const userId = isLoggedIn ? String(user?.id || 'admin') : anon.id;
 
@@ -1317,14 +1268,42 @@ const AppContent: React.FC = () => {
   };
 
   const handleProductClick = (product: Product) => {
+    const productId = String(product?.id || '').trim();
+    if (!productId) return;
+
+    const appFlag = Number((product as any).appFlag ?? (product as any).app_flag ?? 1);
+
     setSelectedProduct(product);
     setView('product-detail');
-    navigate(`/product/${product.id}`);
+    setRouteReady(true);
 
-    void fetchCommentsForProduct(product.id);
+    if (appFlag === 0) {
+      if (isOnSonkoSubdomain) {
+        window.location.href = `https://barakasonko.store/product/${productId}`;
+        return;
+      }
+
+      navigate(`/product/${productId}`);
+
+      void fetchCommentsForProduct(productId);
+      void (async () => {
+        const count = await ViewsService.getViews(productId);
+        setViewCounts(prev => ({ ...prev, [productId]: count }));
+      })();
+
+      return;
+    }
+
+    if (isOnMainDomain) {
+      navigate(`/sonkosound/product/${productId}`);
+    } else {
+      navigate(`/product/${productId}`);
+    }
+
+    void fetchCommentsForProduct(productId);
     void (async () => {
-      const count = await ViewsService.getViews(product.id);
-      setViewCounts(prev => ({ ...prev, [product.id]: count }));
+      const count = await ViewsService.getViews(productId);
+      setViewCounts(prev => ({ ...prev, [productId]: count }));
     })();
   };
 
@@ -1369,11 +1348,6 @@ const AppContent: React.FC = () => {
     }
   }, [selectedProduct?.id]);
 
-  const handleBannerClick = () => {
-    setView('all-products');
-    navigate('/all-products');
-  };
-
   const [showAuth, setShowAuth] = useState(false);
 
   const addProduct = async (newProduct: Product) => {
@@ -1388,6 +1362,7 @@ const AppContent: React.FC = () => {
       if (!response.ok || !result?.success) return false;
 
       const savedRaw = result.data || result.product || result.item;
+
       if (savedRaw) {
         const saved = normalizeProduct(savedRaw, categories);
 
@@ -1400,18 +1375,12 @@ const AppContent: React.FC = () => {
             categoryCount: categories.length,
             invalidatedByPost: true
           });
+          setCategoryProductMap(buildCategoryProductMap(updated, categories));
           return updated;
         });
 
-        setCommentCounts(prev => ({
-          ...prev,
-          [saved.id]: 0
-        }));
-
-        setViewCounts(prev => ({
-          ...prev,
-          [saved.id]: 0
-        }));
+        setCommentCounts(prev => ({ ...prev, [saved.id]: 0 }));
+        setViewCounts(prev => ({ ...prev, [saved.id]: 0 }));
 
         return true;
       }
@@ -1419,9 +1388,11 @@ const AppContent: React.FC = () => {
       clearStoreCache();
       const prodRes = await fetch('/api/products');
       const prodData = await prodRes.json().catch(() => null);
+
       if (prodData?.success) {
         const normalized = (prodData.data || []).map((p: any) => normalizeProduct(p, categories));
         setProducts(normalized);
+        setCategoryProductMap(buildCategoryProductMap(normalized, categories));
         saveToCache(PRODUCTS_CACHE_KEY, normalized);
       }
 
@@ -1437,7 +1408,9 @@ const AppContent: React.FC = () => {
       const response = await fetch(`/api/products?id=${encodeURIComponent(String(id))}`, {
         method: 'DELETE',
       });
+
       const result = await response.json().catch(() => null);
+
       if (result?.success) {
         setProducts((prev) => {
           const updated = prev.filter((p) => String(p.id) !== String(id));
@@ -1448,6 +1421,7 @@ const AppContent: React.FC = () => {
             categoryCount: categories.length,
             invalidatedByDelete: true
           });
+          setCategoryProductMap(buildCategoryProductMap(updated, categories));
           return updated;
         });
 
@@ -1478,7 +1452,8 @@ const AppContent: React.FC = () => {
     if (!user) setShowAuth(true);
     else {
       setView('admin');
-      navigate('/admin');
+      setRouteReady(true);
+      goToScopedPath('/admin');
     }
   };
 
@@ -1487,25 +1462,56 @@ const AppContent: React.FC = () => {
     localStorage.setItem('sonko_user', JSON.stringify(newUser));
     setShowAuth(false);
     setView('admin');
-    navigate('/admin');
+    setRouteReady(true);
+    goToScopedPath('/admin');
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('sonko_user');
     setView('home');
-    navigate('/');
+    setRouteReady(true);
+    goToScopedPath('/');
   };
 
   const handleBackToHome = () => {
     setSelectedProduct(null);
     setView('home');
-    navigate('/');
+    setRouteReady(true);
+    goToScopedPath('/');
   };
 
   const handleRefreshCachedData = async () => {
     clearStoreCache();
     window.location.reload();
+  };
+
+  const handleBarakasonkoClick = () => {
+    setSelectedProduct(null);
+    setSelectedCategory(null);
+    setSearchQuery('');
+    setView('home');
+    setRouteReady(true);
+
+    if (isOnSonkoSubdomain) {
+      window.location.href = 'https://barakasonko.store';
+      return;
+    }
+
+    navigate('/');
+  };
+
+  const handleSonkoClick = () => {
+    setSelectedProduct(null);
+    setSelectedCategory(null);
+    setView('home');
+    setRouteReady(true);
+
+    if (isOnMainDomain) {
+      navigate('/sonkosound');
+    } else {
+      navigate('/');
+    }
   };
 
   // ============ APP PROMOTION HANDLERS ============
@@ -1520,36 +1526,110 @@ const AppContent: React.FC = () => {
     setShowOpenAppPrompt(false);
   };
 
+  useEffect(() => {
+    if (isLoading) return;
+
+    const pathView = getInitialViewFromPath(location.pathname) as any;
+
+    if (normalizedPath === '/') {
+      setSelectedProduct(null);
+      setView(searchQuery ? 'search-results' : 'home');
+      setRouteReady(true);
+      return;
+    }
+
+    if (normalizedPath.startsWith('/all-products')) {
+      setSelectedProduct(null);
+      setView('all-products');
+      setRouteReady(true);
+      return;
+    }
+
+    if (normalizedPath.startsWith('/categories')) {
+      setSelectedProduct(null);
+      setView('categories');
+      setRouteReady(true);
+      return;
+    }
+
+    if (normalizedPath.startsWith('/admin')) {
+      setSelectedProduct(null);
+      setView('admin');
+      setRouteReady(true);
+      return;
+    }
+
+    if (normalizedPath.startsWith('/product/')) {
+      if (!productId) {
+        navigate(inSonkoSection ? '/sonkosound' : '/', { replace: true });
+        return;
+      }
+
+      const product = products.find(p => String(p.id) === String(productId));
+
+      if (product) {
+        setSelectedProduct(product);
+        setView('product-detail');
+        setRouteReady(true);
+
+        void fetchCommentsForProduct(product.id);
+        void (async () => {
+          const count = await ViewsService.getViews(product.id);
+          setViewCounts(prev => ({ ...prev, [product.id]: count }));
+        })();
+      } else {
+        navigate(inSonkoSection ? '/sonkosound' : '/', { replace: true });
+      }
+      return;
+    }
+
+    if (normalizedPath.startsWith('/category/')) {
+      if (!categoryId) {
+        navigate(inSonkoSection ? '/sonkosound' : '/', { replace: true });
+        return;
+      }
+
+      const foundCategory = categories.find(c => String(c.id) === String(categoryId));
+      if (foundCategory) {
+        const productsForCategory = categoryProductMap[foundCategory.id] || [];
+        setSelectedCategory(foundCategory);
+        setCategoryProducts(productsForCategory);
+        setView('category-results');
+        setRouteReady(true);
+      } else {
+        navigate(inSonkoSection ? '/sonkosound' : '/', { replace: true });
+      }
+      return;
+    }
+
+    setView(pathView);
+    setRouteReady(true);
+  }, [
+    isLoading,
+    location.pathname,
+    normalizedPath,
+    inSonkoSection,
+    productId,
+    categoryId,
+    products,
+    categories,
+    categoryProductMap,
+    navigate,
+    searchQuery
+  ]);
+
   const navView =
     view === 'admin'
       ? 'admin'
       : view === 'categories'
-      ? 'categories'
-      : view === 'all-products'
-      ? 'all-products'
-      : view === 'search-results'
-      ? 'search-results'
-      : view === 'category-results'
-      ? 'categories'
-      : 'home';
-
-  if (isLoading && !isDirectProductRoute && view !== 'category-results') {
-    return (
-      <div className="fixed inset-0 bg-white flex flex-col items-center justify-center space-y-4">
-        <div className="text-3xl font-black italic text-orange-600 animate-pulse">SONKO</div>
-        <div className="flex space-x-1.5">
-          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-        </div>
-        <p className="text-xs text-gray-500 mt-4">Loading store data...</p>
-      </div>
-    );
-  }
-
-  if (isDirectProductRoute && (isLoading || (productId && !selectedProduct && !fetchError))) {
-    return <div className="fixed inset-0 bg-white" />;
-  }
+        ? 'categories'
+        : view === 'all-products'
+          ? 'all-products'
+          : view === 'search-results'
+            ? 'search-results'
+            : view === 'category-results'
+              ? 'categories'
+              : 'home';
 
   if (fetchError) {
     return (
@@ -1617,6 +1697,8 @@ const AppContent: React.FC = () => {
           onSearch={handleSearch}
           initialValue={searchQuery}
           onProductSelect={handleProductClick}
+          onBarakasonkoClick={handleBarakasonkoClick}
+          onSonkoClick={handleSonkoClick}
         />
       )}
 
@@ -1625,7 +1707,7 @@ const AppContent: React.FC = () => {
           <>
             <QuickActions onActionSelect={() => {
               setView('all-products');
-              navigate('/all-products');
+              goToScopedPath('/all-products');
             }} />
 
             <CategorySection
@@ -1633,7 +1715,7 @@ const AppContent: React.FC = () => {
               onCategorySelect={handleCategorySelect}
               onMore={() => {
                 setView('categories');
-                navigate('/categories');
+                goToScopedPath('/categories');
               }}
             />
 
@@ -1642,20 +1724,10 @@ const AppContent: React.FC = () => {
               onProductClick={handleProductClick}
               onSeeAll={() => {
                 setView('all-products');
-                navigate('/all-products');
+                goToScopedPath('/all-products');
               }}
               WatermarkedImage={WatermarkedImage}
             />
-
-            <div className="p-4">
-              <Banner
-                src="https://media.barakasonko.store/White%20Blue%20Professional%20Website%20Developer%20LinkedIn%20Banner.gif"
-                onClick={handleBannerClick}
-                containerClass="h-[110px]"
-                alt="Special promotion banner"
-                isGif={true}
-              />
-            </div>
 
             <ProductGrid
               title="Daily Discoveries"
@@ -1692,7 +1764,7 @@ const AppContent: React.FC = () => {
                 className="text-xs font-black text-orange-600"
                 onClick={() => {
                   setView('all-products');
-                  navigate('/all-products');
+                  goToScopedPath('/all-products');
                 }}
               >
                 View All Products
@@ -1741,7 +1813,7 @@ const AppContent: React.FC = () => {
             onCategorySelect={handleCategorySelect}
             onShowAllProducts={() => {
               setView('all-products');
-              navigate('/all-products');
+              goToScopedPath('/all-products');
             }}
             suggestedProducts={products}
             onProductClick={handleProductClick}
@@ -1765,16 +1837,20 @@ const AppContent: React.FC = () => {
         <BottomNav
           currentView={navView as any}
           onViewChange={(v: any) => {
-            if (v === 'admin') handleAdminAccess();
-            else if (v === 'home') {
+            if (v === 'admin') {
+              handleAdminAccess();
+            } else if (v === 'home') {
               setView('home');
-              navigate('/');
+              setRouteReady(true);
+              goToScopedPath('/');
             } else if (v === 'categories') {
               setView('categories');
-              navigate('/categories');
+              setRouteReady(true);
+              goToScopedPath('/categories');
             } else if (v === 'all-products') {
               setView('all-products');
-              navigate('/all-products');
+              setRouteReady(true);
+              goToScopedPath('/all-products');
             }
           }}
         />
@@ -1815,7 +1891,7 @@ const AppContent: React.FC = () => {
       )}
 
       <div className="fixed bottom-0 left-0 right-0 bg-black text-white text-center py-2 text-xs z-40">
-        ©barakasonko - Product images protected
+        ©SonkoSound - Product images protected
       </div>
     </div>
   );
@@ -1825,12 +1901,22 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Main routes */}
         <Route path="/" element={<AppContent />} />
         <Route path="/product/:productId" element={<AppContent />} />
         <Route path="/category/:categoryId" element={<AppContent />} />
         <Route path="/categories" element={<AppContent />} />
         <Route path="/all-products" element={<AppContent />} />
         <Route path="/admin" element={<AppContent />} />
+
+        {/* Sonko Sound routes under main domain */}
+        <Route path="/sonkosound" element={<AppContent />} />
+        <Route path="/sonkosound/product/:productId" element={<AppContent />} />
+        <Route path="/sonkosound/category/:categoryId" element={<AppContent />} />
+        <Route path="/sonkosound/categories" element={<AppContent />} />
+        <Route path="/sonkosound/all-products" element={<AppContent />} />
+        <Route path="/sonkosound/admin" element={<AppContent />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
