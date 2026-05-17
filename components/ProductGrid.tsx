@@ -3,56 +3,6 @@ import { ICONS } from '../constants';
 import { Product } from '../types';
 
 /* ===============================
-   SONKOSOUND ROUTING HELPERS
-================================= */
-
-const SOUND_CATEGORY_NAMES = [
-  'Spika',
-  'Mic',
-  'Subwoofer',
-  'TV',
-  'Guitars',
-  'Keyboards',
-  'Hon Speaker',
-  'Studio Accessories',
-  'Mixers',
-];
-
-const isSoundProduct = (product: any) => {
-  const explicitFlag =
-    product?.is_sound_product === true ||
-    product?.isSoundProduct === true ||
-    product?.is_sound_product === 1 ||
-    product?.isSoundProduct === 1;
-
-  if (explicitFlag) return true;
-
-  const categoryName = String(
-    product?.category_name ??
-    product?.categoryName ??
-    product?.category ??
-    ''
-  ).trim();
-
-  return SOUND_CATEGORY_NAMES.includes(categoryName);
-};
-
-const openProductSmart = (product: any, fallbackOpen: (product: Product) => void) => {
-  const productId = String(product?.id ?? '').trim();
-  if (!productId) {
-    fallbackOpen(product);
-    return;
-  }
-
-  if (isSoundProduct(product)) {
-    window.location.href = `https://sonkosound.barakasonko.store/product/${productId}`;
-    return;
-  }
-
-  fallbackOpen(product);
-};
-
-/* ===============================
    PRODUCT CARD - Alibaba Style with Rich Backgrounds
 ================================= */
 
@@ -262,10 +212,6 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     return [left, right];
   }, [displayProducts]);
 
-  const handleProductClick = useCallback((product: Product) => {
-    openProductSmart(product, onProductClick);
-  }, [onProductClick]);
-
   const loadMoreFromApi = useCallback(async () => {
     if (fetchLockRef.current) return;
     if (!hasMoreInternal) return;
@@ -395,7 +341,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
             <ProductCard
               key={`${safeProductId(p, idx)}-left-${idx}`}
               product={p}
-              onClick={() => handleProductClick(p)}
+              onClick={() => onProductClick(p)}
             />
           ))}
         </div>
@@ -405,7 +351,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
             <ProductCard
               key={`${safeProductId(p, idx)}-right-${idx}`}
               product={p}
-              onClick={() => handleProductClick(p)}
+              onClick={() => onProductClick(p)}
             />
           ))}
         </div>
