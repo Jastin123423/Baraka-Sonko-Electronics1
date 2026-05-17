@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch categories from API with ?app=electronics
+  // Fetch categories from API with ?app=sound
   useEffect(() => {
     const fetchCategories = async () => {
       if (!isOpen || categories.length > 0) return;
@@ -53,7 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         setIsLoading(true);
         setError(null);
 
-        const response = await fetch('/api/categories?app=electronics', {
+        const response = await fetch('/api/categories?app=sound', {
           headers: { Accept: 'application/json' }
         });
 
@@ -126,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </p>
               <h3 className="text-lg font-extrabold text-white mt-1">Browse Categories</h3>
               <p className="text-xs text-orange-100 mt-1">
-                Electronics, home appliances and featured collections
+                Audio, electronics and featured collections
               </p>
               
               {/* Decorative elements */}
@@ -251,7 +251,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </svg>
             </div>
             <div className="relative">
-              <p className="text-sm font-bold text-gray-800 group-hover:text-orange-600 transition-colors">About Baraka Sonko</p>
+              <p className="text-sm font-bold text-gray-800 group-hover:text-orange-600 transition-colors">About Sonko Sound</p>
               <p className="text-xs text-gray-400">Store profile and brand details</p>
             </div>
             
@@ -327,13 +327,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="relative z-10">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-1 h-8 bg-gradient-to-b from-orange-400 to-amber-500 rounded-full" />
-          <h3 className="text-xl font-black text-gray-900">Kuhusu Sonko Sound</h3>
+          <h3 className="text-xl font-black text-gray-900">About Sonko Sound</h3>
         </div>
         
         <div className="space-y-4 text-sm text-gray-600 leading-relaxed">
           <p className="font-medium bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-orange-100/50">
-            Welcome to <span className="text-orange-600 font-bold">Baraka Sonko Electronics</span>. We focus on electronics,
-            home appliances, and reliable products for customers in Tanzania and beyond.
+            Welcome to <span className="text-orange-600 font-bold">Sonko Sound</span>. We focus on audio equipment,
+            electronics, and reliable products for customers in Tanzania and beyond.
           </p>
           
           <p className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-orange-100/50">
@@ -347,10 +347,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             <div className="relative">
               <p className="text-[11px] font-bold uppercase tracking-wider text-orange-100 mb-2">
-                Store Focus
+                Brand Focus
               </p>
               <p className="text-sm font-semibold text-white">
-                Electronics, home appliances, gadgets and featured collections
+                Sound systems, electronics, accessories and featured collections
               </p>
             </div>
           </div>
@@ -375,7 +375,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         
         <div className="space-y-4 text-sm text-gray-600 leading-relaxed">
           <p className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-blue-100/50">
-            At Baraka Sonko Electronics, we value your privacy and handle customer information with care.
+            At Sonko Sound, we value your privacy and handle customer information with care.
           </p>
           
           <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-blue-100/50">
@@ -424,7 +424,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         
         <div className="space-y-4 text-sm text-gray-600 leading-relaxed">
           <p className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-amber-100/50">
-            By using Baraka Sonko Electronics, you agree to the terms and conditions below.
+            By using Sonko Sound, you agree to the terms and conditions below.
           </p>
           
           <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-amber-100/50">
@@ -515,7 +515,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 <div>
                   <div className="text-xl font-black tracking-tight leading-none bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-                    {currentPage === 'menu' ? 'BARAKA SONKO' : 'SONKO INFO'}
+                    {currentPage === 'menu' ? 'SONKO SOUND' : 'SONKO INFO'}
                   </div>
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1 block">
                     {currentPage === 'menu' ? `${categories.length} Categories` : 'Details'}
@@ -545,13 +545,13 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="relative px-6 py-5 border-t border-orange-100/50 bg-white/80 backdrop-blur-sm z-10">
           <div className="text-center">
             <p className="text-[11px] font-extrabold tracking-[0.18em] uppercase bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-              Baraka Sonko
+              Sonko Sound
             </p>
             <p className="text-[10px] text-gray-400 mt-2 uppercase tracking-wider font-semibold">
-              Electronics and home appliance store
+              Professional audio and electronics experience
             </p>
             <p className="text-[9px] text-gray-400 mt-4 uppercase font-bold tracking-tight">
-              © 2025 Baraka Sonko Electronics
+              © 2025 Sonko Sound
             </p>
           </div>
         </div>
