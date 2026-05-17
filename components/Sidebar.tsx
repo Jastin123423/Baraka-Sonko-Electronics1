@@ -122,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             <div className="relative p-4">
               <p className="text-[11px] uppercase tracking-[0.18em] font-bold text-orange-100">
-                Baraka Sonko Menu
+                Sonko Sound Menu
               </p>
               <h3 className="text-lg font-extrabold text-white mt-1">Browse Categories</h3>
               <p className="text-xs text-orange-100 mt-1">
@@ -327,7 +327,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="relative z-10">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-1 h-8 bg-gradient-to-b from-orange-400 to-amber-500 rounded-full" />
-          <h3 className="text-xl font-black text-gray-900">About Baraka Sonko</h3>
+          <h3 className="text-xl font-black text-gray-900">Kuhusu Sonko Sound</h3>
         </div>
         
         <div className="space-y-4 text-sm text-gray-600 leading-relaxed">
