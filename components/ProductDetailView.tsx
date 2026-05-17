@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Product } from '../types';
+import { COLORS } from '../constants';
 
 interface ProductDetailViewProps {
   product: Product;
@@ -22,12 +23,6 @@ type ImageVariant = {
   isMain?: boolean;
   position?: number;
 };
-
-declare global {
-  interface Window {
-    __barakaRecordedViews?: Set<string>;
-  }
-}
 
 /** -----------------------------
  * ✅ UTIL: Safe string url
@@ -75,15 +70,13 @@ const usePreloadVideo = (videoUrl: string) => {
     document.head.appendChild(link);
 
     return () => {
-      if (document.head.contains(link)) {
-        document.head.removeChild(link);
-      }
+      document.head.removeChild(link);
     };
   }, [videoUrl]);
 };
 
 /** -----------------------------
- * ✅ Large Watermarked Image
+ * ✅ Large Watermarked Image with Sonko Sound branding
  * ------------------------------*/
 const LargeWatermarkedImage: React.FC<{
   src: string;
@@ -91,8 +84,9 @@ const LargeWatermarkedImage: React.FC<{
   containerClass?: string;
   productId?: string;
   priority?: boolean;
-}> = ({ src, alt = '', containerClass = '', productId = '', priority = false }) => {
-  const logoUrl = 'https://media.barakasonko.store/download__82_-removebg-preview.png';
+  showWatermark?: boolean;
+}> = ({ src, alt = '', containerClass = '', productId = '', priority = false, showWatermark = true }) => {
+  const logoUrl = 'https://media.barakasonko.store/Screenshot_2026-03-18_221011-removebg-preview.png';
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -157,7 +151,7 @@ const LargeWatermarkedImage: React.FC<{
         <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />
       )}
 
-      {isLoaded && (
+      {isLoaded && showWatermark && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           <div className="relative w-40 h-40 opacity-80">
             <img
@@ -171,15 +165,15 @@ const LargeWatermarkedImage: React.FC<{
               decoding="async"
               style={{
                 filter: `
-                  drop-shadow(0 0 15px rgba(0,0,0,0.8))
+                  drop-shadow(0 0 15px rgba(0,0,0,0.8)) 
                   drop-shadow(0 0 25px rgba(0,0,0,0.6))
-                  brightness(1.2)
+                  brightness(1.2) 
                   contrast(1.5)
                 `,
                 WebkitFilter: `
-                  drop-shadow(0 0 15px rgba(0,0,0,0.8))
+                  drop-shadow(0 0 15px rgba(0,0,0,0.8)) 
                   drop-shadow(0 0 25px rgba(0,0,0,0.6))
-                  brightness(1.2)
+                  brightness(1.2) 
                   contrast(1.5)
                 `,
               }}
@@ -198,41 +192,10 @@ const LargeWatermarkedImage: React.FC<{
               border: '2px solid rgba(255,255,255,0.3)',
             }}
           >
-            ©BarakaSonko
+            ©SonkoSound
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-/** -----------------------------
- * ✅ Small Thumbnail Image
- * ------------------------------*/
-const ThumbnailImage: React.FC<{
-  src: string;
-  alt?: string;
-  containerClass?: string;
-}> = ({ src, alt = '', containerClass = '' }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  return (
-    <div className={`relative overflow-hidden ${containerClass}`}>
-      <img
-        src={toUrl(src)}
-        alt={alt}
-        className="w-full h-full object-cover transition-opacity duration-200"
-        draggable="false"
-        loading="lazy"
-        decoding="async"
-        style={{ opacity: isLoaded ? 1 : 0.5 }}
-        onLoad={() => setIsLoaded(true)}
-        onError={(e) => {
-          (e.target as HTMLImageElement).style.opacity = '1';
-          setIsLoaded(true);
-        }}
-      />
-      {!isLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
     </div>
   );
 };
@@ -317,10 +280,10 @@ const SharePanel: React.FC<{
   productTitle: string;
   productLink: string;
   shareImageUrl: string;
-}> = ({ isOpen, onClose, productTitle, productLink }) => {
+}> = ({ isOpen, onClose, productTitle, productLink, shareImageUrl }) => {
   const [copied, setCopied] = useState(false);
 
-  const shareText = `Check out "${productTitle}" on BARAKA SONKO ELECTRONICS APP! 🛒\n${productLink}\n\n#barakasonko #electronics #tanzania`;
+  const shareText = `Check out "${productTitle}" on SONKO SOUND APP! 🛒\n${productLink}\n\n#sonkosound #electronics #tanzania`;
 
   const handleShare = (platform: 'whatsapp' | 'facebook' | 'instagram' | 'tiktok') => {
     switch (platform) {
@@ -330,7 +293,7 @@ const SharePanel: React.FC<{
       case 'facebook':
         window.open(
           `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(
-            `Check out "${productTitle}" on BARAKA SONKO!`
+            `Check out "${productTitle}" on SONKO SOUND!`
           )}`,
           '_blank',
           'width=600,height=400'
@@ -357,10 +320,7 @@ const SharePanel: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
         className="bg-white w-full max-w-sm rounded-t-2xl md:rounded-2xl shadow-xl animate-slideUp max-h-[70vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
@@ -459,7 +419,7 @@ const SharePanel: React.FC<{
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Sharing helps others find great products from BARAKA SONKO ELECTRONICS!
+            Sharing helps others find great products from SONKO SOUND!
           </p>
         </div>
 
@@ -489,6 +449,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 }) => {
   const [activeImage, setActiveImage] = useState(0);
   const [showSharePanel, setShowSharePanel] = useState(false);
+
+  const hasRecordedViewRef = useRef<string | null>(null);
   const heroScrollRef = useRef<HTMLDivElement | null>(null);
 
   const imageVariants = useMemo(() => {
@@ -498,7 +460,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   }, [product]);
 
   const gallery = useMemo(() => {
-    const variantUrls = imageVariants.map((v) => toUrl(v.url)).filter(Boolean);
+    const variantUrls = imageVariants.map(v => toUrl(v.url)).filter(Boolean);
 
     const imgs = Array.isArray((product as any).images)
       ? (product as any).images.map(toUrl).filter(Boolean)
@@ -516,8 +478,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     const di = Array.isArray((product as any).descriptionImages)
       ? (product as any).descriptionImages
       : Array.isArray((product as any).description_images)
-        ? (product as any).description_images
-        : [];
+      ? (product as any).description_images
+      : [];
     return di.map(toUrl).filter(Boolean);
   }, [product]);
 
@@ -526,7 +488,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const selectedVariant = useMemo(() => {
     if (!selectedImageUrl) return imageVariants[activeImage] || null;
     return (
-      imageVariants.find((v) => toUrl(v.url) === toUrl(selectedImageUrl)) ||
+      imageVariants.find(v => toUrl(v.url) === toUrl(selectedImageUrl)) ||
       imageVariants[activeImage] ||
       null
     );
@@ -536,7 +498,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     if (!gallery.length || !imageVariants.length) return false;
 
     return gallery.every((imgUrl) =>
-      imageVariants.some((v) => toUrl(v.url) === toUrl(imgUrl) && Number(v.price) > 0)
+      imageVariants.some(v => toUrl(v.url) === toUrl(imgUrl) && Number(v.price) > 0)
     );
   }, [gallery, imageVariants]);
 
@@ -544,10 +506,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     (product as any).sellingPrice ?? (product as any).price ?? 0
   );
 
-  const displayedPrice =
-    Number(selectedVariant?.price) > 0
-      ? Number(selectedVariant?.price)
-      : fallbackSellingPrice;
+  const displayedPrice = Number(selectedVariant?.price) > 0
+    ? Number(selectedVariant?.price)
+    : fallbackSellingPrice;
 
   const displayedPriceStr = Number.isFinite(displayedPrice)
     ? displayedPrice.toLocaleString()
@@ -555,11 +516,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const originalPriceValue = Number(
     (product as any).originalPrice ||
-      (allImagesHaveOwnPrices
-        ? 0
-        : (product as any).discount
-          ? Math.round(Number((product as any).price || 0) * (1 + Number((product as any).discount) / 100))
-          : 0)
+    (allImagesHaveOwnPrices ? 0 : (
+      (product as any).discount
+        ? Math.round(Number((product as any).price || 0) * (1 + Number((product as any).discount) / 100))
+        : 0
+    ))
   );
 
   const originalPriceStr = Number.isFinite(originalPriceValue)
@@ -567,12 +528,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     : '0';
 
   const minVariantPrice = useMemo(() => {
-    const nums = imageVariants.map((v) => Number(v.price || 0)).filter((n) => n > 0);
+    const nums = imageVariants.map(v => Number(v.price || 0)).filter(n => n > 0);
     return nums.length ? Math.min(...nums) : 0;
   }, [imageVariants]);
 
   const maxVariantPrice = useMemo(() => {
-    const nums = imageVariants.map((v) => Number(v.price || 0)).filter((n) => n > 0);
+    const nums = imageVariants.map(v => Number(v.price || 0)).filter(n => n > 0);
     return nums.length ? Math.max(...nums) : 0;
   }, [imageVariants]);
 
@@ -588,7 +549,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       const origin = window.location.origin;
       return `${origin}/product/${(product as any).id}`;
     } catch {
-      return 'https://barakasonko.store';
+      return 'https://sonkosound.store';
     }
   }, [(product as any).id]);
 
@@ -612,31 +573,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     return `https://wa.me/${digits}?text=${encodeURIComponent(WHATSAPP_TEXT)}`;
   }, [WHATSAPP_TEXT]);
 
-  /** -----------------------------
-   * ✅ Prevent duplicate view POSTs in same page load
-   * One real refresh = one new view
-   * ------------------------------*/
   useEffect(() => {
-    const pid = String((product as any).id || '').trim();
-    if (!pid || typeof window === 'undefined' || typeof onRecordView !== 'function') return;
-
-    if (!window.__barakaRecordedViews) {
-      window.__barakaRecordedViews = new Set<string>();
-    }
-
-    const pageLoadKey = `product:${pid}`;
-
-    if (window.__barakaRecordedViews.has(pageLoadKey)) return;
-
-    window.__barakaRecordedViews.add(pageLoadKey);
-
-    try {
-      onRecordView();
-    } catch (err) {
-      window.__barakaRecordedViews.delete(pageLoadKey);
-      console.error('Failed to record view:', err);
-    }
-  }, [(product as any).id]);
+    const pid = String((product as any).id);
+    if (hasRecordedViewRef.current === pid) return;
+    hasRecordedViewRef.current = pid;
+    onRecordView?.();
+  }, [(product as any).id, onRecordView]);
 
   useEffect(() => {
     setActiveImage(0);
@@ -705,17 +647,18 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const productDescription =
     toUrl((product as any).description) ||
-    `Welcome to BARAKA SONKO ELECTRONICS. Our ${(product as any).title} is selected for its superior quality and durability. Perfect for professional or home use.`;
+    `Welcome to SONKO SOUND. Our ${(product as any).title} is selected for its superior quality and durability. Perfect for professional or home use.`;
 
   return (
     <div className="fixed inset-0 bg-white z-[100] flex flex-col animate-fadeIn overflow-hidden">
+      {/* Header with Alibaba orange */}
       <div className="flex-shrink-0 bg-gradient-to-r from-[#FF6A00] to-[#FF8533] text-white flex items-center justify-between px-4 py-3 shadow-md">
         <button onClick={onBack} className="p-2 -ml-2 text-white active:scale-90 transition-transform">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <div className="text-sm font-black text-white truncate px-4">BARAKA SONKO</div>
+        <div className="text-sm font-black text-white truncate px-4">SONKO SOUND</div>
         <div className="flex items-center space-x-2">
           <button onClick={handleShare} className="p-2 text-white hover:text-white/80 transition-colors" aria-label="Share">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -753,6 +696,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   containerClass="w-full h-full"
                   productId={String((product as any).id)}
                   priority={idx === 0 || idx === activeImage}
+                  showWatermark={true}
                 />
               </div>
             ))}
@@ -768,7 +712,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
               {gallery.map((img, idx) => {
                 const variant =
-                  imageVariants.find((v) => toUrl(v.url) === toUrl(img)) ||
+                  imageVariants.find(v => toUrl(v.url) === toUrl(img)) ||
                   imageVariants[idx] ||
                   null;
 
@@ -780,13 +724,18 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     type="button"
                     onClick={() => goToImage(idx)}
                     className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                      activeImage === idx ? 'border-[#FF6A00] shadow-md' : 'border-gray-200'
+                      activeImage === idx
+                        ? 'border-[#FF6A00] shadow-md'
+                        : 'border-gray-200'
                     }`}
                   >
-                    <ThumbnailImage
+                    <LargeWatermarkedImage
                       src={img}
                       alt={`Thumbnail ${idx + 1}`}
                       containerClass="w-full h-full"
+                      productId={(product as any).id}
+                      priority={false}
+                      showWatermark={false}
                     />
 
                     {thumbPrice > 0 && (
@@ -900,6 +849,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     containerClass="w-full h-auto"
                     productId={`${(product as any).id}-desc-${idx}`}
                     priority={idx < 2}
+                    showWatermark={true}
                   />
                 </div>
               ))}
@@ -921,7 +871,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   );
 
                   const relatedMinVariantPrice = relatedVariants.length
-                    ? Math.min(...relatedVariants.map((v) => Number(v.price || 0)).filter((n) => n > 0))
+                    ? Math.min(...relatedVariants.map(v => Number(v.price || 0)).filter(n => n > 0))
                     : 0;
 
                   const relatedShownPrice =
@@ -936,12 +886,13 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       onClick={() => onProductClick(relatedProduct)}
                     >
                       <div className="aspect-square rounded-lg overflow-hidden mb-2 bg-gray-50 relative">
-                        <WatermarkedImage
+                        <LargeWatermarkedImage
                           src={(relatedProduct as any).image}
                           alt={(relatedProduct as any).title}
                           containerClass="w-full h-full"
                           productId={(relatedProduct as any).id}
-                          isProduct={true}
+                          priority={false}
+                          showWatermark={true}
                         />
                       </div>
 
@@ -964,8 +915,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
           ) : null}
 
+          {/* Sonko Sound watermark footer */}
           <div className="mt-8 text-center pb-4">
-            <span className="text-xs text-gray-400">©BarakaSonko - Product images protected</span>
+            <span className="text-xs text-gray-400">©SonkoSound - Product images protected</span>
           </div>
         </div>
       </div>
