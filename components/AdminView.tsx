@@ -2403,4 +2403,105 @@ Package includes:
   );
 };
 
+{/* Add Group Modal */}
+{showAddGroup && (
+  <div className="fixed inset-0 bg-black/75 z-[120] flex items-center justify-center p-4">
+    <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-orange-100">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-black text-gray-800">Create New Group</h3>
+        <button
+          onClick={() => {
+            setShowAddGroup(false);
+            setNewGroupName('');
+            setGroupError('');
+          }}
+          className="text-2xl text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          &times;
+        </button>
+      </div>
+      
+      {groupError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-2xl">
+          <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <p className="text-sm font-bold text-red-700">{groupError}</p>
+          </div>
+        </div>
+      )}
+      
+      <div className="mb-4">
+        <label className="block text-[11px] font-black text-[#6B7280] uppercase mb-2 ml-1 tracking-[0.12em]">
+          Group Name *
+        </label>
+        <input
+          type="text"
+          value={newGroupName}
+          onChange={(e) => {
+            setNewGroupName(e.target.value);
+            setGroupError('');
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && newGroupName.trim()) createGroup();
+          }}
+          placeholder="e.g., VIP Customers, New Leads..."
+          className="w-full bg-white border border-[#E5E7EB] rounded-2xl px-4 py-4 text-base font-bold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all duration-200 shadow-sm"
+          autoFocus
+          disabled={groupLoading}
+          maxLength={100}
+        />
+        <p className="mt-1 text-[10px] font-bold text-gray-400 ml-1">
+          {newGroupName.length}/100 characters
+        </p>
+      </div>
+
+      <div className="bg-orange-50 rounded-2xl p-3 mb-4 border border-orange-100">
+        <div className="flex items-start gap-2">
+          <svg className="w-4 h-4 text-[#FF6A00] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-xs font-bold text-gray-700">
+            Groups help you organize contacts and send targeted messages to specific audiences.
+          </p>
+        </div>
+      </div>
+      
+      <div className="flex gap-3">
+        <button
+          onClick={() => {
+            setShowAddGroup(false);
+            setNewGroupName('');
+            setGroupError('');
+          }}
+          className="flex-1 bg-gray-100 text-gray-700 font-black py-3.5 rounded-2xl hover:bg-gray-200 transition-colors text-sm"
+          disabled={groupLoading}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={createGroup}
+          disabled={groupLoading || !newGroupName.trim()}
+          className="flex-1 bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-3.5 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] hover:shadow-[0_14px_28px_rgba(255,106,0,0.28)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[0_10px_24px_rgba(255,106,0,0.22)] flex items-center justify-center gap-2 text-sm"
+        >
+          {groupLoading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span>Creating...</span>
+            </>
+          ) : (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span>Create Group</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 export default AdminView;
