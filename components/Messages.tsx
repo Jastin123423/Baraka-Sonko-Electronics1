@@ -61,7 +61,7 @@ interface MessagesProps {
 
 // SMS Footer Constants (Preview Only)
 const SMS_FOOTER_LINES = [
-  'Tel: 0656738253',
+  'WhatsApp: 0656738253',
   'Pakua App:https://bit.ly/4cufLcJ',
 ];
 const SMS_FOOTER_TEXT = SMS_FOOTER_LINES.join('\n');
