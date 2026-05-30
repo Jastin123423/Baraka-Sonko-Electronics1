@@ -55,6 +55,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const body = await request.json().catch(() => null);
     const source = String(body?.source || 'import').trim() || 'import';
     const rawContacts = Array.isArray(body?.contacts) ? body.contacts : [];
+    const groupId = String(body?.group_id || '').trim() || null;
 
     if (rawContacts.length === 0) {
       return json(
@@ -64,6 +65,25 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         },
         400
       );
+    }
+
+    // Validate group exists if groupId is provided
+    if (groupId) {
+      const groupExists = await env.DB.prepare(
+        `SELECT id, name FROM contact_groups WHERE id = ? LIMIT 1`
+      )
+        .bind(groupId)
+        .first();
+
+      if (!groupExists) {
+        return json(
+          { 
+            success: false, 
+            error: 'Selected group does not exist' 
+          },
+          400
+        );
+      }
     }
 
     const seen = new Set<string>();
@@ -109,6 +129,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         .first();
 
       if (existing) {
+        // If contact exists, update their group_id if provided
+        if (groupId) {
+          await env.DB.prepare(`
+            UPDATE message_contacts 
+            SET group_id = ?, name = COALESCE(NULLIF(?, ''), name)
+            WHERE phone = ?
+          `)
+            .bind(groupId, contact.name, contact.phone)
+            .run();
+        }
         duplicateInDb.push(contact.phone);
         continue;
       }
@@ -121,8 +151,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           subscribed,
           source,
           tags,
+          group_id,
           created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `)
         .bind(
           contact.id,
@@ -130,11 +161,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           contact.phone,
           1,
           source,
-          JSON.stringify([])
+          JSON.stringify([]),
+          groupId
         )
         .run();
 
       inserted += 1;
+    }
+
+    // Update contact count for the group
+    if (groupId) {
+      await env.DB.prepare(`
+        UPDATE contact_groups 
+        SET contact_count = (
+          SELECT COUNT(*) FROM message_contacts WHERE group_id = ?
+        ),
+        updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `)
+        .bind(groupId, groupId)
+        .run();
     }
 
     return json({
@@ -146,6 +192,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         invalid: invalidContacts.length,
         duplicate_in_payload: duplicateInPayload.length,
         duplicate_in_db: duplicateInDb.length,
+        group_id: groupId,
         invalid_contacts: invalidContacts,
         skipped_duplicates_in_payload: duplicateInPayload,
         skipped_duplicates_in_db: duplicateInDb,
