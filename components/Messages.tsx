@@ -25,7 +25,7 @@ type CampaignLog = {
 type RecipientMode = 'all' | 'selected' | 'subscribed' | 'group';
 
 type MessageSection = 
-  | 'compose' 
+  | 'tuma sms' 
   | 'contacts' 
   | 'import' 
   | 'campaigns' 
