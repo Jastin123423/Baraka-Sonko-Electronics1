@@ -25,7 +25,7 @@ type CampaignLog = {
 type RecipientMode = 'all' | 'selected' | 'subscribed' | 'group';
 
 type MessageSection = 
-  | 'tuma sms' 
+  | 'compose'
   | 'contacts' 
   | 'import' 
   | 'campaigns' 
@@ -728,8 +728,8 @@ const Messages: React.FC<MessagesProps> = ({ groups = [], onGroupsChange }) => {
         <div className="w-full sticky top-0 z-10 bg-[#FFF6EF] border-b border-orange-200">
           <div className="flex overflow-x-auto no-scrollbar">
             {[
-              ['compose', 'Compose'],
-              ['contacts', 'Contacts'],
+              ['compose', 'Tuma sms'],
+              ['contacts', 'Namba zote'],
               ['import', 'Import'],
               ['campaigns', 'Campaigns'],
               ['templates', 'Templates'],
