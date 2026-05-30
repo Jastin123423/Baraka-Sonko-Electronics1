@@ -8,6 +8,8 @@ type SmsContact = {
   subscribed: boolean;
   source?: 'manual' | 'paste' | 'csv' | 'woocommerce' | 'api';
   tags?: string[];
+  group_id?: string;
+  group_name?: string;
   created_at?: string;
 };
 
@@ -20,7 +22,7 @@ type CampaignLog = {
   created_at: string;
 };
 
-type RecipientMode = 'all' | 'selected' | 'subscribed';
+type RecipientMode = 'all' | 'selected' | 'subscribed' | 'group';
 
 type MessageSection = 
   | 'compose' 
@@ -45,6 +47,18 @@ type MessageTemplate = {
   created_at?: string;
 };
 
+type ContactGroup = {
+  id: string;
+  name: string;
+  contactCount: number;
+  created_at?: string;
+};
+
+interface MessagesProps {
+  groups?: ContactGroup[];
+  onGroupsChange?: () => void;
+}
+
 // SMS Footer Constants (Preview Only)
 const SMS_FOOTER_LINES = [
   'Tel: 0656738253',
@@ -52,7 +66,7 @@ const SMS_FOOTER_LINES = [
 ];
 const SMS_FOOTER_TEXT = SMS_FOOTER_LINES.join('\n');
 
-const Messages: React.FC = () => {
+const Messages: React.FC<MessagesProps> = ({ groups = [], onGroupsChange }) => {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const [contacts, setContacts] = useState<SmsContact[]>([]);
@@ -88,6 +102,11 @@ const Messages: React.FC = () => {
   // New state for campaign view/edit
   const [viewCampaign, setViewCampaign] = useState<CampaignLog | null>(null);
   const [editingCampaign, setEditingCampaign] = useState<CampaignLog | null>(null);
+  
+  // Group states
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [selectedGroupForCompose, setSelectedGroupForCompose] = useState<string>('');
+  const [groupFilter, setGroupFilter] = useState<string>('');
 
   const fetchContacts = async () => {
     try {
@@ -222,15 +241,30 @@ const Messages: React.FC = () => {
       return;
     }
 
+    if (!selectedGroupId) {
+      setError('Please select a group for this contact');
+      return;
+    }
+
     try {
-      const ok = await addContact(manualPhone, manualName, 'manual');
-      if (!ok) {
-        setError('Invalid phone number format. Use format like +255712345678');
-        return;
+      // Add contact with group
+      const res = await fetch('/api/message-contacts/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contacts: [{ name: manualName, phone: manualPhone }],
+          source: 'manual',
+          group_id: selectedGroupId,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to add contact');
       }
+      await fetchContacts();
       setManualName('');
       setManualPhone('');
-      setSuccess('Customer number added successfully');
+      setSuccess('Customer number added successfully to group');
     } catch (err: any) {
       setError(err?.message || 'Failed to add number');
     }
@@ -243,6 +277,11 @@ const Messages: React.FC = () => {
 
     if (!bulkNumbers.trim()) {
       setError('Paste numbers first');
+      return;
+    }
+
+    if (!selectedGroupId) {
+      setError('Please select a group for these contacts');
       return;
     }
 
@@ -273,6 +312,7 @@ const Messages: React.FC = () => {
         body: JSON.stringify({
           contacts: contactsToImport,
           source: 'paste',
+          group_id: selectedGroupId,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -280,7 +320,8 @@ const Messages: React.FC = () => {
         throw new Error(data?.error || 'Failed to import contacts');
       }
       await fetchContacts();
-      setImportInfo(`Imported ${contactsToImport.length} number(s). Invalid skipped: ${invalid}.`);
+      if (onGroupsChange) onGroupsChange();
+      setImportInfo(`Imported ${contactsToImport.length} number(s) to group. Invalid skipped: ${invalid}.`);
       setBulkNumbers('');
     } catch (err: any) {
       setError(err?.message || 'Failed to import pasted numbers');
@@ -288,6 +329,11 @@ const Messages: React.FC = () => {
   };
 
   const parseCsvText = async (text: string) => {
+    if (!selectedGroupId) {
+      setError('Please select a group for CSV import');
+      return;
+    }
+
     const rows = text.split(/\r?\n/).filter(Boolean);
     const contactsToImport: Array<{ name?: string; phone: string }> = [];
     let invalid = 0;
@@ -322,6 +368,7 @@ const Messages: React.FC = () => {
       body: JSON.stringify({
         contacts: contactsToImport,
         source: 'csv',
+        group_id: selectedGroupId,
       }),
     });
     const data = await res.json().catch(() => null);
@@ -329,7 +376,8 @@ const Messages: React.FC = () => {
       throw new Error(data?.error || 'Failed to import CSV');
     }
     await fetchContacts();
-    setImportInfo(`CSV imported ${contactsToImport.length} contact(s). Invalid skipped: ${invalid}.`);
+    if (onGroupsChange) onGroupsChange();
+    setImportInfo(`CSV imported ${contactsToImport.length} contact(s) to group. Invalid skipped: ${invalid}.`);
   };
 
   const onCsvPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -357,20 +405,45 @@ const Messages: React.FC = () => {
     });
   };
 
+  // Group contacts by group_id
+  const contactsByGroup = useMemo(() => {
+    const grouped = new Map<string, SmsContact[]>();
+    const ungrouped: SmsContact[] = [];
+
+    contacts.forEach(contact => {
+      if (contact.group_id) {
+        const existing = grouped.get(contact.group_id) || [];
+        existing.push(contact);
+        grouped.set(contact.group_id, existing);
+      } else {
+        ungrouped.push(contact);
+      }
+    });
+
+    return { grouped, ungrouped };
+  }, [contacts]);
+
   const filteredContacts = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = contacts;
+    
     if (showOnlySelected) {
       list = list.filter(c => selectedIds.has(c.id));
     }
+    
+    if (groupFilter) {
+      list = list.filter(c => c.group_id === groupFilter);
+    }
+    
     if (!q) return list;
     return list.filter(contact => {
       const name = String(contact.name || '').toLowerCase();
       const phone = String(contact.phone || '').toLowerCase();
       const source = String(contact.source || '').toLowerCase();
-      return name.includes(q) || phone.includes(q) || source.includes(q);
+      const groupName = String(contact.group_name || '').toLowerCase();
+      return name.includes(q) || phone.includes(q) || source.includes(q) || groupName.includes(q);
     });
-  }, [contacts, search, selectedIds, showOnlySelected]);
+  }, [contacts, search, selectedIds, showOnlySelected, groupFilter]);
 
   const selectedContacts = useMemo(() => {
     return contacts.filter(c => selectedIds.has(c.id));
@@ -379,8 +452,9 @@ const Messages: React.FC = () => {
   const recipients = useMemo(() => {
     if (recipientMode === 'all') return contacts;
     if (recipientMode === 'selected') return contacts.filter(c => selectedIds.has(c.id));
+    if (recipientMode === 'group') return contacts.filter(c => c.group_id === selectedGroupForCompose && c.subscribed);
     return contacts.filter(c => c.subscribed);
-  }, [contacts, recipientMode, selectedIds]);
+  }, [contacts, recipientMode, selectedIds, selectedGroupForCompose]);
 
   const smsLength = message.length;
   const smsSegments = useMemo(() => {
@@ -429,6 +503,7 @@ const Messages: React.FC = () => {
         return next;
       });
       await fetchContacts();
+      if (onGroupsChange) onGroupsChange();
     } catch (err: any) {
       setError(err?.message || 'Failed to remove contact');
     }
@@ -463,6 +538,7 @@ const Messages: React.FC = () => {
       }
       setSelectedIds(new Set());
       await fetchContacts();
+      if (onGroupsChange) onGroupsChange();
     } catch (err: any) {
       setError(err?.message || 'Failed to remove all contacts');
     }
@@ -522,9 +598,10 @@ const Messages: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: campaignTitle.trim(),
-          message: message.trim(), // No footer here - backend adds it
+          message: message.trim(),
           recipient_mode: recipientMode,
           selected_ids: Array.from(selectedIds),
+          group_id: recipientMode === 'group' ? selectedGroupForCompose : undefined,
           provider: settings.provider || 'africastalking',
         }),
       });
@@ -550,6 +627,11 @@ const Messages: React.FC = () => {
 
   const appendToMessage = (value: string) => {
     setMessage(prev => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${value}`);
+  };
+
+  const getGroupName = (groupId: string) => {
+    const group = groups.find(g => g.id === groupId);
+    return group?.name || 'Unknown Group';
   };
 
   return (
@@ -654,7 +736,7 @@ const Messages: React.FC = () => {
                 </div>
                 <div className="rounded-2xl bg-white border border-orange-100 px-4 py-3 shadow-sm">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.16em] mb-2">
-                    Recipients
+                    Target Recipients
                   </label>
                   <select
                     value={recipientMode}
@@ -664,9 +746,36 @@ const Messages: React.FC = () => {
                     <option value="subscribed">Subscribed ({contacts.filter(c => c.subscribed).length})</option>
                     <option value="selected">Selected ({selectedIds.size})</option>
                     <option value="all">All ({contacts.length})</option>
+                    <option value="group">By Group</option>
                   </select>
                 </div>
               </div>
+
+              {/* Group Selection for Compose */}
+              {recipientMode === 'group' && (
+                <div className="rounded-2xl bg-white border border-orange-100 px-4 py-3 shadow-sm">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.16em] mb-2">
+                    Select Target Group *
+                  </label>
+                  <select
+                    value={selectedGroupForCompose}
+                    onChange={(e) => setSelectedGroupForCompose(e.target.value)}
+                    className="w-full bg-transparent text-sm font-black text-gray-800 outline-none"
+                  >
+                    <option value="">Choose a group...</option>
+                    {groups.map(group => (
+                      <option key={group.id} value={group.id}>
+                        {group.name} ({group.contactCount || 0} contacts)
+                      </option>
+                    ))}
+                  </select>
+                  {selectedGroupForCompose && (
+                    <p className="text-xs font-bold text-[#FF6A00] mt-2">
+                      ✓ Will send to all subscribed contacts in {getGroupName(selectedGroupForCompose)}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-2 py-2">
                 <button
@@ -749,9 +858,10 @@ const Messages: React.FC = () => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           title: campaignTitle || 'Untitled Draft',
-                          message: message.trim(), // No footer for drafts
+                          message: message.trim(),
                           recipient_mode: recipientMode,
                           selected_ids: Array.from(selectedIds),
+                          group_id: recipientMode === 'group' ? selectedGroupForCompose : undefined,
                           status: 'draft',
                         }),
                       });
@@ -806,10 +916,22 @@ const Messages: React.FC = () => {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by name, phone, or source..."
+                    placeholder="Search by name, phone, source, or group..."
                     className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-4 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:ring-0 transition-all"
                   />
                 </div>
+                <select
+                  value={groupFilter}
+                  onChange={(e) => setGroupFilter(e.target.value)}
+                  className="px-5 py-3 rounded-xl text-[11px] font-black uppercase tracking-wide bg-transparent text-gray-600 border border-orange-200 outline-none"
+                >
+                  <option value="">All Groups</option>
+                  {groups.map(group => (
+                    <option key={group.id} value={group.id}>
+                      {group.name} ({group.contactCount || 0})
+                    </option>
+                  ))}
+                </select>
                 <button
                   onClick={() => setShowOnlySelected(v => !v)}
                   className={`px-5 py-3 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all ${
@@ -822,82 +944,255 @@ const Messages: React.FC = () => {
                 </button>
               </div>
 
-              <div className="w-full overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-orange-200 bg-transparent">
-                    <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
-                      <th className="py-4 px-4">Select</th>
-                      <th className="py-4 px-4">Name</th>
-                      <th className="py-4 px-4">Phone</th>
-                      <th className="py-4 px-4">Source</th>
-                      <th className="py-4 px-4">Status</th>
-                      <th className="py-4 px-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {contactsLoading ? (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-gray-400 font-bold">
-                          Loading contacts...
-                        </td>
-                      </tr>
-                    ) : filteredContacts.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-gray-400 font-bold">
-                          No contacts found
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredContacts.map((contact) => (
-                        <tr key={contact.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
-                          <td className="py-4 px-4">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(contact.id)}
-                              onChange={() => toggleSelect(contact.id)}
-                              className="w-4 h-4 rounded border-orange-300 accent-orange-500"
-                            />
-                          </td>
-                          <td className="py-4 px-4 font-black text-gray-800">
-                            {contact.name?.trim() || 'Unnamed Customer'}
-                          </td>
-                          <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
-                          <td className="py-4 px-4">
-                            <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
-                              {contact.source || 'manual'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
-                              contact.subscribed
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}>
-                              {contact.subscribed ? 'Subscribed' : 'Opted Out'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => toggleSubscribe(contact.id)}
-                                className="text-[10px] font-black px-3 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                              >
-                                {contact.subscribed ? 'Mute' : 'Enable'}
-                              </button>
-                              <button
-                                onClick={() => removeContact(contact.id)}
-                                className="text-[10px] font-black px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              {/* Contacts displayed by groups */}
+              {groupFilter ? (
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-6 h-6 rounded-lg bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs">
+                        {getGroupName(groupFilter).charAt(0)}
+                      </div>
+                      <h3 className="text-sm font-black text-gray-800">
+                        {getGroupName(groupFilter)}
+                        <span className="text-xs text-gray-400 ml-2 font-bold">
+                          ({filteredContacts.length} contacts)
+                        </span>
+                      </h3>
+                    </div>
+                    
+                    <div className="w-full overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="border-b border-orange-200 bg-transparent">
+                          <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
+                            <th className="py-4 px-4">Select</th>
+                            <th className="py-4 px-4">Name</th>
+                            <th className="py-4 px-4">Phone</th>
+                            <th className="py-4 px-4">Source</th>
+                            <th className="py-4 px-4">Status</th>
+                            <th className="py-4 px-4">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredContacts.map((contact) => (
+                            <tr key={contact.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
+                              <td className="py-4 px-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(contact.id)}
+                                  onChange={() => toggleSelect(contact.id)}
+                                  className="w-4 h-4 rounded border-orange-300 accent-orange-500"
+                                />
+                              </td>
+                              <td className="py-4 px-4 font-black text-gray-800">
+                                {contact.name?.trim() || 'Unnamed Customer'}
+                              </td>
+                              <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
+                              <td className="py-4 px-4">
+                                <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
+                                  {contact.source || 'manual'}
+                                </span>
+                              </td>
+                              <td className="py-4 px-4">
+                                <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
+                                  contact.subscribed
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {contact.subscribed ? 'Subscribed' : 'Opted Out'}
+                                </span>
+                              </td>
+                              <td className="py-4 px-4">
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => toggleSubscribe(contact.id)}
+                                    className="text-[10px] font-black px-3 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                                  >
+                                    {contact.subscribed ? 'Mute' : 'Enable'}
+                                  </button>
+                                  <button
+                                    onClick={() => removeContact(contact.id)}
+                                    className="text-[10px] font-black px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Show groups with their contacts */}
+                  {Array.from(contactsByGroup.grouped.entries()).map(([groupId, groupContacts]) => (
+                    <div key={groupId}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 rounded-lg bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs">
+                          {getGroupName(groupId).charAt(0)}
+                        </div>
+                        <h3 className="text-sm font-black text-gray-800">
+                          {getGroupName(groupId)}
+                          <span className="text-xs text-gray-400 ml-2 font-bold">
+                            ({groupContacts.length} contacts)
+                          </span>
+                        </h3>
+                      </div>
+                      
+                      <div className="w-full overflow-x-auto mb-6">
+                        <table className="w-full text-sm">
+                          <thead className="border-b border-orange-200 bg-transparent">
+                            <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
+                              <th className="py-4 px-4">Select</th>
+                              <th className="py-4 px-4">Name</th>
+                              <th className="py-4 px-4">Phone</th>
+                              <th className="py-4 px-4">Source</th>
+                              <th className="py-4 px-4">Status</th>
+                              <th className="py-4 px-4">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupContacts.map((contact) => (
+                              <tr key={contact.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
+                                <td className="py-4 px-4">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedIds.has(contact.id)}
+                                    onChange={() => toggleSelect(contact.id)}
+                                    className="w-4 h-4 rounded border-orange-300 accent-orange-500"
+                                  />
+                                </td>
+                                <td className="py-4 px-4 font-black text-gray-800">
+                                  {contact.name?.trim() || 'Unnamed Customer'}
+                                </td>
+                                <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
+                                <td className="py-4 px-4">
+                                  <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
+                                    {contact.source || 'manual'}
+                                  </span>
+                                </td>
+                                <td className="py-4 px-4">
+                                  <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
+                                    contact.subscribed
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {contact.subscribed ? 'Subscribed' : 'Opted Out'}
+                                  </span>
+                                </td>
+                                <td className="py-4 px-4">
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => toggleSubscribe(contact.id)}
+                                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                                    >
+                                      {contact.subscribed ? 'Mute' : 'Enable'}
+                                    </button>
+                                    <button
+                                      onClick={() => removeContact(contact.id)}
+                                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Ungrouped contacts */}
+                  {contactsByGroup.ungrouped.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 rounded-lg bg-gray-400 flex items-center justify-center text-white font-black text-xs">
+                          ?
+                        </div>
+                        <h3 className="text-sm font-black text-gray-800">
+                          Ungrouped
+                          <span className="text-xs text-gray-400 ml-2 font-bold">
+                            ({contactsByGroup.ungrouped.length} contacts)
+                          </span>
+                        </h3>
+                      </div>
+                      
+                      <div className="w-full overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="border-b border-orange-200 bg-transparent">
+                            <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
+                              <th className="py-4 px-4">Select</th>
+                              <th className="py-4 px-4">Name</th>
+                              <th className="py-4 px-4">Phone</th>
+                              <th className="py-4 px-4">Source</th>
+                              <th className="py-4 px-4">Status</th>
+                              <th className="py-4 px-4">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {contactsByGroup.ungrouped.map((contact) => (
+                              <tr key={contact.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
+                                <td className="py-4 px-4">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedIds.has(contact.id)}
+                                    onChange={() => toggleSelect(contact.id)}
+                                    className="w-4 h-4 rounded border-orange-300 accent-orange-500"
+                                  />
+                                </td>
+                                <td className="py-4 px-4 font-black text-gray-800">
+                                  {contact.name?.trim() || 'Unnamed Customer'}
+                                </td>
+                                <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
+                                <td className="py-4 px-4">
+                                  <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
+                                    {contact.source || 'manual'}
+                                  </span>
+                                </td>
+                                <td className="py-4 px-4">
+                                  <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
+                                    contact.subscribed
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {contact.subscribed ? 'Subscribed' : 'Opted Out'}
+                                  </span>
+                                </td>
+                                <td className="py-4 px-4">
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => toggleSubscribe(contact.id)}
+                                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                                    >
+                                      {contact.subscribed ? 'Mute' : 'Enable'}
+                                    </button>
+                                    <button
+                                      onClick={() => removeContact(contact.id)}
+                                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {contacts.length === 0 && (
+                    <div className="py-12 text-center text-gray-400 font-bold">
+                      No contacts yet
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -905,6 +1200,31 @@ const Messages: React.FC = () => {
           {activeSection === 'import' && (
             <div className="space-y-6">
               <h2 className="text-xl font-black text-gray-800">Import Contacts</h2>
+              
+              {/* Group Selection for Import */}
+              <div className="bg-white rounded-2xl border border-orange-100 p-5 shadow-sm">
+                <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.16em] mb-3">
+                  Select Target Group *
+                </label>
+                <select
+                  value={selectedGroupId}
+                  onChange={(e) => setSelectedGroupId(e.target.value)}
+                  className="w-full bg-transparent border-0 border-b-2 border-orange-200 rounded-none px-0 py-3 text-sm font-black text-gray-800 outline-none focus:border-[#FF6A00] transition-all"
+                >
+                  <option value="">Choose a group...</option>
+                  {groups.map(group => (
+                    <option key={group.id} value={group.id}>
+                      {group.name} ({group.contactCount || 0} contacts)
+                    </option>
+                  ))}
+                </select>
+                {!selectedGroupId && (
+                  <p className="text-xs text-red-400 font-bold mt-2">
+                    ⚠️ You must select a group before importing contacts
+                  </p>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
                 <div className="w-full border-b border-orange-200 pb-6">
                   <h3 className="text-lg font-black text-gray-800 mb-4">Manual Add</h3>
@@ -933,9 +1253,10 @@ const Messages: React.FC = () => {
                     </div>
                     <button
                       onClick={handleAddManual}
-                      className="w-full bg-[#FF6A00] text-white font-black py-4 rounded-xl transition-all"
+                      className="w-full bg-[#FF6A00] text-white font-black py-4 rounded-xl transition-all disabled:opacity-50"
+                      disabled={!selectedGroupId}
                     >
-                      + ADD NUMBER
+                      + ADD NUMBER TO GROUP
                     </button>
                   </div>
                 </div>
@@ -957,13 +1278,15 @@ const Messages: React.FC = () => {
                     <div className="flex gap-3">
                       <button
                         onClick={parseBulkNumbers}
-                        className="flex-1 bg-[#FF6A00] text-white font-black py-4 rounded-xl transition-all"
+                        className="flex-1 bg-[#FF6A00] text-white font-black py-4 rounded-xl transition-all disabled:opacity-50"
+                        disabled={!selectedGroupId}
                       >
-                        IMPORT NUMBERS
+                        IMPORT TO GROUP
                       </button>
                       <button
                         onClick={() => fileRef.current?.click()}
-                        className="flex-1 bg-transparent border border-orange-200 text-gray-700 font-black py-4 rounded-xl hover:bg-orange-50 transition-all"
+                        className="flex-1 bg-transparent border border-orange-200 text-gray-700 font-black py-4 rounded-xl hover:bg-orange-50 transition-all disabled:opacity-50"
+                        disabled={!selectedGroupId}
                       >
                         UPLOAD CSV
                       </button>
