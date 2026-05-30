@@ -730,8 +730,8 @@ const Messages: React.FC<MessagesProps> = ({ groups = [], onGroupsChange }) => {
             {[
               ['compose', 'Tuma sms'],
               ['contacts', 'Namba zote'],
-              ['import', 'Import'],
-              ['campaigns', 'Campaigns'],
+              ['import', 'Ongeza Namba'],
+              ['campaigns', 'SMS zote'],
               ['templates', 'Templates'],
               ['settings', 'Settings'],
             ].map(([key, label]) => (
