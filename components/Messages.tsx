@@ -8,8 +8,8 @@ type SmsContact = {
   subscribed: boolean;
   source?: 'manual' | 'paste' | 'csv' | 'woocommerce' | 'api';
   tags?: string[];
-  group_id?: string;
-  group_name?: string;
+  group_id?: string | null;
+  group_name?: string | null;
   created_at?: string;
 };
 
@@ -247,7 +247,6 @@ const Messages: React.FC<MessagesProps> = ({ groups = [], onGroupsChange }) => {
     }
 
     try {
-      // Add contact with group
       const res = await fetch('/api/message-contacts/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -262,6 +261,7 @@ const Messages: React.FC<MessagesProps> = ({ groups = [], onGroupsChange }) => {
         throw new Error(data?.error || 'Failed to add contact');
       }
       await fetchContacts();
+      if (onGroupsChange) onGroupsChange();
       setManualName('');
       setManualPhone('');
       setSuccess('Customer number added successfully to group');
@@ -405,24 +405,6 @@ const Messages: React.FC<MessagesProps> = ({ groups = [], onGroupsChange }) => {
     });
   };
 
-  // Group contacts by group_id
-  const contactsByGroup = useMemo(() => {
-    const grouped = new Map<string, SmsContact[]>();
-    const ungrouped: SmsContact[] = [];
-
-    contacts.forEach(contact => {
-      if (contact.group_id) {
-        const existing = grouped.get(contact.group_id) || [];
-        existing.push(contact);
-        grouped.set(contact.group_id, existing);
-      } else {
-        ungrouped.push(contact);
-      }
-    });
-
-    return { grouped, ungrouped };
-  }, [contacts]);
-
   const filteredContacts = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = contacts;
@@ -445,14 +427,13 @@ const Messages: React.FC<MessagesProps> = ({ groups = [], onGroupsChange }) => {
     });
   }, [contacts, search, selectedIds, showOnlySelected, groupFilter]);
 
-  const selectedContacts = useMemo(() => {
-    return contacts.filter(c => selectedIds.has(c.id));
-  }, [contacts, selectedIds]);
-
   const recipients = useMemo(() => {
     if (recipientMode === 'all') return contacts;
     if (recipientMode === 'selected') return contacts.filter(c => selectedIds.has(c.id));
-    if (recipientMode === 'group') return contacts.filter(c => c.group_id === selectedGroupForCompose && c.subscribed);
+    if (recipientMode === 'group') {
+      if (!selectedGroupForCompose) return [];
+      return contacts.filter(c => c.group_id === selectedGroupForCompose && c.subscribed);
+    }
     return contacts.filter(c => c.subscribed);
   }, [contacts, recipientMode, selectedIds, selectedGroupForCompose]);
 
@@ -632,6 +613,82 @@ const Messages: React.FC<MessagesProps> = ({ groups = [], onGroupsChange }) => {
   const getGroupName = (groupId: string) => {
     const group = groups.find(g => g.id === groupId);
     return group?.name || 'Unknown Group';
+  };
+
+  // ContactsTable helper component
+  const ContactsTable: React.FC<{ contacts: SmsContact[] }> = ({ contacts: tableContacts }) => {
+    if (tableContacts.length === 0) {
+      return (
+        <div className="py-8 text-center text-gray-400 font-bold">
+          No contacts in this group
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="border-b border-orange-200 bg-transparent">
+            <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
+              <th className="py-4 px-4">Select</th>
+              <th className="py-4 px-4">Name</th>
+              <th className="py-4 px-4">Phone</th>
+              <th className="py-4 px-4">Source</th>
+              <th className="py-4 px-4">Status</th>
+              <th className="py-4 px-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableContacts.map((contact) => (
+              <tr key={contact.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
+                <td className="py-4 px-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(contact.id)}
+                    onChange={() => toggleSelect(contact.id)}
+                    className="w-4 h-4 rounded border-orange-300 accent-orange-500"
+                  />
+                </td>
+                <td className="py-4 px-4 font-black text-gray-800">
+                  {contact.name?.trim() || 'Unnamed Customer'}
+                </td>
+                <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
+                <td className="py-4 px-4">
+                  <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
+                    {contact.source || 'manual'}
+                  </span>
+                </td>
+                <td className="py-4 px-4">
+                  <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
+                    contact.subscribed
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {contact.subscribed ? 'Subscribed' : 'Opted Out'}
+                  </span>
+                </td>
+                <td className="py-4 px-4">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => toggleSubscribe(contact.id)}
+                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                    >
+                      {contact.subscribed ? 'Mute' : 'Enable'}
+                    </button>
+                    <button
+                      onClick={() => removeContact(contact.id)}
+                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   return (
@@ -944,253 +1001,90 @@ const Messages: React.FC<MessagesProps> = ({ groups = [], onGroupsChange }) => {
                 </button>
               </div>
 
-              {/* Contacts displayed by groups */}
+              {/* Display contacts by groups */}
               {groupFilter ? (
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-6 h-6 rounded-lg bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs">
-                        {getGroupName(groupFilter).charAt(0)}
-                      </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-xl bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs shadow-md">
+                      {getGroupName(groupFilter).charAt(0).toUpperCase()}
+                    </div>
+                    <div>
                       <h3 className="text-sm font-black text-gray-800">
                         {getGroupName(groupFilter)}
-                        <span className="text-xs text-gray-400 ml-2 font-bold">
-                          ({filteredContacts.length} contacts)
-                        </span>
                       </h3>
-                    </div>
-                    
-                    <div className="w-full overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="border-b border-orange-200 bg-transparent">
-                          <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
-                            <th className="py-4 px-4">Select</th>
-                            <th className="py-4 px-4">Name</th>
-                            <th className="py-4 px-4">Phone</th>
-                            <th className="py-4 px-4">Source</th>
-                            <th className="py-4 px-4">Status</th>
-                            <th className="py-4 px-4">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredContacts.map((contact) => (
-                            <tr key={contact.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
-                              <td className="py-4 px-4">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedIds.has(contact.id)}
-                                  onChange={() => toggleSelect(contact.id)}
-                                  className="w-4 h-4 rounded border-orange-300 accent-orange-500"
-                                />
-                              </td>
-                              <td className="py-4 px-4 font-black text-gray-800">
-                                {contact.name?.trim() || 'Unnamed Customer'}
-                              </td>
-                              <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
-                              <td className="py-4 px-4">
-                                <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
-                                  {contact.source || 'manual'}
-                                </span>
-                              </td>
-                              <td className="py-4 px-4">
-                                <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
-                                  contact.subscribed
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {contact.subscribed ? 'Subscribed' : 'Opted Out'}
-                                </span>
-                              </td>
-                              <td className="py-4 px-4">
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => toggleSubscribe(contact.id)}
-                                    className="text-[10px] font-black px-3 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                                  >
-                                    {contact.subscribed ? 'Mute' : 'Enable'}
-                                  </button>
-                                  <button
-                                    onClick={() => removeContact(contact.id)}
-                                    className="text-[10px] font-black px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <p className="text-[10px] font-bold text-gray-500">
+                        {filteredContacts.length} {filteredContacts.length === 1 ? 'contact' : 'contacts'}
+                      </p>
                     </div>
                   </div>
+                  <ContactsTable contacts={filteredContacts} />
+                </div>
+              ) : search || showOnlySelected ? (
+                <div className="space-y-4">
+                  <ContactsTable contacts={filteredContacts} />
+                </div>
+              ) : contacts.length === 0 ? (
+                <div className="py-12 text-center text-gray-400 font-bold">
+                  No contacts found. Import contacts to get started.
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Show groups with their contacts */}
-                  {Array.from(contactsByGroup.grouped.entries()).map(([groupId, groupContacts]) => (
-                    <div key={groupId}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 rounded-lg bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs">
-                          {getGroupName(groupId).charAt(0)}
-                        </div>
-                        <h3 className="text-sm font-black text-gray-800">
-                          {getGroupName(groupId)}
-                          <span className="text-xs text-gray-400 ml-2 font-bold">
-                            ({groupContacts.length} contacts)
-                          </span>
-                        </h3>
-                      </div>
-                      
-                      <div className="w-full overflow-x-auto mb-6">
-                        <table className="w-full text-sm">
-                          <thead className="border-b border-orange-200 bg-transparent">
-                            <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
-                              <th className="py-4 px-4">Select</th>
-                              <th className="py-4 px-4">Name</th>
-                              <th className="py-4 px-4">Phone</th>
-                              <th className="py-4 px-4">Source</th>
-                              <th className="py-4 px-4">Status</th>
-                              <th className="py-4 px-4">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {groupContacts.map((contact) => (
-                              <tr key={contact.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
-                                <td className="py-4 px-4">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedIds.has(contact.id)}
-                                    onChange={() => toggleSelect(contact.id)}
-                                    className="w-4 h-4 rounded border-orange-300 accent-orange-500"
-                                  />
-                                </td>
-                                <td className="py-4 px-4 font-black text-gray-800">
-                                  {contact.name?.trim() || 'Unnamed Customer'}
-                                </td>
-                                <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
-                                <td className="py-4 px-4">
-                                  <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
-                                    {contact.source || 'manual'}
-                                  </span>
-                                </td>
-                                <td className="py-4 px-4">
-                                  <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
-                                    contact.subscribed
-                                      ? 'bg-green-100 text-green-700'
-                                      : 'bg-gray-100 text-gray-700'
-                                  }`}>
-                                    {contact.subscribed ? 'Subscribed' : 'Opted Out'}
-                                  </span>
-                                </td>
-                                <td className="py-4 px-4">
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => toggleSubscribe(contact.id)}
-                                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                                    >
-                                      {contact.subscribed ? 'Mute' : 'Enable'}
-                                    </button>
-                                    <button
-                                      onClick={() => removeContact(contact.id)}
-                                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
-                                    >
-                                      Remove
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-8">
+                  {(() => {
+                    const groupedContacts = new Map<string, SmsContact[]>();
+                    const ungroupedContacts: SmsContact[] = [];
 
-                  {/* Ungrouped contacts */}
-                  {contactsByGroup.ungrouped.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 rounded-lg bg-gray-400 flex items-center justify-center text-white font-black text-xs">
-                          ?
-                        </div>
-                        <h3 className="text-sm font-black text-gray-800">
-                          Ungrouped
-                          <span className="text-xs text-gray-400 ml-2 font-bold">
-                            ({contactsByGroup.ungrouped.length} contacts)
-                          </span>
-                        </h3>
-                      </div>
-                      
-                      <div className="w-full overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="border-b border-orange-200 bg-transparent">
-                            <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
-                              <th className="py-4 px-4">Select</th>
-                              <th className="py-4 px-4">Name</th>
-                              <th className="py-4 px-4">Phone</th>
-                              <th className="py-4 px-4">Source</th>
-                              <th className="py-4 px-4">Status</th>
-                              <th className="py-4 px-4">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {contactsByGroup.ungrouped.map((contact) => (
-                              <tr key={contact.id} className="border-b border-orange-100 hover:bg-[#FFF9F4] transition">
-                                <td className="py-4 px-4">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedIds.has(contact.id)}
-                                    onChange={() => toggleSelect(contact.id)}
-                                    className="w-4 h-4 rounded border-orange-300 accent-orange-500"
-                                  />
-                                </td>
-                                <td className="py-4 px-4 font-black text-gray-800">
-                                  {contact.name?.trim() || 'Unnamed Customer'}
-                                </td>
-                                <td className="py-4 px-4 font-semibold text-gray-600">{contact.phone}</td>
-                                <td className="py-4 px-4">
-                                  <span className="text-[10px] font-black px-2 py-1 rounded-full bg-orange-50 text-[#FF6A00] border border-orange-200 uppercase">
-                                    {contact.source || 'manual'}
-                                  </span>
-                                </td>
-                                <td className="py-4 px-4">
-                                  <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
-                                    contact.subscribed
-                                      ? 'bg-green-100 text-green-700'
-                                      : 'bg-gray-100 text-gray-700'
-                                  }`}>
-                                    {contact.subscribed ? 'Subscribed' : 'Opted Out'}
-                                  </span>
-                                </td>
-                                <td className="py-4 px-4">
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => toggleSubscribe(contact.id)}
-                                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                                    >
-                                      {contact.subscribed ? 'Mute' : 'Enable'}
-                                    </button>
-                                    <button
-                                      onClick={() => removeContact(contact.id)}
-                                      className="text-[10px] font-black px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
-                                    >
-                                      Remove
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
+                    contacts.forEach(contact => {
+                      if (contact.group_id) {
+                        const existing = groupedContacts.get(contact.group_id) || [];
+                        existing.push(contact);
+                        groupedContacts.set(contact.group_id, existing);
+                      } else {
+                        ungroupedContacts.push(contact);
+                      }
+                    });
 
-                  {contacts.length === 0 && (
-                    <div className="py-12 text-center text-gray-400 font-bold">
-                      No contacts yet
-                    </div>
-                  )}
+                    return (
+                      <>
+                        {Array.from(groupedContacts.entries()).map(([groupId, groupContacts]) => (
+                          <div key={groupId}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="w-8 h-8 rounded-xl bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs shadow-md">
+                                {getGroupName(groupId).charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-black text-gray-800">
+                                  {getGroupName(groupId)}
+                                </h3>
+                                <p className="text-[10px] font-bold text-gray-500">
+                                  {groupContacts.length} {groupContacts.length === 1 ? 'contact' : 'contacts'}
+                                </p>
+                              </div>
+                            </div>
+                            <ContactsTable contacts={groupContacts} />
+                          </div>
+                        ))}
+
+                        {ungroupedContacts.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="w-8 h-8 rounded-xl bg-gray-400 flex items-center justify-center text-white font-black text-xs shadow-md">
+                                ?
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-black text-gray-800">
+                                  Ungrouped
+                                </h3>
+                                <p className="text-[10px] font-bold text-gray-500">
+                                  {ungroupedContacts.length} {ungroupedContacts.length === 1 ? 'contact' : 'contacts'}
+                                </p>
+                              </div>
+                            </div>
+                            <ContactsTable contacts={ungroupedContacts} />
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
