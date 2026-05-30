@@ -95,13 +95,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     descriptionImages: [] as string[],
   });
 
-  // Message group states
-  const [groups, setGroups] = useState<Array<{ id: string; name: string; contactCount: number }>>([]);
-  const [showAddGroup, setShowAddGroup] = useState(false);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [groupLoading, setGroupLoading] = useState(false);
-  const [groupError, setGroupError] = useState('');
-
   const formatDateInput = (d: Date) => d.toISOString().slice(0, 10);
 
   const getWeekRange = () => {
@@ -184,113 +177,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     setDebugLogs(prev => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${message}`]);
   };
 
-  // Fetch groups
-  const fetchGroups = async () => {
-    try {
-      setGroupLoading(true);
-      setGroupError('');
-      const response = await fetch('/api/groups');
-      const data = await response.json();
-      
-      if (data.success) {
-        setGroups(data.groups || []);
-      } else {
-        setGroupError(data.error || 'Failed to load groups');
-      }
-    } catch (error: any) {
-      console.error('Error fetching groups:', error);
-      setGroupError(error?.message || 'Failed to load groups');
-    } finally {
-      setGroupLoading(false);
-    }
-  };
-
-  // Create group
-  const createGroup = async () => {
-    if (!newGroupName.trim()) {
-      setGroupError('Group name is required');
-      return;
-    }
-
-    try {
-      setGroupLoading(true);
-      setGroupError('');
-      
-      const response = await fetch('/api/groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newGroupName.trim() })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setGroups(prev => [...prev, data.group]);
-        setNewGroupName('');
-        setShowAddGroup(false);
-        addDebugLog(`✅ Group created: ${data.group.name}`);
-      } else {
-        setGroupError(data.error || 'Failed to create group');
-      }
-    } catch (error: any) {
-      console.error('Error creating group:', error);
-      setGroupError(error?.message || 'Failed to create group');
-    } finally {
-      setGroupLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await fetch('/api/stats');
-        if (!response.ok) throw new Error('Failed to fetch stats');
-        const data = await response.json();
-        if (data.success) setStats(data.data);
-      } catch (error) {
-        console.error('Error fetching admin stats:', error);
-      }
-    };
-
-    fetchStats();
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setActiveMenuId(null);
-    };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (activeTab !== 'dashboard') return;
-
-    if (analyticsRange === 'week') {
-      const { from, to } = getWeekRange();
-      fetchViewsAnalytics(from, to);
-      return;
-    }
-
-    if (analyticsRange === 'month') {
-      const { from, to } = getMonthRange(selectedMonth);
-      fetchViewsAnalytics(from, to);
-      return;
-    }
-
-    if (analyticsRange === 'year') {
-      const { from, to } = getYearRange(selectedYear);
-      fetchViewsAnalytics(from, to);
-    }
-  }, [activeTab, analyticsRange, selectedMonth, selectedYear]);
-
-  // Fetch groups when messages tab is active
-  useEffect(() => {
-    if (activeTab === 'messages') {
-      fetchGroups();
-    }
-  }, [activeTab]);
-
   const fetchViewsAnalytics = async (from: string, to: string) => {
     try {
       setAnalyticsLoading(true);
@@ -350,6 +236,50 @@ const AdminView: React.FC<AdminViewProps> = ({
       setAnalyticsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/stats');
+        if (!response.ok) throw new Error('Failed to fetch stats');
+        const data = await response.json();
+        if (data.success) setStats(data.data);
+      } catch (error) {
+        console.error('Error fetching admin stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setActiveMenuId(null);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'dashboard') return;
+
+    if (analyticsRange === 'week') {
+      const { from, to } = getWeekRange();
+      fetchViewsAnalytics(from, to);
+      return;
+    }
+
+    if (analyticsRange === 'month') {
+      const { from, to } = getMonthRange(selectedMonth);
+      fetchViewsAnalytics(from, to);
+      return;
+    }
+
+    if (analyticsRange === 'year') {
+      const { from, to } = getYearRange(selectedYear);
+      fetchViewsAnalytics(from, to);
+    }
+  }, [activeTab, analyticsRange, selectedMonth, selectedYear]);
 
   const filteredCategories = useMemo(() => {
     const q = categorySearch.trim().toLowerCase();
@@ -971,90 +901,11 @@ const AdminView: React.FC<AdminViewProps> = ({
       </div>
 
       {/* Main Content Area - Conditional rendering based on tab */}
-
-{activeTab === 'messages' ? (
-  <div className="w-full p-0 m-0">
-    {/* Group Management Bar */}
-    <div className="bg-white border-b border-orange-100 px-4 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">
-            Contact Groups
-          </h3>
-          <span className="text-xs font-bold text-gray-400">
-            {groups.length} {groups.length === 1 ? 'group' : 'groups'}
-          </span>
+      {activeTab === 'messages' ? (
+        <div className="w-full p-0 m-0">
+          <Messages />
         </div>
-        <button
-          onClick={() => setShowAddGroup(true)}
-          className="bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black text-sm px-4 py-2 rounded-xl shadow-[0_8px_20px_rgba(255,106,0,0.18)] hover:shadow-[0_12px_24px_rgba(255,106,0,0.25)] active:scale-[0.98] transition-all flex items-center gap-2"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          New Group
-        </button>
-      </div>
-    </div>
-
-    {/* Groups List */}
-    <div className="px-4 py-3 border-b border-gray-100">
-      <div className="max-w-7xl mx-auto">
-        {groupLoading && groups.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="inline-block w-6 h-6 border-2 border-gray-300 border-t-[#FF6A00] rounded-full animate-spin" />
-            <p className="text-sm text-gray-500 mt-2 font-semibold">Loading groups...</p>
-          </div>
-        ) : groups.length === 0 ? (
-          <div className="text-center py-8 bg-orange-50 rounded-2xl border border-orange-100">
-            <svg className="w-12 h-12 mx-auto mb-3 text-orange-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <p className="font-bold text-gray-600">No groups created yet</p>
-            <p className="text-sm text-gray-500 mt-1">Create groups to organize your contacts</p>
-            <button
-              onClick={() => setShowAddGroup(true)}
-              className="mt-4 bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black text-sm px-6 py-2.5 rounded-xl shadow-[0_8px_20px_rgba(255,106,0,0.18)] active:scale-[0.98] transition-all inline-flex items-center gap-2"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              Create First Group
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {groups.map(group => (
-              <div
-                key={group.id}
-                className="group relative bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 hover:border-[#FF6A00] rounded-2xl px-4 py-3 transition-all duration-300 hover:shadow-lg cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs shadow-md">
-                    {group.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-gray-800">{group.name}</p>
-                    <p className="text-[10px] font-bold text-gray-500">
-                      {group.contactCount || 0} {group.contactCount === 1 ? 'contact' : 'contacts'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-
-    {/* Messages Component */}
-    <Messages
-      groups={groups}
-      onGroupsChange={fetchGroups}
-    />
-  </div>
-) : (
-         
+      ) : (
         <div className="p-4 pb-12 max-w-7xl mx-auto">
           {activeTab === 'dashboard' && (
             <div className="space-y-5">
@@ -1611,65 +1462,6 @@ const AdminView: React.FC<AdminViewProps> = ({
               <p className="text-sm mt-1">Coming soon...</p>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Add Group Modal */}
-      {showAddGroup && (
-        <div className="fixed inset-0 bg-black/75 z-[120] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-lg font-black text-gray-800 mb-4">Create New Group</h3>
-            
-            {groupError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-2xl text-sm font-bold text-red-700">
-                {groupError}
-              </div>
-            )}
-            
-            <input
-              type="text"
-              value={newGroupName}
-              onChange={(e) => {
-                setNewGroupName(e.target.value);
-                setGroupError('');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') createGroup();
-              }}
-              placeholder="Enter group name..."
-              className="w-full bg-white border border-[#E5E7EB] rounded-2xl px-4 py-4 text-base font-bold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 mb-4"
-              autoFocus
-              disabled={groupLoading}
-            />
-            
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowAddGroup(false);
-                  setNewGroupName('');
-                  setGroupError('');
-                }}
-                className="flex-1 bg-gray-100 text-gray-700 font-black py-3 rounded-2xl hover:bg-gray-200 transition-colors"
-                disabled={groupLoading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createGroup}
-                disabled={groupLoading || !newGroupName.trim()}
-                className="flex-1 bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-3 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {groupLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Creating...</span>
-                  </>
-                ) : (
-                  'Create Group'
-                )}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -2402,106 +2194,5 @@ Package includes:
     </div>
   );
 };
-
-{/* Add Group Modal */}
-{showAddGroup && (
-  <div className="fixed inset-0 bg-black/75 z-[120] flex items-center justify-center p-4">
-    <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-orange-100">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-black text-gray-800">Create New Group</h3>
-        <button
-          onClick={() => {
-            setShowAddGroup(false);
-            setNewGroupName('');
-            setGroupError('');
-          }}
-          className="text-2xl text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          &times;
-        </button>
-      </div>
-      
-      {groupError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-2xl">
-          <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-            <p className="text-sm font-bold text-red-700">{groupError}</p>
-          </div>
-        </div>
-      )}
-      
-      <div className="mb-4">
-        <label className="block text-[11px] font-black text-[#6B7280] uppercase mb-2 ml-1 tracking-[0.12em]">
-          Group Name *
-        </label>
-        <input
-          type="text"
-          value={newGroupName}
-          onChange={(e) => {
-            setNewGroupName(e.target.value);
-            setGroupError('');
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && newGroupName.trim()) createGroup();
-          }}
-          placeholder="e.g., VIP Customers, New Leads..."
-          className="w-full bg-white border border-[#E5E7EB] rounded-2xl px-4 py-4 text-base font-bold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all duration-200 shadow-sm"
-          autoFocus
-          disabled={groupLoading}
-          maxLength={100}
-        />
-        <p className="mt-1 text-[10px] font-bold text-gray-400 ml-1">
-          {newGroupName.length}/100 characters
-        </p>
-      </div>
-
-      <div className="bg-orange-50 rounded-2xl p-3 mb-4 border border-orange-100">
-        <div className="flex items-start gap-2">
-          <svg className="w-4 h-4 text-[#FF6A00] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-xs font-bold text-gray-700">
-            Groups help you organize contacts and send targeted messages to specific audiences.
-          </p>
-        </div>
-      </div>
-      
-      <div className="flex gap-3">
-        <button
-          onClick={() => {
-            setShowAddGroup(false);
-            setNewGroupName('');
-            setGroupError('');
-          }}
-          className="flex-1 bg-gray-100 text-gray-700 font-black py-3.5 rounded-2xl hover:bg-gray-200 transition-colors text-sm"
-          disabled={groupLoading}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={createGroup}
-          disabled={groupLoading || !newGroupName.trim()}
-          className="flex-1 bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-3.5 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] hover:shadow-[0_14px_28px_rgba(255,106,0,0.28)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[0_10px_24px_rgba(255,106,0,0.22)] flex items-center justify-center gap-2 text-sm"
-        >
-          {groupLoading ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Creating...</span>
-            </>
-          ) : (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span>Create Group</span>
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
 
 export default AdminView;
