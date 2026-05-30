@@ -54,15 +54,18 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   try {
     const { results } = await env.DB.prepare(`
       SELECT
-        id,
-        name,
-        phone,
-        subscribed,
-        source,
-        tags,
-        created_at
-      FROM message_contacts
-      ORDER BY datetime(created_at) DESC, rowid DESC
+        mc.id,
+        mc.name,
+        mc.phone,
+        mc.subscribed,
+        mc.source,
+        mc.tags,
+        mc.group_id,
+        cg.name as group_name,
+        mc.created_at
+      FROM message_contacts mc
+      LEFT JOIN contact_groups cg ON mc.group_id = cg.id
+      ORDER BY datetime(mc.created_at) DESC, mc.rowid DESC
     `).all();
 
     const data = Array.isArray(results)
@@ -72,6 +75,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
           phone: row.phone || '',
           subscribed: Number(row.subscribed || 0) === 1,
           source: row.source || 'manual',
+          group_id: row.group_id || null,
+          group_name: row.group_name || null,
           tags: (() => {
             try {
               return row.tags ? JSON.parse(row.tags) : [];
@@ -104,6 +109,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const name = String(body?.name || '').trim();
     const source = String(body?.source || 'manual').trim() || 'manual';
     const cleanedPhone = cleanPhone(body?.phone);
+    const groupId = String(body?.group_id || '').trim() || null;
 
     if (!cleanedPhone || !isValidPhone(cleanedPhone)) {
       return json(
@@ -115,13 +121,52 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       );
     }
 
+    // Validate group if provided
+    if (groupId) {
+      const groupExists = await env.DB.prepare(
+        `SELECT id FROM contact_groups WHERE id = ? LIMIT 1`
+      )
+        .bind(groupId)
+        .first();
+
+      if (!groupExists) {
+        return json(
+          { success: false, error: 'Selected group does not exist' },
+          400
+        );
+      }
+    }
+
     const existing = await env.DB.prepare(
-      `SELECT id FROM message_contacts WHERE phone = ? LIMIT 1`
+      `SELECT id, group_id FROM message_contacts WHERE phone = ? LIMIT 1`
     )
       .bind(cleanedPhone)
       .first();
 
     if (existing) {
+      // Update group_id if contact exists and groupId is provided
+      if (groupId) {
+        await env.DB.prepare(`
+          UPDATE message_contacts 
+          SET group_id = ?, name = COALESCE(NULLIF(?, ''), name)
+          WHERE phone = ?
+        `)
+          .bind(groupId, name, cleanedPhone)
+          .run();
+
+        // Update group contact count
+        await env.DB.prepare(`
+          UPDATE contact_groups 
+          SET contact_count = (
+            SELECT COUNT(*) FROM message_contacts WHERE group_id = ?
+          ),
+          updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `)
+          .bind(groupId, groupId)
+          .run();
+      }
+
       return json({
         success: true,
         data: {
@@ -130,6 +175,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           phone: cleanedPhone,
           subscribed: true,
           source,
+          group_id: groupId || (existing as any).group_id || null,
         },
         message: 'Contact already exists',
       });
@@ -143,23 +189,41 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         subscribed,
         source,
         tags,
+        group_id,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `)
-      .bind(id, name, cleanedPhone, 1, source, JSON.stringify([]))
+      .bind(id, name, cleanedPhone, 1, source, JSON.stringify([]), groupId)
       .run();
+
+    // Update group contact count
+    if (groupId) {
+      await env.DB.prepare(`
+        UPDATE contact_groups 
+        SET contact_count = (
+          SELECT COUNT(*) FROM message_contacts WHERE group_id = ?
+        ),
+        updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `)
+        .bind(groupId, groupId)
+        .run();
+    }
 
     const created = await env.DB.prepare(`
       SELECT
-        id,
-        name,
-        phone,
-        subscribed,
-        source,
-        tags,
-        created_at
-      FROM message_contacts
-      WHERE id = ?
+        mc.id,
+        mc.name,
+        mc.phone,
+        mc.subscribed,
+        mc.source,
+        mc.tags,
+        mc.group_id,
+        cg.name as group_name,
+        mc.created_at
+      FROM message_contacts mc
+      LEFT JOIN contact_groups cg ON mc.group_id = cg.id
+      WHERE mc.id = ?
       LIMIT 1
     `)
       .bind(id)
@@ -173,6 +237,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         phone: (created as any)?.phone || cleanedPhone,
         subscribed: Number((created as any)?.subscribed || 0) === 1,
         source: (created as any)?.source || source,
+        group_id: (created as any)?.group_id || null,
+        group_name: (created as any)?.group_name || null,
         tags: (() => {
           try {
             return (created as any)?.tags ? JSON.parse((created as any).tags) : [];
