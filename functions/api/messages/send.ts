@@ -134,6 +134,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const selectedIds = Array.isArray(body?.selected_ids)
       ? body.selected_ids.map((v: any) => String(v || '').trim()).filter(Boolean)
       : [];
+    const groupId = String(body?.group_id || '').trim() || null;
 
     if (!title) {
       return json({ success: false, error: 'Title required' }, 400);
@@ -208,6 +209,32 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
       const { results } = await stmt.all();
       recipientRows = Array.isArray(results) ? results : [];
+    } else if (recipientMode === 'group') {
+      if (!groupId) {
+        return json({ success: false, error: 'Group ID required for group mode' }, 400);
+      }
+
+      // Validate group exists
+      const groupExists = await env.DB.prepare(
+        `SELECT id, name FROM contact_groups WHERE id = ? LIMIT 1`
+      )
+        .bind(groupId)
+        .first();
+
+      if (!groupExists) {
+        return json({ success: false, error: 'Selected group does not exist' }, 400);
+      }
+
+      const { results } = await env.DB.prepare(`
+        SELECT id, name, phone
+        FROM message_contacts
+        WHERE group_id = ? AND subscribed = 1
+        ORDER BY datetime(created_at) DESC, rowid DESC
+      `)
+        .bind(groupId)
+        .all();
+
+      recipientRows = Array.isArray(results) ? results : [];
     } else {
       return json({ success: false, error: 'Invalid recipient_mode' }, 400);
     }
@@ -235,6 +262,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const finalMessage = buildFinalSmsMessage(rawMessage);
     const campaignId = makeId();
 
+    // Get group name if sending to a group
+    let groupName = null;
+    if (recipientMode === 'group' && groupId) {
+      const groupRow = await env.DB.prepare(
+        `SELECT name FROM contact_groups WHERE id = ? LIMIT 1`
+      )
+        .bind(groupId)
+        .first();
+      groupName = (groupRow as any)?.name || null;
+    }
+
     await env.DB.prepare(`
       INSERT INTO message_campaigns (
         id,
@@ -242,17 +280,21 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         message,
         recipient_mode,
         recipients,
+        group_id,
+        group_name,
         status,
         provider,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `)
       .bind(
         campaignId,
         title,
         finalMessage,
-        recipientMode,
+        recipientMode === 'group' ? 'group' : recipientMode,
         recipients.length,
+        groupId,
+        groupName,
         'sending',
         'beem'
       )
@@ -393,6 +435,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         failed,
         status: finalStatus,
         provider: 'beem',
+        recipient_mode: recipientMode === 'group' ? 'group' : recipientMode,
+        group_id: groupId,
+        group_name: groupName,
         failures: failures.slice(0, 20),
       },
       message: 'Campaign processed with Beem',
