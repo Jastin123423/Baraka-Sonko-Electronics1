@@ -971,14 +971,90 @@ const AdminView: React.FC<AdminViewProps> = ({
       </div>
 
       {/* Main Content Area - Conditional rendering based on tab */}
-      {activeTab === 'messages' ? (
-        <div className="w-full p-0 m-0">
-          <Messages
-            groups={groups}
-            onGroupsChange={fetchGroups}
-          />
+
+{activeTab === 'messages' ? (
+  <div className="w-full p-0 m-0">
+    {/* Group Management Bar */}
+    <div className="bg-white border-b border-orange-100 px-4 py-3">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide">
+            Contact Groups
+          </h3>
+          <span className="text-xs font-bold text-gray-400">
+            {groups.length} {groups.length === 1 ? 'group' : 'groups'}
+          </span>
         </div>
-      ) : (
+        <button
+          onClick={() => setShowAddGroup(true)}
+          className="bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black text-sm px-4 py-2 rounded-xl shadow-[0_8px_20px_rgba(255,106,0,0.18)] hover:shadow-[0_12px_24px_rgba(255,106,0,0.25)] active:scale-[0.98] transition-all flex items-center gap-2"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          New Group
+        </button>
+      </div>
+    </div>
+
+    {/* Groups List */}
+    <div className="px-4 py-3 border-b border-gray-100">
+      <div className="max-w-7xl mx-auto">
+        {groupLoading && groups.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="inline-block w-6 h-6 border-2 border-gray-300 border-t-[#FF6A00] rounded-full animate-spin" />
+            <p className="text-sm text-gray-500 mt-2 font-semibold">Loading groups...</p>
+          </div>
+        ) : groups.length === 0 ? (
+          <div className="text-center py-8 bg-orange-50 rounded-2xl border border-orange-100">
+            <svg className="w-12 h-12 mx-auto mb-3 text-orange-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <p className="font-bold text-gray-600">No groups created yet</p>
+            <p className="text-sm text-gray-500 mt-1">Create groups to organize your contacts</p>
+            <button
+              onClick={() => setShowAddGroup(true)}
+              className="mt-4 bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black text-sm px-6 py-2.5 rounded-xl shadow-[0_8px_20px_rgba(255,106,0,0.18)] active:scale-[0.98] transition-all inline-flex items-center gap-2"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Create First Group
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {groups.map(group => (
+              <div
+                key={group.id}
+                className="group relative bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 hover:border-[#FF6A00] rounded-2xl px-4 py-3 transition-all duration-300 hover:shadow-lg cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs shadow-md">
+                    {group.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-gray-800">{group.name}</p>
+                    <p className="text-[10px] font-bold text-gray-500">
+                      {group.contactCount || 0} {group.contactCount === 1 ? 'contact' : 'contacts'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Messages Component */}
+    <Messages
+      groups={groups}
+      onGroupsChange={fetchGroups}
+    />
+  </div>
+) : (
+         
         <div className="p-4 pb-12 max-w-7xl mx-auto">
           {activeTab === 'dashboard' && (
             <div className="space-y-5">
