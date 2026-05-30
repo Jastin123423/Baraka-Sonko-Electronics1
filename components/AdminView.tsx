@@ -101,6 +101,14 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [newGroupName, setNewGroupName] = useState('');
   const [groupLoading, setGroupLoading] = useState(false);
   const [groupError, setGroupError] = useState('');
+  
+  // Group edit/delete states
+  const [activeGroupMenu, setActiveGroupMenu] = useState<string | null>(null);
+  const [showEditGroup, setShowEditGroup] = useState(false);
+  const [showDeleteGroup, setShowDeleteGroup] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; contactCount: number } | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState<{ id: string; name: string; contactCount: number } | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
 
   const formatDateInput = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -240,6 +248,74 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
+  // Update group
+  const updateGroup = async () => {
+    if (!editGroupName.trim() || !editingGroup) {
+      setGroupError('Group name is required');
+      return;
+    }
+
+    try {
+      setGroupLoading(true);
+      setGroupError('');
+      
+      const response = await fetch(`/api/groups/${editingGroup.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editGroupName.trim() })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setGroups(prev => prev.map(g => 
+          g.id === editingGroup.id ? { ...g, name: editGroupName.trim() } : g
+        ));
+        setShowEditGroup(false);
+        setEditingGroup(null);
+        setEditGroupName('');
+        addDebugLog(`✅ Group updated: ${editGroupName}`);
+      } else {
+        setGroupError(data.error || 'Failed to update group');
+      }
+    } catch (error: any) {
+      console.error('Error updating group:', error);
+      setGroupError(error?.message || 'Failed to update group');
+    } finally {
+      setGroupLoading(false);
+    }
+  };
+
+  // Delete group
+  const deleteGroup = async () => {
+    if (!deletingGroup) return;
+
+    try {
+      setGroupLoading(true);
+      setGroupError('');
+      
+      const response = await fetch(`/api/groups/${deletingGroup.id}`, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setGroups(prev => prev.filter(g => g.id !== deletingGroup.id));
+        setShowDeleteGroup(false);
+        setDeletingGroup(null);
+        addDebugLog(`✅ Group deleted: ${deletingGroup.name}`);
+      } else {
+        setGroupError(data.error || 'Failed to delete group');
+      }
+    } catch (error: any) {
+      console.error('Error deleting group:', error);
+      setGroupError(error?.message || 'Failed to delete group');
+    } finally {
+      setGroupLoading(false);
+    }
+  };
+
   const fetchViewsAnalytics = async (from: string, to: string) => {
     try {
       setAnalyticsLoading(true);
@@ -318,6 +394,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   useEffect(() => {
     const handleClickOutside = () => {
       setActiveMenuId(null);
+      setActiveGroupMenu(null);
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
@@ -1024,21 +1101,64 @@ const AdminView: React.FC<AdminViewProps> = ({
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {groups.map(group => (
-                    <div
-                      key={group.id}
-                      className="group relative bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 hover:border-[#FF6A00] rounded-2xl px-4 py-3 transition-all duration-300 hover:shadow-lg cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs shadow-md">
-                          {group.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-gray-800">{group.name}</p>
-                          <p className="text-[10px] font-bold text-gray-500">
-                            {group.contactCount || 0} {group.contactCount === 1 ? 'contact' : 'contacts'}
-                          </p>
+                    <div key={group.id} className="relative">
+                      <div
+                        className="group relative bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 hover:border-[#FF6A00] rounded-2xl px-4 py-3 transition-all duration-300 hover:shadow-lg cursor-pointer"
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setActiveGroupMenu(activeGroupMenu === group.id ? null : group.id);
+                        }}
+                        onClick={() => {
+                          if (activeGroupMenu === group.id) {
+                            setActiveGroupMenu(null);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-[#FF6A00] flex items-center justify-center text-white font-black text-xs shadow-md">
+                            {group.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-gray-800">{group.name}</p>
+                            <p className="text-[10px] font-bold text-gray-500">
+                              {group.contactCount || 0} {group.contactCount === 1 ? 'contact' : 'contacts'}
+                            </p>
+                          </div>
                         </div>
                       </div>
+
+                      {/* Group Context Menu */}
+                      {activeGroupMenu === group.id && (
+                        <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-orange-100 py-2 z-50 overflow-hidden">
+                          <button
+                            onClick={() => {
+                              setEditingGroup(group);
+                              setEditGroupName(group.name);
+                              setShowEditGroup(true);
+                              setActiveGroupMenu(null);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-orange-50 flex items-center gap-3 transition-colors"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                            </svg>
+                            <span>Edit Group</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeletingGroup(group);
+                              setShowDeleteGroup(true);
+                              setActiveGroupMenu(null);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                            </svg>
+                            <span>Delete Group</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1712,6 +1832,181 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
+      {/* Edit Group Modal */}
+      {showEditGroup && editingGroup && (
+        <div className="fixed inset-0 bg-black/75 z-[120] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-orange-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black text-gray-800">Edit Group</h3>
+              <button
+                onClick={() => {
+                  setShowEditGroup(false);
+                  setEditingGroup(null);
+                  setEditGroupName('');
+                  setGroupError('');
+                }}
+                className="text-2xl text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                &times;
+              </button>
+            </div>
+            
+            {groupError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-2xl">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm font-bold text-red-700">{groupError}</p>
+                </div>
+              </div>
+            )}
+            
+            <div className="mb-4">
+              <label className="block text-[11px] font-black text-[#6B7280] uppercase mb-2 ml-1 tracking-[0.12em]">
+                Group Name *
+              </label>
+              <input
+                type="text"
+                value={editGroupName}
+                onChange={(e) => {
+                  setEditGroupName(e.target.value);
+                  setGroupError('');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && editGroupName.trim()) updateGroup();
+                }}
+                placeholder="Enter group name..."
+                className="w-full bg-white border border-[#E5E7EB] rounded-2xl px-4 py-4 text-base font-bold outline-none focus:border-[#FF6A00] focus:ring-4 focus:ring-orange-100 transition-all duration-200 shadow-sm"
+                autoFocus
+                disabled={groupLoading}
+                maxLength={100}
+              />
+              <p className="mt-1 text-[10px] font-bold text-gray-400 ml-1">
+                {editGroupName.length}/100 characters
+              </p>
+            </div>
+
+            <div className="bg-orange-50 rounded-2xl p-3 mb-4 border border-orange-100">
+              <div className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-[#FF6A00] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-xs font-bold text-gray-700">
+                  Renaming this group won't affect its {editingGroup.contactCount || 0} contacts.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowEditGroup(false);
+                  setEditingGroup(null);
+                  setEditGroupName('');
+                  setGroupError('');
+                }}
+                className="flex-1 bg-gray-100 text-gray-700 font-black py-3.5 rounded-2xl hover:bg-gray-200 transition-colors text-sm"
+                disabled={groupLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={updateGroup}
+                disabled={groupLoading || !editGroupName.trim()}
+                className="flex-1 bg-[linear-gradient(90deg,#FF6A00_0%,#FF8A2B_100%)] text-white font-black py-3.5 rounded-2xl shadow-[0_10px_24px_rgba(255,106,0,0.22)] hover:shadow-[0_14px_28px_rgba(255,106,0,0.28)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+              >
+                {groupLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Updating...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Update Group</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Group Modal */}
+      {showDeleteGroup && deletingGroup && (
+        <div className="fixed inset-0 bg-black/75 z-[120] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-orange-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black text-gray-800">Delete Group</h3>
+              <button
+                onClick={() => {
+                  setShowDeleteGroup(false);
+                  setDeletingGroup(null);
+                }}
+                className="text-2xl text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="mb-4 p-4 bg-red-50 rounded-2xl border border-red-200">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-red-800">Are you sure?</p>
+                  <p className="text-xs font-bold text-red-600 mt-1">
+                    This will permanently delete the group "{deletingGroup.name}" 
+                    {deletingGroup.contactCount > 0 && (
+                      <> and remove {deletingGroup.contactCount} contact{deletingGroup.contactCount === 1 ? '' : 's'} from this group</>
+                    )}.
+                    Contacts will not be deleted.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteGroup(false);
+                  setDeletingGroup(null);
+                }}
+                className="flex-1 bg-gray-100 text-gray-700 font-black py-3.5 rounded-2xl hover:bg-gray-200 transition-colors text-sm"
+                disabled={groupLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteGroup}
+                disabled={groupLoading}
+                className="flex-1 bg-red-600 text-white font-black py-3.5 rounded-2xl shadow-[0_10px_24px_rgba(220,38,38,0.22)] hover:shadow-[0_14px_28px_rgba(220,38,38,0.28)] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+              >
+                {groupLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                    </svg>
+                    <span>Delete Group</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAdding && (
         <div className="fixed inset-0 bg-black/75 z-[110] flex flex-col">
           <div className="bg-[linear-gradient(180deg,#FFF9F5_0%,#FFFFFF_35%,#FFF8F2_100%)] w-full h-full p-4 md:p-6 overflow-y-auto">
@@ -1776,7 +2071,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                   Please wait for uploads to complete before publishing
                 </p>
               </div>
-                      )}
+            )}
 
             {(formData.images.length > 0 ||
               formData.videoUrl ||
@@ -2442,4 +2737,4 @@ Package includes:
   );
 };
 
-export default AdminView;  
+export default AdminView;
