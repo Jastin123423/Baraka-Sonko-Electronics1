@@ -70,10 +70,98 @@
       95% { opacity: 0.3; transform: scaleY(0.1); }
     }
 
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
     .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
     .animate-slideUp { animation: slideUp 0.3s ease-out forwards; }
     .animate-scaleIn { animation: scaleIn 0.2s ease-out forwards; transform-origin: left; }
     .animate-blink { animation: blink 3s infinite; }
+
+    /* Update Modal Styles */
+    #update-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 99999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: modalFadeIn 0.3s ease-out;
+    }
+
+    #update-modal.show {
+      display: flex;
+    }
+
+    #update-modal .modal-card {
+      background: white;
+      border-radius: 24px;
+      max-width: 400px;
+      width: 100%;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #update-modal .modal-header {
+      background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+      padding: 32px 24px 24px;
+      text-align: center;
+      color: white;
+    }
+
+    #update-modal .modal-body {
+      padding: 24px;
+      text-align: center;
+    }
+
+    #update-modal .btn-update {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 12px;
+    }
+
+    #update-modal .btn-update:active {
+      transform: scale(0.98);
+      opacity: 0.9;
+    }
+
+    #update-modal .btn-ignore {
+      width: 100%;
+      padding: 14px;
+      background: transparent;
+      color: #6b7280;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #update-modal .btn-ignore:active {
+      background: #f9fafb;
+      border-color: #d1d5db;
+    }
   </style>
 </head>
 
@@ -81,6 +169,118 @@
 
   <!-- React Root -->
   <div id="root"></div>
+
+  <!-- Update Modal -->
+  <div id="update-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="font-size: 48px; margin-bottom: 8px;">✨</div>
+        <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 4px;">Toleo Jipya Linapatikana!</h2>
+        <p style="font-size: 14px; opacity: 0.9;">Pata maboresho mapya na urekebishaji</p>
+      </div>
+      <div class="modal-body">
+        <p style="color: #4b5563; margin-bottom: 24px; font-size: 15px; line-height: 1.6;">
+          Tumetoa toleo jipya la App yetu. Update sasa au ignore kama tayari.
+        </p>
+        <button class="btn-update" onclick="handleUpdate()">
+          📱 Update Sasa
+        </button>
+        <button class="btn-ignore" onclick="handleIgnore()">
+          Tayari Nimesha Update
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Update Prompt Script -->
+  <script>
+    (function() {
+      const UPDATE_LINK = 'https://play.google.com/store/apps/details?id=co.median.android.zebeen';
+      const STORAGE_KEY = 'sonko_sound_update_prompt';
+      const PROMPT_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+      
+      const modal = document.getElementById('update-modal');
+      
+      function shouldShowPrompt() {
+        try {
+          const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          
+          if (!data) return true;
+          
+          // If user clicked update, show again after 12 hours
+          if (data.action === 'update') {
+            const timeSinceLastPrompt = Date.now() - data.timestamp;
+            return timeSinceLastPrompt >= PROMPT_INTERVAL;
+          }
+          
+          // If user clicked ignore, show again after 12 hours
+          if (data.action === 'ignore') {
+            const timeSinceLastIgnore = Date.now() - data.timestamp;
+            return timeSinceLastIgnore >= PROMPT_INTERVAL;
+          }
+          
+          return true;
+        } catch (e) {
+          return true;
+        }
+      }
+      
+      function savePromptState(action) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            action: action,
+            timestamp: Date.now()
+          }));
+        } catch (e) {
+          // Silently fail if localStorage is not available
+        }
+      }
+      
+      function showModal() {
+        if (modal) {
+          modal.classList.add('show');
+          document.body.style.overflow = 'hidden';
+        }
+      }
+      
+      function hideModal() {
+        if (modal) {
+          modal.classList.remove('show');
+          document.body.style.overflow = '';
+        }
+      }
+      
+      window.handleUpdate = function() {
+        savePromptState('update');
+        hideModal();
+        window.open(UPDATE_LINK, '_blank');
+      };
+      
+      window.handleIgnore = function() {
+        savePromptState('ignore');
+        hideModal();
+      };
+      
+      // Close modal when clicking outside
+      if (modal) {
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) {
+            hideModal();
+          }
+        });
+      }
+      
+      // Check if we should show the prompt
+      if (shouldShowPrompt()) {
+        // Small delay to ensure DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', showModal);
+        } else {
+          showModal();
+        }
+      }
+    })();
+  </script>
 
   <!-- Vite Entry -->
   <script type="module" src="/index.tsx"></script>
