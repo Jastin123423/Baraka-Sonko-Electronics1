@@ -5,7 +5,7 @@ type Env = {
   R2_MEDIA: R2Bucket; // bind to bucket "sonko"
 };
 
-const PUBLIC_MEDIA_BASE = 'https://media.barakasonko.store';
+const PUBLIC_MEDIA_BASE = 'https://media.sonkosound.store';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
