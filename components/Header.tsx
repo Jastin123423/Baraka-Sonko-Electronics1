@@ -113,7 +113,7 @@ const Header: React.FC<HeaderProps> = ({
         setIsLoading(true);
 
         const response = await fetch(
-          `https://barakasonko.store/api/products?search=${encodeURIComponent(trimmedQuery)}`,
+          `https://sonkosound.store/api/products?search=${encodeURIComponent(trimmedQuery)}`,
           { signal: abortControllerRef.current.signal }
         );
 
@@ -208,7 +208,7 @@ const Header: React.FC<HeaderProps> = ({
       if (onBarakasonkoClick) {
         onBarakasonkoClick();
       } else {
-        window.location.href = 'https://barakasonko.store';
+        window.location.href = 'https://sonkosound.store';
       }
     } else if (tabId === 'sonko') {
       if (onSonkoClick) {
