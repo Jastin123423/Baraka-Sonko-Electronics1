@@ -21,7 +21,7 @@ export const onRequestOptions: PagesFunction = async () =>
 
 // ✅ DEFAULT PRODUCT VIDEO
 const DEFAULT_VIDEO_URL =
-  'https://media.barakasonko.store/uploads/Facebook_1770123707890(720p).mp4';
+  'https://media.sonkosound.store/uploads/Facebook_1770123707890(720p).mp4';
 
 const safeJsonParseArray = (v: any): string[] => {
   if (!v) return [];
