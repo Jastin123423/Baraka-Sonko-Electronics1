@@ -86,7 +86,7 @@ const LargeWatermarkedImage: React.FC<{
   priority?: boolean;
   showWatermark?: boolean;
 }> = ({ src, alt = '', containerClass = '', productId = '', priority = false, showWatermark = true }) => {
-  const logoUrl = 'https://media.barakasonko.store/Screenshot_2026-03-18_221011-removebg-preview.png';
+  const logoUrl = 'https://media.sonkosound.store/Screenshot_2026-03-18_221011-removebg-preview.png';
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
