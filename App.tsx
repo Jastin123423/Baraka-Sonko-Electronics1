@@ -23,7 +23,7 @@ const CACHE_MAX_AGE = 1000 * 60 * 60 * 24 * 365;
 
 // ============ APP PROMOTION CONSTANTS ============
 const PLAYSTORE_URL = 'https://play.google.com/store/apps/details?id=co.median.android.zebeen';
-const APP_PROMPT_DISMISSED_KEY = 'barakasonko_open_app_prompt_dismissed_until';
+const APP_PROMPT_DISMISSED_KEY = 'sonkosound_open_app_prompt_dismissed_until';
 
 const isAndroidDevice = () => {
   return typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
@@ -44,7 +44,7 @@ const isInsideNativeApp = () => {
     params.get('fromApp') === '1' ||
     localStorage.getItem('fromApp') === '1' ||
     document.referrer.startsWith('android-app://') ||
-    /barakasonkoapp|zebeenapp|wv/i.test(navigator.userAgent)
+    /sonkosoundapp|zebeenapp|wv/i.test(navigator.userAgent)
   );
 };
 
@@ -690,9 +690,9 @@ const AppContent: React.FC = () => {
   const currentHost =
     typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
 
-  const isOnSonkoSubdomain = currentHost === 'sonkosound.barakasonko.store';
+  const isOnSonkoSubdomain = currentHost === 'sonkosound.sonkosound.store';
   const isOnMainDomain =
-    currentHost === 'barakasonko.store' || currentHost === 'www.barakasonko.store';
+    currentHost === 'sonkosound.store' || currentHost === 'www.sonkosound.store';
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -1093,7 +1093,7 @@ const AppContent: React.FC = () => {
 
       if (categoryFlag === 0) {
         if (isOnSonkoSubdomain) {
-          window.location.href = 'https://barakasonko.store/all-products';
+          window.location.href = 'https://sonkosound.store/all-products';
           return;
         }
         navigate('/all-products');
@@ -1116,7 +1116,7 @@ const AppContent: React.FC = () => {
 
     if (categoryFlag === 0) {
       if (isOnSonkoSubdomain) {
-        window.location.href = `https://barakasonko.store/category/${category.id}`;
+        window.location.href = `https://sonkosound.store/category/${category.id}`;
         return;
       }
       navigate(`/category/${category.id}`);
@@ -1181,8 +1181,8 @@ const AppContent: React.FC = () => {
   const handleAddComment = async (productId: string, content: string) => {
     try {
       const isLoggedIn = !!user;
-      const displayName = isLoggedIn ? 'Baraka Sonko Electronics' : 'Mteja';
-      const initials = isLoggedIn ? 'BS' : 'MT';
+      const displayName = isLoggedIn ? 'Sonko Sound' : 'Mteja';
+      const initials = isLoggedIn ? 'SS' : 'MT';
       const anon = generateAnonymousUser();
       const userId = isLoggedIn ? String(user?.id || 'admin') : anon.id;
 
@@ -1279,7 +1279,7 @@ const AppContent: React.FC = () => {
 
     if (appFlag === 0) {
       if (isOnSonkoSubdomain) {
-        window.location.href = `https://barakasonko.store/product/${productId}`;
+        window.location.href = `https://sonkosound.store/product/${productId}`;
         return;
       }
 
@@ -1486,7 +1486,7 @@ const AppContent: React.FC = () => {
     window.location.reload();
   };
 
-  const handleBarakasonkoClick = () => {
+  const handleSonkoSoundClick = () => {
     setSelectedProduct(null);
     setSelectedCategory(null);
     setSearchQuery('');
@@ -1494,7 +1494,7 @@ const AppContent: React.FC = () => {
     setRouteReady(true);
 
     if (isOnSonkoSubdomain) {
-      window.location.href = 'https://barakasonko.store';
+      window.location.href = 'https://sonkosound.store';
       return;
     }
 
@@ -1634,7 +1634,7 @@ const AppContent: React.FC = () => {
   if (fetchError) {
     return (
       <div className="fixed inset-0 bg-white flex flex-col items-center justify-center space-y-4 p-8">
-        <div className="text-3xl font-black italic text-orange-600">SONKO</div>
+        <div className="text-3xl font-black italic text-orange-600">SONKO SOUND</div>
         <div className="bg-red-50 border border-red-200 rounded-2xl p-6 max-w-md">
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
@@ -1697,7 +1697,7 @@ const AppContent: React.FC = () => {
           onSearch={handleSearch}
           initialValue={searchQuery}
           onProductSelect={handleProductClick}
-          onBarakasonkoClick={handleBarakasonkoClick}
+          onBarakasonkoClick={handleSonkoSoundClick}
           onSonkoClick={handleSonkoClick}
         />
       )}
@@ -1863,9 +1863,9 @@ const AppContent: React.FC = () => {
             <div className="flex items-start justify-between px-4 py-4">
               <div className="pr-3">
                 <p className="text-[11px] font-black uppercase tracking-wide text-orange-600 mb-1">
-                  Baraka Sonko App
+                  Sonko Sound App
                 </p>
-                <h3 className="text-base font-bold text-gray-900">Endelea kwenye Baraka Sonko App</h3>
+                <h3 className="text-base font-bold text-gray-900">Endelea kwenye Sonko Sound App</h3>
                 <p className="text-sm text-gray-500 mt-1">
                   Fungua app upate matumizi rahisi zaidi ya mfumo wetu
                 </p>
