@@ -32,12 +32,12 @@ export default defineConfig(({ mode }) => {
 
           icons: [
             {
-              src: 'https://media.barakasonko.store/sonko_sound_192x192.png',
+              src: 'https://media.sonkosound.store/sonko_sound_192x192.png',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: 'https://media.barakasonko.store/sonko_sound_512x512.png',
+              src: 'https://media.sonkosound.store/sonko_sound_512x512.png',
               sizes: '512x512',
               type: 'image/png'
             }
