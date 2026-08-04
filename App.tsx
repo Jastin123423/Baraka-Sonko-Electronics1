@@ -178,7 +178,7 @@ const WatermarkedImage: React.FC<{
   productId = '',
   isProduct = true
 }) => {
-  const logoUrl = "https://media.barakasonko.store/Screenshot_2026-03-18_221011-removebg-preview.png";
+  const logoUrl = "https://media.sonkosound.store/Screenshot_2026-03-18_221011-removebg-preview.png";
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
