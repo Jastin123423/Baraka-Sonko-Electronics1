@@ -15,4 +15,4 @@ bucket_name = "sonko"
 
 # Environment variables
 [vars]
-PUBLIC_MEDIA_BASE = "https://media.barakasonko.store"
+PUBLIC_MEDIA_BASE = "https://media.sonkosound.store"
