@@ -1082,6 +1082,17 @@ const AppContent: React.FC = () => {
 
   // ============ SPARES PRODUCTS (NEW) ============
   const sparesProducts = useMemo(() => {
+    // Resolve the Spares category id(s) once from loaded categories
+    const sparesCategoryIds = new Set<string>();
+    categories.forEach(c => {
+      const n = c.name.toLowerCase().trim();
+      if (n.includes('spare') || n.includes('vipuri') || n === 'parts') {
+        sparesCategoryIds.add(String(c.id));
+      }
+    });
+
+    const SPARES_NAMES = new Set(['spares', 'spare', 'spare parts', 'vipuri', 'parts']);
+
     return products.filter((p: any) => {
       const catName = String(
         p.categoryName || p.category_name || p.category || ''
@@ -1091,18 +1102,8 @@ const AppContent: React.FC = () => {
         p.categoryId || p.category_id || ''
       ).trim();
 
-      // Match by category name (exact "spares" or "spare parts")
-      if (catName === 'spares' || catName === 'spare' || catName === 'spare parts' || catName === 'vipuri') {
-        return true;
-      }
-
-      // Match by category ID if a "Spares" category exists in loaded categories
-      const sparesCategory = categories.find(c =>
-        c.name.toLowerCase().includes('spare') || c.name.toLowerCase().includes('vipuri')
-      );
-      if (sparesCategory && catId && String(sparesCategory.id) === catId) {
-        return true;
-      }
+      if (SPARES_NAMES.has(catName)) return true;
+      if (catId && sparesCategoryIds.has(catId)) return true;
 
       return false;
     });
@@ -1587,6 +1588,7 @@ const AppContent: React.FC = () => {
       return;
     }
 
+    // Must come before /categories (startsWith checks)
     if (normalizedPath.startsWith('/spares')) {
       setSelectedProduct(null);
       setSelectedCategory(null);
@@ -1790,15 +1792,29 @@ const AppContent: React.FC = () => {
             />
           </>
         ) : view === 'spares' ? (                          /* ← NEW */
-          <div className="animate-fadeIn p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <span className="text-2xl">⚙️</span>
+          <div className="animate-fadeIn">
+            {/* Header bar with back button */}
+            <div className="bg-white px-4 py-4 flex items-center sticky top-[68px] z-30 shadow-sm border-b border-gray-100">
+              <button
+                onClick={() => {
+                  setView('home');
+                  setRouteReady(true);
+                  goToScopedPath('/');
+                }}
+                className="mr-3 p-1 text-gray-800"
+                aria-label="Back to home"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <div className="flex items-center gap-2 flex-grow">
+                <span className="text-xl">⚙️</span>
                 <div>
-                  <h2 className="text-sm font-bold text-gray-500 uppercase">
+                  <h2 className="text-lg font-black text-gray-800 uppercase leading-none">
                     Spares
                   </h2>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-[11px] text-gray-400 mt-1 font-semibold">
                     {sparesProducts.length} {sparesProducts.length === 1 ? 'product' : 'products'}
                   </p>
                 </div>
@@ -1810,16 +1826,18 @@ const AppContent: React.FC = () => {
                   goToScopedPath('/all-products');
                 }}
               >
-                View All Products
+                View All
               </button>
             </div>
 
-            <ProductGrid
-              products={sparesProducts}
-              onProductClick={handleProductClick}
-              WatermarkedImage={WatermarkedImage}
-              emptyMessage="No spare parts available at the moment"
-            />
+            <div className="p-4">
+              <ProductGrid
+                products={sparesProducts}
+                onProductClick={handleProductClick}
+                WatermarkedImage={WatermarkedImage}
+                emptyMessage="No spare parts available at the moment"
+              />
+            </div>
           </div>
         ) : view === 'all-products' ? (
           <AllProductsView
