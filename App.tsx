@@ -135,7 +135,7 @@ const getInitialViewFromPath = (pathname: string) => {
   if (normalizedPath.startsWith('/category/')) return 'category-results';
   if (normalizedPath === '/categories') return 'categories';
   if (normalizedPath === '/all-products') return 'all-products';
-  if (normalizedPath === '/spares') return 'spares';          // ← NEW
+  if (normalizedPath === '/spares') return 'spares';
   if (normalizedPath === '/admin') return 'admin';
   return 'home';
 };
@@ -159,7 +159,7 @@ const getDefaultCategoryIcon = (categoryName: string): string => {
   if (name.includes('all') || name.includes('zote')) return '🛒';
   if (name.includes('electronics') || name.includes('umeme')) return '🔌';
   if (name.includes('accessories') || name.includes('vifaa')) return '🛍️';
-  if (name.includes('spare') || name.includes('parts') || name.includes('vipuri')) return '⚙️'; // ← NEW
+  if (name.includes('spare') || name.includes('parts') || name.includes('vipuri')) return '⚙️';
 
   return '🛒';
 };
@@ -706,7 +706,7 @@ const AppContent: React.FC = () => {
     | 'categories'
     | 'search-results'
     | 'all-products'
-    | 'spares'                                    // ← NEW
+    | 'spares'
   >(() => getInitialViewFromPath(window.location.pathname) as any);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -1080,9 +1080,8 @@ const AppContent: React.FC = () => {
     return categories.filter((c) => c.name.toLowerCase().includes(q));
   }, [searchQuery, categories]);
 
-  // ============ SPARES PRODUCTS (NEW) ============
+  // ============ SPARES PRODUCTS (fallback filter) ============
   const sparesProducts = useMemo(() => {
-    // Resolve the Spares category id(s) once from loaded categories
     const sparesCategoryIds = new Set<string>();
     categories.forEach(c => {
       const n = c.name.toLowerCase().trim();
@@ -1115,7 +1114,7 @@ const AppContent: React.FC = () => {
     goToScopedPath('/');
   };
 
-  const handleCategorySelect = (category: Category) => {
+  const handleCategorySelect = useCallback((category: Category) => {
     setIsSidebarOpen(false);
 
     const categoryFlag = Number((category as any).appFlag ?? (category as any).app_flag ?? 1);
@@ -1161,18 +1160,40 @@ const AppContent: React.FC = () => {
     }
 
     window.scrollTo(0, 0);
-  };
+  }, [categoryProductMap, navigate, isOnSonkoSubdomain, isOnMainDomain]);
 
-  // ============ SPARES CLICK HANDLER (NEW) ============
+  // ============ SPARES CLICK HANDLER — opens the real Spares category ============
   const handleSparesClick = useCallback(() => {
     setIsSidebarOpen(false);
     setSelectedProduct(null);
+    window.scrollTo(0, 0);
+
+    // 1) Find the real Spares category from the backend
+    const sparesCategory = categories.find((c) => {
+      const n = c.name.toLowerCase().trim();
+      return (
+        n === 'spares' ||
+        n === 'spare' ||
+        n === 'spare parts' ||
+        n === 'vipuri' ||
+        n === 'parts' ||
+        n.includes('spare') ||
+        n.includes('vipuri')
+      );
+    });
+
+    // 2) If found → open it exactly like clicking the category in the sidebar
+    if (sparesCategory) {
+      handleCategorySelect(sparesCategory);
+      return;
+    }
+
+    // 3) Fallback → filtered /spares view
     setSelectedCategory(null);
     setView('spares');
     setRouteReady(true);
     goToScopedPath('/spares');
-    window.scrollTo(0, 0);
-  }, [goToScopedPath]);
+  }, [categories, handleCategorySelect, goToScopedPath]);
 
   const generateAnonymousUser = () => {
     const userId = getOrCreateUserId();
@@ -1563,7 +1584,6 @@ const AppContent: React.FC = () => {
   };
 
   const handleDismissOpenAppPrompt = () => {
-    // hide for 24 hours after close
     const oneDayLater = Date.now() + 24 * 60 * 60 * 1000;
     localStorage.setItem(APP_PROMPT_DISMISSED_KEY, String(oneDayLater));
     setShowOpenAppPrompt(false);
@@ -1743,7 +1763,7 @@ const AppContent: React.FC = () => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onCategorySelect={handleCategorySelect}
-        onSparesClick={handleSparesClick}      // ← NEW
+        onSparesClick={handleSparesClick}
       />
 
       {view !== 'product-detail' && (
@@ -1754,6 +1774,7 @@ const AppContent: React.FC = () => {
           onProductSelect={handleProductClick}
           onBarakasonkoClick={handleSonkoSoundClick}
           onSonkoClick={handleSonkoClick}
+          onSparesClick={handleSparesClick}       // ← NEW
         />
       )}
 
@@ -1791,9 +1812,8 @@ const AppContent: React.FC = () => {
               WatermarkedImage={WatermarkedImage}
             />
           </>
-        ) : view === 'spares' ? (                          /* ← NEW */
+        ) : view === 'spares' ? (
           <div className="animate-fadeIn">
-            {/* Header bar with back button */}
             <div className="bg-white px-4 py-4 flex items-center sticky top-[68px] z-30 shadow-sm border-b border-gray-100">
               <button
                 onClick={() => {
@@ -1959,7 +1979,6 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      {/* ============ APP PROMOTION POPUP ============ */}
       {showOpenAppPrompt && openAppPromptReady && (
         <div className="fixed inset-x-0 bottom-16 z-[60] px-4">
           <div className="w-full max-w-[560px] mx-auto rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
@@ -2004,22 +2023,20 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Main routes */}
         <Route path="/" element={<AppContent />} />
         <Route path="/product/:productId" element={<AppContent />} />
         <Route path="/category/:categoryId" element={<AppContent />} />
         <Route path="/categories" element={<AppContent />} />
         <Route path="/all-products" element={<AppContent />} />
-        <Route path="/spares" element={<AppContent />} />           {/* ← NEW */}
+        <Route path="/spares" element={<AppContent />} />
         <Route path="/admin" element={<AppContent />} />
 
-        {/* Sonko Sound routes under main domain */}
         <Route path="/sonkosound" element={<AppContent />} />
         <Route path="/sonkosound/product/:productId" element={<AppContent />} />
         <Route path="/sonkosound/category/:categoryId" element={<AppContent />} />
         <Route path="/sonkosound/categories" element={<AppContent />} />
         <Route path="/sonkosound/all-products" element={<AppContent />} />
-        <Route path="/sonkosound/spares" element={<AppContent />} /> {/* ← NEW */}
+        <Route path="/sonkosound/spares" element={<AppContent />} />
         <Route path="/sonkosound/admin" element={<AppContent />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
