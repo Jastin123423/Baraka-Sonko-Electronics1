@@ -9,6 +9,7 @@ interface HeaderProps {
   onProductSelect?: (product: Product) => void;
   onBarakasonkoClick?: () => void;
   onSonkoClick?: () => void;
+  onSparesClick?: () => void;        // ← NEW
 }
 
 interface SearchSuggestion {
@@ -31,7 +32,8 @@ const Header: React.FC<HeaderProps> = ({
   initialValue = '',
   onProductSelect,
   onBarakasonkoClick,
-  onSonkoClick
+  onSonkoClick,
+  onSparesClick
 }) => {
   const [query, setQuery] = useState(initialValue);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
@@ -39,7 +41,7 @@ const Header: React.FC<HeaderProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const [activeTopTab, setActiveTopTab] = useState<'ai' | 'products' | 'manufacturers'>('products');
-  const [activeInsideTab, setActiveInsideTab] = useState<'sonko' | 'baraka'>('sonko');
+  const [activeInsideTab, setActiveInsideTab] = useState<'sonko' | 'spares'>('sonko');   // ← changed
 
   const searchRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -185,6 +187,7 @@ const Header: React.FC<HeaderProps> = ({
     { id: 'manufacturers', label: 'Manufacturers' },
   ] as const;
 
+  // ============ INSIDE TABS: Sonko Sound + Spares (Baraka Sonko removed) ============
   const insideTabs = [
     {
       id: 'sonko',
@@ -193,29 +196,25 @@ const Header: React.FC<HeaderProps> = ({
       type: 'sonko',
     },
     {
-      id: 'baraka',
-      label: 'Baraka Sonko',
-      badge: 'Store & Deals',
-      type: 'baraka',
+      id: 'spares',
+      label: 'Spares',
+      badge: 'Parts & Accessories',
+      type: 'spares',
     },
   ] as const;
 
-  const handleInsideTabClick = (tabId: 'sonko' | 'baraka') => {
+  const handleInsideTabClick = (tabId: 'sonko' | 'spares') => {
     setActiveInsideTab(tabId);
 
-    if (tabId === 'baraka') {
-      // Navigate to Baraka Sonko store
-      if (onBarakasonkoClick) {
-        onBarakasonkoClick();
-      } else {
-        window.location.href = 'https://sonkosound.store';
-      }
-    } else if (tabId === 'sonko') {
+    if (tabId === 'sonko') {
       if (onSonkoClick) {
         onSonkoClick();
       } else {
-        // Navigate to Sonko Sound page (stay on current site but could also be external)
         window.location.href = 'https://sonkosound.barakasonko.store';
+      }
+    } else if (tabId === 'spares') {
+      if (onSparesClick) {
+        onSparesClick();
       }
     }
   };
@@ -259,6 +258,11 @@ const Header: React.FC<HeaderProps> = ({
           }
         }
 
+        @keyframes gearSpinSlow {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
         .animate-sound-pulse {
           animation: soundPulse 1.6s ease-in-out infinite;
         }
@@ -269,6 +273,11 @@ const Header: React.FC<HeaderProps> = ({
 
         .animate-mini-icon {
           animation: miniFloat 2.6s ease-in-out infinite, miniGlow 2.6s ease-in-out infinite;
+          transform-origin: center;
+        }
+
+        .animate-gear-slow {
+          animation: gearSpinSlow 8s linear infinite;
           transform-origin: center;
         }
 
@@ -485,7 +494,7 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Ndani ya Sonko Sound / Ndani ya Baraka Sonko row - redesigned as buttons */}
+      {/* Inside tabs row: Sonko Sound + Spares */}
       <div className="bg-[#fffaf5] border-b border-orange-100 px-3 py-3">
         <div className="flex items-center gap-2 justify-center">
           {insideTabs.map((tab) => {
@@ -516,11 +525,26 @@ const Header: React.FC<HeaderProps> = ({
                       </div>
                     </div>
                   ) : (
+                    /* ============ SPARES ICON (wrench + gear) ============ */
                     <div className="relative w-8 h-8 rounded-xl bg-gradient-to-br from-orange-100 via-white to-orange-50 flex items-center justify-center overflow-hidden">
-                      <div className="relative z-10 animate-mini-icon">
-                        <span className="text-orange-600 font-black text-[20px] leading-none select-none">
-                          B
-                        </span>
+                      <div className="relative z-10 flex items-center justify-center">
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#ea580c"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="animate-mini-icon"
+                        >
+                          {/* Wrench */}
+                          <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.1-2.1 2.7-2.5z" />
+                          {/* Gear */}
+                          <circle cx="18.5" cy="5.5" r="2.5" className="animate-gear-slow" />
+                          <path d="M18.5 2v1.5M18.5 7.5V9M21.5 5.5H20M17 5.5h-1.5" />
+                        </svg>
                       </div>
                     </div>
                   )}
