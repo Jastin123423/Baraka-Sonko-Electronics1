@@ -135,6 +135,7 @@ const getInitialViewFromPath = (pathname: string) => {
   if (normalizedPath.startsWith('/category/')) return 'category-results';
   if (normalizedPath === '/categories') return 'categories';
   if (normalizedPath === '/all-products') return 'all-products';
+  if (normalizedPath === '/spares') return 'spares';          // ← NEW
   if (normalizedPath === '/admin') return 'admin';
   return 'home';
 };
@@ -158,6 +159,7 @@ const getDefaultCategoryIcon = (categoryName: string): string => {
   if (name.includes('all') || name.includes('zote')) return '🛒';
   if (name.includes('electronics') || name.includes('umeme')) return '🔌';
   if (name.includes('accessories') || name.includes('vifaa')) return '🛍️';
+  if (name.includes('spare') || name.includes('parts') || name.includes('vipuri')) return '⚙️'; // ← NEW
 
   return '🛒';
 };
@@ -704,6 +706,7 @@ const AppContent: React.FC = () => {
     | 'categories'
     | 'search-results'
     | 'all-products'
+    | 'spares'                                    // ← NEW
   >(() => getInitialViewFromPath(window.location.pathname) as any);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -1077,6 +1080,34 @@ const AppContent: React.FC = () => {
     return categories.filter((c) => c.name.toLowerCase().includes(q));
   }, [searchQuery, categories]);
 
+  // ============ SPARES PRODUCTS (NEW) ============
+  const sparesProducts = useMemo(() => {
+    return products.filter((p: any) => {
+      const catName = String(
+        p.categoryName || p.category_name || p.category || ''
+      ).trim().toLowerCase();
+
+      const catId = String(
+        p.categoryId || p.category_id || ''
+      ).trim();
+
+      // Match by category name (exact "spares" or "spare parts")
+      if (catName === 'spares' || catName === 'spare' || catName === 'spare parts' || catName === 'vipuri') {
+        return true;
+      }
+
+      // Match by category ID if a "Spares" category exists in loaded categories
+      const sparesCategory = categories.find(c =>
+        c.name.toLowerCase().includes('spare') || c.name.toLowerCase().includes('vipuri')
+      );
+      if (sparesCategory && catId && String(sparesCategory.id) === catId) {
+        return true;
+      }
+
+      return false;
+    });
+  }, [products, categories]);
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setView('search-results');
@@ -1130,6 +1161,17 @@ const AppContent: React.FC = () => {
 
     window.scrollTo(0, 0);
   };
+
+  // ============ SPARES CLICK HANDLER (NEW) ============
+  const handleSparesClick = useCallback(() => {
+    setIsSidebarOpen(false);
+    setSelectedProduct(null);
+    setSelectedCategory(null);
+    setView('spares');
+    setRouteReady(true);
+    goToScopedPath('/spares');
+    window.scrollTo(0, 0);
+  }, [goToScopedPath]);
 
   const generateAnonymousUser = () => {
     const userId = getOrCreateUserId();
@@ -1545,6 +1587,14 @@ const AppContent: React.FC = () => {
       return;
     }
 
+    if (normalizedPath.startsWith('/spares')) {
+      setSelectedProduct(null);
+      setSelectedCategory(null);
+      setView('spares');
+      setRouteReady(true);
+      return;
+    }
+
     if (normalizedPath.startsWith('/categories')) {
       setSelectedProduct(null);
       setView('categories');
@@ -1629,7 +1679,9 @@ const AppContent: React.FC = () => {
             ? 'search-results'
             : view === 'category-results'
               ? 'categories'
-              : 'home';
+              : view === 'spares'
+                ? 'categories'
+                : 'home';
 
   if (fetchError) {
     return (
@@ -1689,6 +1741,7 @@ const AppContent: React.FC = () => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onCategorySelect={handleCategorySelect}
+        onSparesClick={handleSparesClick}      // ← NEW
       />
 
       {view !== 'product-detail' && (
@@ -1736,6 +1789,38 @@ const AppContent: React.FC = () => {
               WatermarkedImage={WatermarkedImage}
             />
           </>
+        ) : view === 'spares' ? (                          /* ← NEW */
+          <div className="animate-fadeIn p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">⚙️</span>
+                <div>
+                  <h2 className="text-sm font-bold text-gray-500 uppercase">
+                    Spares
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {sparesProducts.length} {sparesProducts.length === 1 ? 'product' : 'products'}
+                  </p>
+                </div>
+              </div>
+              <button
+                className="text-xs font-black text-orange-600"
+                onClick={() => {
+                  setView('all-products');
+                  goToScopedPath('/all-products');
+                }}
+              >
+                View All Products
+              </button>
+            </div>
+
+            <ProductGrid
+              products={sparesProducts}
+              onProductClick={handleProductClick}
+              WatermarkedImage={WatermarkedImage}
+              emptyMessage="No spare parts available at the moment"
+            />
+          </div>
         ) : view === 'all-products' ? (
           <AllProductsView
             products={products}
@@ -1907,6 +1992,7 @@ const App: React.FC = () => {
         <Route path="/category/:categoryId" element={<AppContent />} />
         <Route path="/categories" element={<AppContent />} />
         <Route path="/all-products" element={<AppContent />} />
+        <Route path="/spares" element={<AppContent />} />           {/* ← NEW */}
         <Route path="/admin" element={<AppContent />} />
 
         {/* Sonko Sound routes under main domain */}
@@ -1915,6 +2001,7 @@ const App: React.FC = () => {
         <Route path="/sonkosound/category/:categoryId" element={<AppContent />} />
         <Route path="/sonkosound/categories" element={<AppContent />} />
         <Route path="/sonkosound/all-products" element={<AppContent />} />
+        <Route path="/sonkosound/spares" element={<AppContent />} /> {/* ← NEW */}
         <Route path="/sonkosound/admin" element={<AppContent />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
